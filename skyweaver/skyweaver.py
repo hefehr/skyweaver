@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import h5py
 import numpy as np
+import textwrap
 
 from typing import Self, Any
 from collections.abc import Iterable
@@ -236,6 +237,43 @@ class ObservationMetadata:
     # Time series of "suspect" flags indicating data validity
     # True values imply invalid data
     suspect_flags: np.ndarray[bool]
+
+    def __str__(self) -> str:
+        key_padding = 20
+        def keyval_format(key, value):
+            lines = textwrap.wrap(str(value))
+            if not lines:
+                lines = ["-"]
+            output = []
+            first = True
+            for line in lines:
+                if first:
+                    output.append(f"{key+':':<{key_padding}}{line}")
+                    first = False
+                else:
+                    output.append(f"{'':<{key_padding}}{line}")
+            return "\n".join(output)
+        windows = self.find_observing_windows()
+        windows_formatted = []
+        for ii,(start, end, target, _) in enumerate(windows):
+            windows_formatted.append(
+                f"#{ii:<4}{target.name:<20}{start} until {end}"
+            ) 
+        output = (
+            f"{'Array configuration':-^50}",
+            keyval_format("Nantennas", len(self.antenna_positions)),
+            keyval_format("Subarray", ",".join(sorted(self.antenna_positions.keys()))),
+            keyval_format("Centre frequency", self.centre_frequency),
+            keyval_format("Bandwidth", self.bandwidth),
+            keyval_format("Nchannels", self.nchannels),
+            keyval_format("Sync epoch (UNIX)", self.sync_epoch),
+            keyval_format("Project ID", self.project_id),
+            keyval_format("Schedule block ID", self.sb_id),
+            keyval_format("CBF version", self.cbf_version),
+            f"{'Observations':-^50}",
+            "\n".join(windows_formatted)
+        )   
+        return "\n".join(output)
 
     @classmethod
     def from_file(cls, fname) -> Self:

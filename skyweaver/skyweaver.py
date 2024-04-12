@@ -1,16 +1,16 @@
 from __future__ import annotations
 
+# stdlib imports
 import logging
+import textwrap
+import ctypes
+from typing import Self, Any
+from dataclasses import dataclass
+
+# 3rd party imports
 import h5py
 import yaml
 import numpy as np
-import textwrap
-import ctypes
-
-from typing import Self, Any, BinaryIO
-from collections.abc import Iterable
-from dataclasses import dataclass
-
 from rich.progress import track
 from astropy.time import Time, TimeDelta
 from astropy import units as u
@@ -23,12 +23,13 @@ from mosaic.beamforming import (
     Tiling, BeamShape)
 
 log = logging.getLogger("skyweaver")
-    
+
+
 class DelayModelHeader(ctypes.Structure):
-    """Structure for packing delay model information 
+    """Structure for packing delay model information
     """
-    # Specify 1-byte alignment
-    _pack_ = 1
+    # pylint: disable=too-few-public-methods
+    _pack_ = 1  # byte alignment
     _fields_ = [
         # Number of beams
         ("nbeams", ctypes.c_uint32),
@@ -41,37 +42,52 @@ class DelayModelHeader(ctypes.Structure):
         # Flag notifying that the antenna weights have changed
         ("weights_update", ctypes.c_uint8)
     ]
+
+
 @dataclass
 class DelayModel:
+    """Wrapper class for a delay model
+    """
     # Start of validity epoch
     start_epoch: Time
     # End of validity epoch
     end_epoch: Time
     # weight/delay array in (Nbeam, Nant, 3) format
     delays: np.ndarray
-    
+
     @property
     def nbeams(self) -> int:
+        """Return the number of beams in the model
+
+        Returns:
+            int: The number of beams
+        """
         return self.delays.shape[0]
-    
+
     @property
     def nantennas(self) -> int:
+        """Return the number of antennas in the model
+
+        Returns:
+            int: The number of antennas
+        """
         return self.delays.shape[1]
-    
+
     def to_bytes(self) -> bytes:
         """Pack the delay model into bytes
 
         Returns:
             bytes: Byte packed header and delays
         """
-        header = DelayModelHeader()
-        header.nbeams = self.nbeams
-        header.nantennas = self.nantennas
-        header.start_epoch = self.start_epoch.unix
-        header.end_epoch = self.end_epoch.unix
+        header = DelayModelHeader(
+            self.nbeams,
+            self.nantennas,
+            self.start_epoch.unix,
+            self.end_epoch.unix
+        )
         body = self.delays.astype("float32").tobytes()
-        return bytes(header) + body  
-    
+        return bytes(header) + body
+
     def validate_epoch(self, epoch: Time) -> bool:
         """Check that the delay model is valid for the given epoch
 
@@ -84,7 +100,7 @@ class DelayModel:
         return (epoch >= self.start_epoch) and (epoch <= self.end_epoch)
 
     def get_phase(self, frequencies: Quantity, epoch: Time) -> np.ndarray:
-        """Return an array of beam weights (geometric only) 
+        """Return an array of beam weights (geometric only)
            for the given time an frequencies
 
         Args:
@@ -95,26 +111,29 @@ class DelayModel:
             ValueError: Raised when the passed epoch is invalid for this model
 
         Returns:
-            np.ndarray: A complex64 type numpy array with dimensions 
+            np.ndarray: A complex64 type numpy array with dimensions
             (nbeams, nantennas, nfrequencies)
-            
+
         Note:
             The scalar weights set for the antennas will be applied during
             phase determination, such that:
             phase = weight * e^(-i * 2pi * delay * frequency)
         """
         if not self.validate_epoch(epoch):
-            raise ValueError("Epoch outside of delay polynomial validity window")
+            raise ValueError(
+                "Epoch outside of delay polynomial validity window")
         epoch_diff = (epoch - self.start_epoch).to(u.s).value
         weights = self.delays[:, :, 0]
         offsets = self.delays[:, :, 1]
         rates = self.delays[:, :, 2]
         true_delay = offsets + rates * epoch_diff
-        phases = weights * np.exp(-1j * np.pi * 2 * true_delay[:,:,np.newaxis] * frequencies.to(u.Hz).value)
-        return phases 
+        phases = weights * \
+            np.exp(-1j * np.pi * 2 * true_delay[:, :, np.newaxis] * frequencies.to(u.Hz).value)
+        return phases
 
 
-def get_phases(delays: list[DelayModel], frequencies: Quantity, epochs: Time) -> list[tuple[Time, np.ndarray]]:
+def get_phases(delays: list[DelayModel], frequencies: Quantity,
+               epochs: Time) -> list[tuple[Time, np.ndarray]]:
     """Get multiple phasing solutions from a list of delay models
 
     Args:
@@ -126,26 +145,26 @@ def get_phases(delays: list[DelayModel], frequencies: Quantity, epochs: Time) ->
         ValueError: Raised if any given epoch is invalid for all delay models
 
     Returns:
-        list[tuple[Time, np.ndarray]]: An list of tuples containing the epoch and 
-                                       corresponding phases. Phases are  complex64 
-                                       type numpy array with dimensions (nbeams, 
+        list[tuple[Time, np.ndarray]]: An list of tuples containing the epoch and
+                                       corresponding phases. Phases are  complex64
+                                       type numpy array with dimensions (nbeams,
                                        nantennas, nfrequencies)
     """
     delay_epochs = [i.start_epoch for i in delays]
-    d = delays[0]
     phases = []
-    for ii, epoch in enumerate(epochs):
+    for epoch in epochs:
         idx = np.searchsorted(delay_epochs, epoch, side="right")
-        if idx == 0 or not delays[idx-1].validate_epoch(epoch):
-            print(idx, delays[idx-1].validate_epoch(epoch) )
+        if idx == 0 or not delays[idx - 1].validate_epoch(epoch):
+            print(idx, delays[idx - 1].validate_epoch(epoch))
             raise ValueError(f"Epoch {epoch} is out of range for delay models")
-        phases.append((epoch, delays[idx-1].get_phase(frequencies, epoch)))
+        phases.append((epoch, delays[idx - 1].get_phase(frequencies, epoch)))
     return phases
-            
-    
+
+
 class DelayEngine:
     """A class for generating delay/weight solutions for beamforming
     """
+
     def __init__(self, subarray: Subarray, phase_reference: Target) -> None:
         """Create an instance of DelayEngine
 
@@ -214,21 +233,22 @@ class DelayEngine:
     def _extract_weights(self) -> np.ndarray:
         # Here we extract the weights for each beam/antenna
         # as an optimisation we cache the antenna mask per
-        # unique subarray set. 
+        # unique subarray set.
         weights = np.zeros((len(self._targets),
-                self.subarray.nantennas),
-            dtype="float32")
+                            self.subarray.nantennas),
+                           dtype="float32")
         masks = {}
-        for beam_idx, (target, subarray_idx) in enumerate(self._targets):
+        for beam_idx, (_, subarray_idx) in enumerate(self._targets):
             if subarray_idx not in masks:
                 subarray = self._subarray_sets[subarray_idx]
                 mask = np.zeros(self.subarray.nantennas, dtype="float32")
-                for ant_idx, antenna in enumerate(self.subarray.antenna_positions):
+                for ant_idx, antenna in enumerate(
+                        self.subarray.antenna_positions):
                     if antenna in subarray.antenna_positions:
                         mask[ant_idx] = 1.0
                 masks[subarray_idx] = mask
             weights[beam_idx, :] = mask[subarray_idx]
-        return weights
+        return weights.reshape((len(self._targets), self.subarray.nantennas, 1))
 
     def calculate_delays(self, start: Time, end: Time,
                          step: TimeDelta) -> list[float, float, np.ndarray]:
@@ -253,8 +273,7 @@ class DelayEngine:
             contains (scalar antenna weight, delay offset, delay rate).
         """
         targets = [i[0] for i in self._targets]
-        weights = self._extract_weights().reshape(
-            len(self._targets), self.subarray.nantennas, 1)
+        weights = self._extract_weights()
         delay_calc = DelayPolynomial(
             self.subarray.antenna_positions, self.phase_reference,
             targets, self.subarray.reference_antenna)
@@ -279,6 +298,7 @@ class DelayEngine:
             models.append(DelayModel(epoch, epoch + step, delays))
         return models
 
+
 @dataclass
 class Subarray:
     # Mapping of antenna names to XEPhem metadata
@@ -291,7 +311,7 @@ class Subarray:
     @property
     def nantennas(self) -> int:
         return len(self.antenna_positions)
-    
+
     @property
     def names(self) -> list[str]:
         return [i.name for i in self.antenna_positions]
@@ -300,6 +320,7 @@ class Subarray:
         other_set: set = set(subarray.antenna_positions)
         self_set: set = set(self.antenna_positions)
         return other_set.issubset(self_set)
+
 
 @dataclass
 class SessionMetadata:
@@ -331,6 +352,7 @@ class SessionMetadata:
 
     def __str__(self) -> str:
         key_padding = 20
+
         def keyval_format(key, value):
             lines = textwrap.wrap(str(value))
             if not lines:
@@ -346,16 +368,26 @@ class SessionMetadata:
             return "\n".join(output)
         windows = self.find_observing_windows()
         windows_formatted = []
-        for ii,(start, end, target, _) in enumerate(windows):
-            start_sample = int((start.unix-self.sync_epoch.unix) * 2 * self.bandwidth.to(u.Hz).value)
-            end_sample = int((end.unix-self.sync_epoch.unix) * 2 * self.bandwidth.to(u.Hz).value)
-            windows_formatted.append(f"#{ii:<4}{target.name:<20}{start} until {end} (UTC)") 
-            windows_formatted.append(f"{'':<25}{start.unix} until {end.unix} (UNIX)")
-            windows_formatted.append(f"{'':<25}{start_sample} until {end_sample} (SAMPLE CLOCK)")
+        for ii, (start, end, target, _) in enumerate(windows):
+            start_sample = int(
+                (start.unix -
+                 self.sync_epoch.unix) *
+                2 *
+                self.bandwidth.to(
+                    u.Hz).value)
+            end_sample = int((end.unix - self.sync_epoch.unix)
+                             * 2 * self.bandwidth.to(u.Hz).value)
+            windows_formatted.append(
+                f"#{ii:<4}{target.name:<20}{start} until {end} (UTC)")
+            windows_formatted.append(
+                f"{'':<25}{start.unix} until {end.unix} (UNIX)")
+            windows_formatted.append(
+                f"{'':<25}{start_sample} until {end_sample} (SAMPLE CLOCK)")
         output = (
             f"{'Array configuration':-^50}",
             keyval_format("Nantennas", len(self.antenna_positions)),
-            keyval_format("Subarray", ",".join(sorted(self.antenna_positions.keys()))),
+            keyval_format(
+                "Subarray", ",".join(sorted(self.antenna_positions.keys()))),
             keyval_format("Centre frequency", self.centre_frequency),
             keyval_format("Bandwidth", self.bandwidth),
             keyval_format("Nchannels", self.nchannels),
@@ -363,9 +395,7 @@ class SessionMetadata:
             keyval_format("Project ID", self.project_id),
             keyval_format("Schedule block ID", self.sb_id),
             keyval_format("CBF version", self.cbf_version),
-            f"{'Pointings':-^50}",
-            "\n".join(windows_formatted)
-        )   
+            f"{'Pointings':-^50}", "\n".join(windows_formatted))
         return "\n".join(output)
 
     @classmethod
@@ -383,7 +413,7 @@ class SessionMetadata:
             antenna_feng_map: dict[str, int] = {
                 antenna.decode(): index for antenna, index in f["antenna_feng_map"][()]}
             # Parse out the antenna positions
-            antenna_positions: dict = dict()
+            antenna_positions: dict = {}
             for antenna_descriptor in f["antenna_positions"]:
                 kp_antenna: Antenna = Antenna(antenna_descriptor.decode())
                 if kp_antenna.name in antenna_feng_map.keys():
@@ -401,9 +431,9 @@ class SessionMetadata:
                 metadata["sb_id"],
                 metadata["cbf_version"],
                 Time(metadata["sync_epoch"], format="unix"),
-                f["phase_centres"][()].astype([
+                f["phase_centres"][()].astype([ # pylint: disable=no-member
                     ("timestamp", "datetime64[us]"), ("value", "|S64")]),
-                f["suspect_flags"][()].astype([
+                f["suspect_flags"][()].astype([ # pylint: disable=no-member
                     ("timestamp", "datetime64[us]"), ("value", "bool")])
             )
 
@@ -415,8 +445,7 @@ class SessionMetadata:
     def _covert_to_windows(self, ar: np.ndarray,
                            sentinel_time: Time) -> list[tuple[Time, Time, Any]]:
         windows = []
-        for ii in range(len(ar)):
-            start, value = ar[ii]
+        for ii, (start, value) in enumerate(ar):
             if ii + 1 == len(ar):
                 end = sentinel_time
             else:
@@ -428,21 +457,22 @@ class SessionMetadata:
         """Get a subarray of the antenna set
 
         Args:
-            antenna_names (list[str], optional): List of antenna names to extract. Defaults to the full array.
+            antenna_names (list[str], optional): List of antenna names to extract. 
+            Defaults to the full array.
 
         Returns:
             Subarray: _description_
         """
         if antenna_names is None:
             return Subarray(list(self.antenna_positions.values()))
-        else:
-            antennas = []
-            for name in antenna_names:
-                if name not in self.antenna_positions:
-                    raise KeyError(f"Antenna {name} is not available in the array")
-                else:
-                    antennas.append(self.antenna_positions[name])
-            return Subarray(antennas)
+        antennas = []
+        for name in antenna_names:
+            if name not in self.antenna_positions:
+                raise KeyError(
+                    f"Antenna {name} is not available in the array")
+            else:
+                antennas.append(self.antenna_positions[name])
+        return Subarray(antennas)
 
     def find_observing_windows(
         self, min_duration: Quantity = 60 * u.s, allow_suspect: bool = False
@@ -450,8 +480,10 @@ class SessionMetadata:
         """Find observing windows corresponding to phase centre and suspect flags
 
         Args:
-            min_duration  (Quantity, optional): Only return observing windows bigger than this length.
-            allow_suspect (bool, optional): Also return observing windows with suspect data. Defaults to False.
+            min_duration  (Quantity, optional): Only return observing windows 
+                                                bigger than this length.
+            allow_suspect (bool, optional): Also return observing windows with suspect data. 
+                                            Defaults to False.
 
 
         Returns:
@@ -499,16 +531,16 @@ class SessionMetadata:
                         is_suspect
                     ))
         return overlaps
-    
+
     def get_pointings(self) -> list[PointingMetadata]:
         """Fetch all pointings from the session
 
         Returns:
             list[PointingMetadata]: A list of pointing objects
-            
+
         Notes:
-            The pointing objects are wrappers around the windows that 
-            are returned by find_observing_windows(). 
+            The pointing objects are wrappers around the windows that
+            are returned by find_observing_windows().
         """
         windows = self.find_observing_windows(allow_suspect=False)
         pointings = []
@@ -516,12 +548,13 @@ class SessionMetadata:
             pointings.append(PointingMetadata(target, start, end, self))
         return pointings
 
+
 @dataclass
 class PointingMetadata:
     """Class for tracking information about a specific pointing
     """
     # Boresight phasing position for the pointing
-    phase_centre: Target 
+    phase_centre: Target
     # The start time of the pointing
     start_epoch: Time
     # The end time of the pointing
@@ -529,16 +562,18 @@ class PointingMetadata:
     # Reference to the session metadata
     session_metadata: SessionMetadata
 
+
 @dataclass
 class BeamSet:
     """Class for tracking information about a beam set
-    
+
     A beam set is a collection of beams which are formed from
     a common subarray.
     """
     anntenna_names: list[str]
     beams: list[Target]
     tilings: list[dict]
+
 
 @dataclass
 class BeamformerConfig:
@@ -559,7 +594,7 @@ class BeamformerConfig:
     coherent_dms: list[float]
     # List of beam sets (sets of beams from a common subarray)
     beam_sets: list[BeamSet]
-    
+
     @classmethod
     def from_file(cls, config_file: str) -> Self:
         """Read a beamformer config from a YAML file
@@ -570,7 +605,7 @@ class BeamformerConfig:
         Returns:
             Self: An instance of BeamformerConfig
         """
-        with open(config_file, "r") as f:
+        with open(config_file, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f)
         bfc = data["beamformer_config"]
         beam_sets = []
@@ -581,7 +616,7 @@ class BeamformerConfig:
                     bs["beams"],
                     bs["tilings"],
                 ))
-            
+
         return cls(
             bfc["total_nbeams"],
             bfc["tscrunch"],
@@ -589,49 +624,53 @@ class BeamformerConfig:
             bfc["stokes_mode"],
             bfc["subtract_ib"],
             bfc["coherent_dms"],
-            beam_sets   
+            beam_sets
         )
 
-def make_tiling(pointing: PointingMetadata, subarray: Subarray, tiling_desc: dict) -> Tiling:
+
+def make_tiling(
+        pointing: PointingMetadata,
+        subarray: Subarray,
+        tiling_desc: dict) -> Tiling:
     """Make a tiling using the complete mosaic tiling options
 
     Args:
         pointing (PointingMetadata): Information on the pointing being tiled
         subarray (Subarray): The subarray to use for PSF determination
-        tiling_desc (dict): The mosaic tiling arguments  
+        tiling_desc (dict): The mosaic tiling arguments
 
     Returns:
         Tiling: A mosaic Tiling object containing tiled beam positions
-        
+
     Note:
         The tiling description dictionary has been kept close to the form
-        it is has in the FBFUSE configuration authority at MeerKAT. Examples 
+        it is has in the FBFUSE configuration authority at MeerKAT. Examples
         are below.
-        
+
         Simple circular tiling:
         {
         "nbeams": 22,
         "overlap": 0.7
         }
-        
+
         Hexagonal tiling with specified frequency and epoch offset:
         {
             'nbeams': 123,
             'reference_frequency': 1400000000.0, # Hz
             'edelay': 30.0, # second from start of scan
-            'target': 'source0,radec,00:00:00,00:00:00', 
-            'shape': 'hexagon', 
-            'method': 'variable_overlap', 
-            'shape_parameters': [0.16656555, 0.0], 
+            'target': 'source0,radec,00:00:00,00:00:00',
+            'shape': 'hexagon',
+            'method': 'variable_overlap',
+            'shape_parameters': [0.16656555, 0.0],
             'coordinate_type': 'galactic'
         }
-        
+
         The following defaults are used:
         reference_frequency --> centre frequency of the current observation
         edelay --> half the duration of the observation
         target --> phase centre of the pointing
         shape --> circular
-        method --> variable size (e.g. force the overlap but allow 
+        method --> variable size (e.g. force the overlap but allow
                    the total tiled area to change)
         overlap --> half power point overlaps
         coordinate_type --> equatorial coordinates
@@ -647,46 +686,48 @@ def make_tiling(pointing: PointingMetadata, subarray: Subarray, tiling_desc: dic
         target = Target(target)
     edelay = tiling_desc.get("edelay", None)
     if edelay is None:
-        epoch = pointing.start_epoch + (pointing.end_epoch - pointing.start_epoch) / 2
+        epoch = pointing.start_epoch + (
+            pointing.end_epoch - pointing.start_epoch) / 2
     else:
         epoch = pointing.start_epoch + TimeDelta(edelay * u.s)
     shape = tiling_desc.get("shape", "circle")
     shape_params = tiling_desc.get("shape_parameters", None)
-    coordinate_type = tiling_desc.get("coordinate_type", "equatorial")  
+    coordinate_type = tiling_desc.get("coordinate_type", "equatorial")
     method = tiling_desc.get("method", "variable_size")
     nbeams = tiling_desc["nbeams"]
     overlap = tiling_desc.get("overlap", 0.5)
-        
+
     antenna_strings: list[str] = [
         ant.format_katcp() for ant in subarray.antenna_positions
-        ]
+    ]
     psfsim: PsfSim = PsfSim(antenna_strings, ref_freq)
     beam_shape: BeamShape = psfsim.get_beam_shape(target, epoch.unix)
     tiling: Tiling = generate_nbeams_tiling(
-            beam_shape, nbeams, overlap,
-            method, shape,
-            parameter=shape_params,
-            coordinate_type=coordinate_type)
+        beam_shape, nbeams, overlap,
+        method, shape,
+        parameter=shape_params,
+        coordinate_type=coordinate_type)
     return tiling
 
+
 def create_delays(
-    session_metadata: SessionMetadata, 
-    beamformer_config: BeamformerConfig, 
-    pointing: PointingMetadata,
-    start_epoch: Time = None,
-    end_epoch: Time = None,
-    step: TimeDelta = 4 * u.s) -> list[DelayModel]:
-    """Create a set of delay models 
+        session_metadata: SessionMetadata,
+        beamformer_config: BeamformerConfig,
+        pointing: PointingMetadata,
+        start_epoch: Time = None,
+        end_epoch: Time = None,
+        step: TimeDelta = 4 * u.s) -> list[DelayModel]:
+    """Create a set of delay models
 
     Args:
         session_metadata (SessionMetadata): A session metadata object
         beamformer_config (BeamformerConfig): A beamformer configuraiton object
         pointing (PointingMetadata): A pointing metadata object
-        start_epoch (Time, optional): The start of the window to produce delays for. 
+        start_epoch (Time, optional): The start of the window to produce delays for.
                                       Defaults to the start of the pointing.
         end_epoch (Time, optional): The end of the window to produce delays until.
                                     Defaults to the end of the pointing.
-        step (TimeDelta, optional): The step size between consequtive solutions. 
+        step (TimeDelta, optional): The step size between consequtive solutions.
                                     Defaults to 4*u.s.
 
     Returns:
@@ -698,10 +739,10 @@ def create_delays(
         end_epoch = pointing.end_epoch
     om = session_metadata
     bc = beamformer_config
-    log.info(f"Creating delays for target {pointing.phase_centre.name}")
-    log.info(f"Start epoch: {start_epoch.isot} (UNIX {start_epoch.unix})")
-    log.info(f"End epoch: {end_epoch.isot} (UNIX {end_epoch.unix})")
-    log.info(f"Step size: {step.to(u.s)}")
+    log.info("Creating delays for target %s", pointing.phase_centre.name)
+    log.info("Start epoch: %s (UNIX %f)", start_epoch.isot, start_epoch.unix)
+    log.info("End epoch: %s (UNIX %f)", end_epoch.isot, end_epoch.unix)
+    log.info("Step size: %s", step.to(u.s))
     full_subarray = om.get_subarray()
     de = DelayEngine(full_subarray, pointing.phase_centre)
     for bs in bc.beam_sets:
@@ -714,10 +755,13 @@ def create_delays(
             for tiling_desc in bs.tilings:
                 tiling = make_tiling(pointing, subarray_subset, tiling_desc)
                 de.add_tiling(tiling, subarray_subset)
-    log.info(f"Calculating solutions for {full_subarray.nantennas} antennas and {de.nbeams} beams")
+    log.info(
+        "Calculating solutions for %d antennas and %d beams", 
+        full_subarray.nantennas, de.nbeams)
     delays = de.calculate_delays(start_epoch, end_epoch, step)
     return delays
-    
+
+
 def main():
     """
     What does this thing actually do?
@@ -745,4 +789,4 @@ def main():
     - Antenna database file format (preferrably YAML)
     - Delay format (preferrably some packed binary format)
     """
-    pass
+    

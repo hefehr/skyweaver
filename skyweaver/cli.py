@@ -3,8 +3,11 @@ import logging
 import sys
 import pprint
 import skyweaver
+import secrets
 
-#log = logging.getLogger("skyweaver")
+import astropy.units as u
+
+log = logging.getLogger("skyweaver")
 
 """
 What kind of cli do we want:
@@ -31,7 +34,7 @@ class ColouredLogFormatter(logging.Formatter):
     bold_red = '\x1b[31;1m'
     reset = '\x1b[0m'
 
-    def __init__(self, fmt):
+    def __init__(self, fmt: str) -> None:
         super().__init__()
         self.fmt = fmt
         self.FORMATS = {
@@ -42,7 +45,7 @@ class ColouredLogFormatter(logging.Formatter):
             logging.CRITICAL: self.bold_red + self.fmt + self.reset
         }
 
-    def format(self, record):
+    def format(self, record: logging.LogRecord) -> logging.LogRecord:
         log_fmt = self.FORMATS.get(record.levelno)
         formatter = logging.Formatter(log_fmt)
         return formatter.format(record)
@@ -114,12 +117,6 @@ def metadata_show(args):
         print(om)
 
 def delays_create(args):
-    log = logging.getLogger("skyweaver")
-    log.debug("debug message")
-    log.info("mmm infomative!")
-    log.warn("tsk tsk")
-    log.error("whoopsie")
-    log.critical("Looking bad")
     sm = skyweaver.SessionMetadata.from_file(args.metafile)
     bc = skyweaver.BeamformerConfig.from_file(args.bfconfig)
     pointings = sm.get_pointings()
@@ -131,10 +128,24 @@ def delays_create(args):
     else:
         pointing_idx = args.pointing_idx
     if pointing_idx >= npointings:
-        raise ValueError("Pointing idx {} requested but only {} pointings in session")
-    delays = skyweaver.create_delays(sm, bc, pointings[pointing_idx])
-    print(delays)
-    
+        raise ValueError("Pointing idx {} requested but only {} pointings in session") 
+    step = args.step * u.s
+    pointing = pointings[pointing_idx]
+    delays = skyweaver.create_delays(sm, bc, pointing, step=step)
+    if args.outfile is None:
+        fname = "swdelays_{}_{}_to_{}_{}.bin".format(
+            pointing.phase_centre.name,
+            int(pointing.start_epoch.unix),
+            int(pointing.start_epoch.unix),
+            secrets.token_hex(3)
+        )
+    else:
+        fname = args.outfile
+    log.info(f"Writing delay model to file {fname}")
+    with open(fname, "wb") as fo: 
+        for delay_model in delays:
+            fo.write(delay_model.to_bytes())
+        
 def parse_default_args(args):
     init_logger(args)
     
@@ -165,15 +176,17 @@ def cli():
     delays = l1subparsers.add_parser("delays", help="Tools for delay files")
     delays_subparsers = delays.add_subparsers(help="sub-command help")
     
-    # sw delays show
-    delays_show_parser = subparser_create_wrapper(delays_subparsers, "create", help="Create a delay file")
-    delays_show_parser.add_argument("--step", dest="step", default=4, type=float,
+    # sw delays create
+    delays_create_parser = subparser_create_wrapper(delays_subparsers, "create", help="Create a delay file")
+    delays_create_parser.add_argument("--step", dest="step", default=4, type=float,
                                     help="Step size in seconds between delay solutions")
-    delays_show_parser.add_argument("--pointing-idx", dest="pointing_idx", default=None, type=int,
+    delays_create_parser.add_argument("--pointing-idx", dest="pointing_idx", default=None, type=int,
                                     help="The sub observation to create delays for")
-    delays_show_parser.add_argument("metafile", metavar="FILE")
-    delays_show_parser.add_argument("bfconfig", metavar="FILE")
-    delays_show_parser.set_defaults(func=delays_create)
+    delays_create_parser.add_argument("--outfile", dest="outfile", default=None, type=str,
+                                    help="Output file to write delays to. Defaults to auto generated filename.")
+    delays_create_parser.add_argument("metafile", metavar="FILE")
+    delays_create_parser.add_argument("bfconfig", metavar="FILE")
+    delays_create_parser.set_defaults(func=delays_create)
     
     # parse and execute
     args = parser.parse_args()

@@ -5,8 +5,9 @@ import h5py
 import yaml
 import numpy as np
 import textwrap
+import ctypes
 
-from typing import Self, Any
+from typing import Self, Any, BinaryIO
 from collections.abc import Iterable
 from dataclasses import dataclass
 
@@ -21,7 +22,56 @@ from mosaic.beamforming import (
     generate_nbeams_tiling,
     Tiling, BeamShape)
 
+log = logging.getLogger("skyweaver")
+    
+class DelayModelHeader(ctypes.Structure):
+    """Structure for packing delay model information 
+    """
+    # Specify 1-byte alignment
+    _pack_ = 1
+    _fields_ = [
+        # Number of beams
+        ("nbeams", ctypes.c_uint32),
+        # Number of antennas
+        ("nantennas", ctypes.c_uint32),
+        # UNIX epoch of start of delay model validity
+        ("start_epoch", ctypes.c_double),
+        # UNIX epoch of end of delay model validity
+        ("end_epoch", ctypes.c_double),
+        # Flag notifying that the antenna weights have changed
+        ("weights_update", ctypes.c_uint8)
+    ]
+@dataclass
+class DelayModel:
+    # Start of validity epoch
+    start_epoch: Time
+    # Length of valid window for the delays
+    duration: TimeDelta
+    # weight/delay array in (Nbeam, Nant, 3) format
+    delays: np.ndarray
+    
+    @property
+    def nbeams(self) -> int:
+        return self.delays.shape[0]
+    
+    @property
+    def nantennas(self) -> int:
+        return self.delays.shape[1]
+    
+    def to_bytes(self) -> bytes:
+        """Pack the delay model into bytes
 
+        Returns:
+            bytes: Byte packed header and delays
+        """
+        header = DelayModelHeader()
+        header.nbeams = self.nbeams
+        header.nantennas = self.nantennas
+        header.start_epoch = self.start_epoch.unix
+        header.end_epoch = (self.start_epoch + self.duration).unix
+        body = self.delays.astype("float32").tobytes()
+        return bytes(header) + body  
+    
 class DelayEngine:
     """A class for generating delay/weight solutions for beamforming
     """
@@ -38,6 +88,10 @@ class DelayEngine:
         # subarray sets are used as a performance optimisation
         # for making maps of scalar antenna weights
         self._subarray_sets: list = []
+
+    @property
+    def nbeams(self) -> int:
+        return len(self._targets)
 
     def _validate_subarray(self, subarray: Subarray) -> None:
         if subarray not in self.subarray:
@@ -151,10 +205,7 @@ class DelayEngine:
             # and is intended as a means to allow different subsets of antennas
             # to be used for beamforming.
             delays = np.concatenate((weights, delays), axis=-1)
-            models.append((
-                epoch.unix,
-                step.to(u.s).value,
-                delays))
+            models.append(DelayModel(epoch, step, delays))
         return models
 
 @dataclass
@@ -550,9 +601,36 @@ def make_tiling(pointing: PointingMetadata, subarray: Subarray, tiling_desc: dic
 def create_delays(
     session_metadata: SessionMetadata, 
     beamformer_config: BeamformerConfig, 
-    pointing: PointingMetadata):
+    pointing: PointingMetadata,
+    start_epoch: Time = None,
+    end_epoch: Time = None,
+    step: TimeDelta = 4 * u.s) -> list[DelayModel]:
+    """Create a set of delay models 
+
+    Args:
+        session_metadata (SessionMetadata): A session metadata object
+        beamformer_config (BeamformerConfig): A beamformer configuraiton object
+        pointing (PointingMetadata): A pointing metadata object
+        start_epoch (Time, optional): The start of the window to produce delays for. 
+                                      Defaults to the start of the pointing.
+        end_epoch (Time, optional): The end of the window to produce delays until.
+                                    Defaults to the end of the pointing.
+        step (TimeDelta, optional): The step size between consequtive solutions. 
+                                    Defaults to 4*u.s.
+
+    Returns:
+        list[DelayModel]: A list of delay models
+    """
+    if start_epoch is None:
+        start_epoch = pointing.start_epoch
+    if end_epoch is None:
+        end_epoch = pointing.end_epoch
     om = session_metadata
     bc = beamformer_config
+    log.info(f"Creating delays for target {pointing.phase_centre.name}")
+    log.info(f"Start epoch: {start_epoch.isot} (UNIX {start_epoch.unix})")
+    log.info(f"End epoch: {end_epoch.isot} (UNIX {end_epoch.unix})")
+    log.info(f"Step size: {step.to(u.s)}")
     full_subarray = om.get_subarray()
     de = DelayEngine(full_subarray, pointing.phase_centre)
     for bs in bc.beam_sets:
@@ -565,8 +643,8 @@ def create_delays(
             for tiling_desc in bs.tilings:
                 tiling = make_tiling(pointing, subarray_subset, tiling_desc)
                 de.add_tiling(tiling, subarray_subset)
-    step = TimeDelta(4 * u.s)
-    delays = de.calculate_delays(pointing.start_epoch, pointing.end_epoch, step)
+    log.info(f"Calculating solutions for {full_subarray.nantennas} antennas and {de.nbeams} beams")
+    delays = de.calculate_delays(start_epoch, end_epoch, step)
     return delays
     
 def main():

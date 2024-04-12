@@ -45,8 +45,8 @@ class DelayModelHeader(ctypes.Structure):
 class DelayModel:
     # Start of validity epoch
     start_epoch: Time
-    # Length of valid window for the delays
-    duration: TimeDelta
+    # End of validity epoch
+    end_epoch: Time
     # weight/delay array in (Nbeam, Nant, 3) format
     delays: np.ndarray
     
@@ -68,9 +68,80 @@ class DelayModel:
         header.nbeams = self.nbeams
         header.nantennas = self.nantennas
         header.start_epoch = self.start_epoch.unix
-        header.end_epoch = (self.start_epoch + self.duration).unix
+        header.end_epoch = self.end_epoch.unix
         body = self.delays.astype("float32").tobytes()
         return bytes(header) + body  
+    
+    def validate_epoch(self, epoch: Time) -> bool:
+        """Check that the delay model is valid for the given epoch
+
+        Args:
+            epoch (Time): A time value to check
+
+        Returns:
+            bool: True = valid, False = invalid
+        """
+        return (epoch >= self.start_epoch) and (epoch <= self.end_epoch)
+
+    def get_phase(self, frequencies: Quantity, epoch: Time) -> np.ndarray:
+        """Return an array of beam weights (geometric only) 
+           for the given time an frequencies
+
+        Args:
+            frequencies (Quantity): An array of frequencies
+            epoch (Time): An epoch at which to evaluate the delay model
+
+        Raises:
+            ValueError: Raised when the passed epoch is invalid for this model
+
+        Returns:
+            np.ndarray: A complex64 type numpy array with dimensions 
+            (nbeams, nantennas, nfrequencies)
+            
+        Note:
+            The scalar weights set for the antennas will be applied during
+            phase determination, such that:
+            phase = weight * e^(-i * 2pi * delay * frequency)
+        """
+        if not self.validate_epoch(epoch):
+            raise ValueError("Epoch outside of delay polynomial validity window")
+        epoch_diff = (epoch - self.start_epoch).to(u.s).value
+        weights = self.delays[:, :, 0]
+        offsets = self.delays[:, :, 1]
+        rates = self.delays[:, :, 2]
+        true_delay = offsets + rates * epoch_diff
+        phases = weights * np.exp(-1j * np.pi * 2 * true_delay[:,:,np.newaxis] * frequencies.to(u.Hz).value)
+        return phases 
+
+
+def get_phases(delays: list[DelayModel], frequencies: Quantity, epochs: Time) -> list[tuple[Time, np.ndarray]]:
+    """Get multiple phasing solutions from a list of delay models
+
+    Args:
+        delays (list[DelayModel]): A list of delay models
+        frequencies (Quantity): The frequencies for which to calculate delays
+        epochs (Time): The epochs at which to determine phases
+
+    Raises:
+        ValueError: Raised if any given epoch is invalid for all delay models
+
+    Returns:
+        list[tuple[Time, np.ndarray]]: An list of tuples containing the epoch and 
+                                       corresponding phases. Phases are  complex64 
+                                       type numpy array with dimensions (nbeams, 
+                                       nantennas, nfrequencies)
+    """
+    delay_epochs = [i.start_epoch for i in delays]
+    d = delays[0]
+    phases = []
+    for ii, epoch in enumerate(epochs):
+        idx = np.searchsorted(delay_epochs, epoch, side="right")
+        if idx == 0 or not delays[idx-1].validate_epoch(epoch):
+            print(idx, delays[idx-1].validate_epoch(epoch) )
+            raise ValueError(f"Epoch {epoch} is out of range for delay models")
+        phases.append((epoch, delays[idx-1].get_phase(frequencies, epoch)))
+    return phases
+            
     
 class DelayEngine:
     """A class for generating delay/weight solutions for beamforming
@@ -171,11 +242,11 @@ class DelayEngine:
 
         Returns:
             list[float, float, np.ndarray]: A list of delay solutions with validity
-                                            start times and durations.
+                                            start times and end times.
 
         Notes:
             Delays are returned in the format:
-            [(start epoch, validity duration in seconds, delay model)]
+            [(start epoch, end epoch, delay model)]
 
             The delay model itself is a numpy ndarray with dimensions
             (nbeams, nantennas, 3) where the inner 3-length dimension
@@ -205,7 +276,7 @@ class DelayEngine:
             # and is intended as a means to allow different subsets of antennas
             # to be used for beamforming.
             delays = np.concatenate((weights, delays), axis=-1)
-            models.append(DelayModel(epoch, step, delays))
+            models.append(DelayModel(epoch, epoch + step, delays))
         return models
 
 @dataclass

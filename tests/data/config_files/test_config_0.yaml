@@ -3,7 +3,7 @@ created_at: 2024-04-05T09:33:45.326373
 created_by: ebarr
 beamformer_config:
   # The total number of beams to be produced (must be a multiple of 32)
-  total_nbeams: 800
+  total_nbeams: 20
   # The number of time samples that will be accumulated after detection
   tscrunch: 4
   # The number of frequency channels that will be accumulated after detection
@@ -37,12 +37,12 @@ beam_sets:
       - 'J1748-2021G,radec,17:48:52.950,-20:21:38.900'
       - 'J1748-2021H,radec,17:48:53.1996,-20:21:35.251'
     tilings:
-      - nbeams: 480
+      - nbeams: 20
         reference_frequency: null
         edelay: null
         target: null
         overlap: 0.7
-      - nbeams: 480
+      - nbeams: 33
         reference_frequency: null
         edelay: null
         target: null
@@ -57,7 +57,7 @@ beam_sets:
                    'm034','m035','m036','m037','m038','m039','m040']
     beams: []
     tilings:
-      - nbeams: 480
+      - nbeams: 12
         reference_frequency: null
         edelay: 0.0
         target: null

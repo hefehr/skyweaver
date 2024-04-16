@@ -52,9 +52,6 @@ class ColouredLogFormatter(logging.Formatter):
 
 def make_demotion_handler(handler_class):
     class LevelDemotionHandler(handler_class):
-        def __init__(self, *args, **kwargs):
-            super(LevelDemotionHandler, self).__init__(*args, **kwargs)
-
         def emit(self, record):
             if record.levelno == logging.INFO:
                 record.levelno = logging.DEBUG
@@ -131,7 +128,7 @@ def delays_create(args):
         raise ValueError("Pointing idx {} requested but only {} pointings in session") 
     step = args.step * u.s
     pointing = pointings[pointing_idx]
-    delays = skyweaver.create_delays(sm, bc, pointing, step=step)
+    delays, _, _ = skyweaver.create_delays(sm, bc, pointing, step=step)
     if args.outfile is None:
         fname = "swdelays_{}_{}_to_{}_{}.bin".format(
             pointing.phase_centre.name,
@@ -141,7 +138,7 @@ def delays_create(args):
         )
     else:
         fname = args.outfile
-    log.info(f"Writing delay model to file {fname}")
+    log.info("Writing delay model to file %s", fname)
     with open(fname, "wb") as fo: 
         for delay_model in delays:
             fo.write(delay_model.to_bytes())
@@ -161,11 +158,11 @@ def subparser_create_wrapper(parent, *args, **kwargs):
 def cli():
     parser = argparse.ArgumentParser(prog="skyweaver", add_help=True)
     l1subparsers = parser.add_subparsers(help="sub-command help")
-    
+
     # sw metadata
     metadata = l1subparsers.add_parser("metadata", help="Tools for observation metadata files")
     metadata_subparsers = metadata.add_subparsers(help="sub-command help")
-    
+
     # sw metadata show
     metadata_show_parser = subparser_create_wrapper(metadata_subparsers, "show", help="Show metadata")
     metadata_show_parser.add_argument("--verbose", action="store_true")
@@ -175,7 +172,7 @@ def cli():
     # sw delays
     delays = l1subparsers.add_parser("delays", help="Tools for delay files")
     delays_subparsers = delays.add_subparsers(help="sub-command help")
-    
+
     # sw delays create
     delays_create_parser = subparser_create_wrapper(delays_subparsers, "create", help="Create a delay file")
     delays_create_parser.add_argument("--step", dest="step", default=4, type=float,
@@ -192,9 +189,7 @@ def cli():
     args = parser.parse_args()
     parse_default_args(args)
     args.func(args)
-    
-    
-  
+
 if __name__ == "__main__":
     cli()
     

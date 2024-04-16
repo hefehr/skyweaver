@@ -101,7 +101,7 @@ class DelayModel:
 
     def get_phase(self, frequencies: Quantity, epoch: Time) -> np.ndarray:
         """Return an array of beam weights (geometric only)
-           for the given time an frequencies
+           for the given time and frequencies
 
         Args:
             frequencies (Quantity): An array of frequencies
@@ -127,7 +127,7 @@ class DelayModel:
         offsets = self.delays[:, :, 1]
         rates = self.delays[:, :, 2]
         true_delay = offsets + rates * epoch_diff
-        phases = weights * \
+        phases = weights[:, :, np.newaxis] * \
             np.exp(-1j * np.pi * 2 * true_delay[:, :, np.newaxis] * frequencies.to(u.Hz).value)
         return phases
 
@@ -181,7 +181,21 @@ class DelayEngine:
 
     @property
     def nbeams(self) -> int:
+        """Return the total number of beams specified
+
+        Returns:
+            int: The number of beams
+        """
         return len(self._targets)
+
+    @property
+    def targets(self) -> list[Target]:
+        """Get a the list of targets
+
+        Returns:
+            list[Target]: List of katpoint Target objects
+        """
+        return [i[0] for i in self._targets]
 
     def _validate_subarray(self, subarray: Subarray) -> None:
         if subarray not in self.subarray:
@@ -212,7 +226,7 @@ class DelayEngine:
         sub_array_idx = len(self._subarray_sets) - 1
         for ii, (ra, dec) in enumerate(coordinates):
             self._targets.append(
-                (Target(f"{prefix}{ii:07d},radec,{ra},{dec}"), sub_array_idx))
+                (Target(f"{prefix}_{ii:04d},radec,{ra},{dec}"), sub_array_idx))
 
     def add_beam(self, target: Target, subarray: Subarray = None) -> None:
         """Add a single beam to the engine
@@ -299,21 +313,54 @@ class DelayEngine:
         return models
 
 
-@dataclass
 class Subarray:
-    # Mapping of antenna names to XEPhem metadata
-    antenna_positions: list[Antenna]
+    """Class to wrap a set of antennas
+    """
+
+    def __init__(self, antenna_positions: list[Antenna]) -> None:
+        """Create a Subarray instance
+
+        Args:
+            antenna_positions (list[Antenna]): A list of katpoint Antenna objects
+            
+        Note:
+            All antenns must share a common reference antenna
+        """
+        self.antenna_positions = antenna_positions
+        self._check_references()
+
+    def _check_references(self):
+        ref = self.antenna_positions[0].array_reference_antenna()
+        for ant in self.antenna_positions[1:]:
+            if ant.array_reference_antenna() != ref:
+                raise ValueError(f"Antenna {ant} does not share reference "
+                                 f"position with antenna {self.antenna_positions[0]}")
 
     @property
     def reference_antenna(self) -> Antenna:
+        """Get the common reference antenna
+
+        Returns:
+            Antenna: The array reference antenna
+        """
         return self.antenna_positions[0].array_reference_antenna()
 
     @property
     def nantennas(self) -> int:
+        """Get the number of antennas in the subarray
+
+        Returns:
+            int: The antenna count
+        """
         return len(self.antenna_positions)
 
     @property
     def names(self) -> list[str]:
+        """Retrun the name sof the antennas in the subarray
+
+        Returns:
+            list[str]: Antenna names
+        """
         return [i.name for i in self.antenna_positions]
 
     def __contains__(self, subarray: Subarray) -> bool:
@@ -324,6 +371,8 @@ class Subarray:
 
 @dataclass
 class SessionMetadata:
+    """Class wrapping the contents of the HDF5 metadata files from FBFUSE-BVR
+    """
     # Mapping of antenna names to XEPhem metadata
     antenna_positions: dict[str, Antenna]
     # Mapping of antenna names to ordinal indices in CBF stream
@@ -487,13 +536,15 @@ class SessionMetadata:
 
 
         Returns:
-            list: A list of observing epochs specifying the start, end, phase centre and suspect flag.
+            list: A list of observing epochs specifying the start, end, phase centre 
+                  and suspect flag.
 
         Notes:
-            The timing of the suspect flags to phase centre changes is unpredictable and so to be safe
-            it is necessary to only return valid observing windows above a given size. Typically invalid
-            windows are less than 1 second long, but we leave the default as 60 second under the expectation
-            that observations will be considerably longer than this.
+            The timing of the suspect flags to phase centre changes is unpredictable 
+            and so to be safe it is necessary to only return valid observing windows 
+            above a given size. Typically invalid windows are less than 1 second long, 
+            but we leave the default as 60 second under the expectation that observations 
+            will be considerably longer than this.
         """
         # Rather than handle some special case for the end of timestamp
         # sequences, we here define a sentinel time far away in the future.
@@ -745,7 +796,9 @@ def create_delays(
     log.info("Step size: %s", step.to(u.s))
     full_subarray = om.get_subarray()
     de = DelayEngine(full_subarray, pointing.phase_centre)
+    bs_tilings = []
     for bs in bc.beam_sets:
+        tilings = []
         subarray_subset = om.get_subarray(bs.anntenna_names)
         # add beams first as these are likely more important than tilings
         if bs.beams is not None:
@@ -755,11 +808,13 @@ def create_delays(
             for tiling_desc in bs.tilings:
                 tiling = make_tiling(pointing, subarray_subset, tiling_desc)
                 de.add_tiling(tiling, subarray_subset)
+                tilings.append(tiling)
+        bs_tilings.append(tilings)
     log.info(
         "Calculating solutions for %d antennas and %d beams", 
         full_subarray.nantennas, de.nbeams)
     delays = de.calculate_delays(start_epoch, end_epoch, step)
-    return delays
+    return delays, de.targets, bs_tilings
 
 
 def main():

@@ -1,3 +1,6 @@
+"""
+Delay generation and metadata parsing for MeerKAT baseband recordings
+"""
 from __future__ import annotations
 
 # stdlib imports

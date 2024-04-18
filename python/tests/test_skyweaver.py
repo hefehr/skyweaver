@@ -3,8 +3,12 @@
 # pylint: disable=missing-function-docstring
 
 import pytest
+import numpy as np
 from katpoint import Antenna
-from skyweaver import Subarray
+from astropy.time import Time
+import astropy.units as u
+from astropy.units import Quantity
+from skyweaver import Subarray, DelayModel
 
 
 ANTENNAS = {
@@ -45,3 +49,106 @@ def test_contains_false(example_subarray):
     # Test __contains__ method for an invalid subarray
     subarray_not_subset = Subarray(antenna_positions=[Antenna(ANTENNAS["m003"])])
     assert subarray_not_subset not in example_subarray
+
+# Delay model tests
+
+
+
+
+
+
+class TestDelayModel:
+
+    # can create a DelayModel instance with valid inputs
+    def test_create_delay_model_valid_inputs(self):
+        start_epoch = Time("2022-01-01T00:00:00", format="isot", scale="utc")
+        end_epoch = Time("2022-01-02T00:00:00", format="isot", scale="utc")
+        delays = np.zeros((10, 5, 3))
+        delay_model = DelayModel(start_epoch, end_epoch, delays)
+    
+        assert delay_model.start_epoch == start_epoch
+        assert delay_model.end_epoch == end_epoch
+        assert delay_model.delays.shape == (10, 5, 3)
+
+    # can get the number of beams in the model
+    def test_get_number_of_beams(self):
+        start_epoch = Time("2022-01-01T00:00:00", format="isot", scale="utc")
+        end_epoch = Time("2022-01-02T00:00:00", format="isot", scale="utc")
+        delays = np.zeros((10, 5, 3))
+        delay_model = DelayModel(start_epoch, end_epoch, delays)
+
+        assert delay_model.nbeams == 10
+
+    # can get the number of antennas in the model
+    def test_get_number_of_antennas(self):
+        start_epoch = Time("2022-01-01T00:00:00", format="isot", scale="utc")
+        end_epoch = Time("2022-01-02T00:00:00", format="isot", scale="utc")
+        delays = np.zeros((10, 5, 3))
+        delay_model = DelayModel(start_epoch, end_epoch, delays)
+
+        assert delay_model.nantennas == 5
+
+    # can pack the delay model into bytes
+    def test_pack_delay_model_into_bytes(self):
+        start_epoch = Time("2022-01-01T00:00:00", format="isot", scale="utc")
+        end_epoch = Time("2022-01-02T00:00:00", format="isot", scale="utc")
+        delays = np.zeros((10, 5, 3))
+        delay_model = DelayModel(start_epoch, end_epoch, delays)
+
+        packed_bytes = delay_model.to_bytes()
+
+        assert isinstance(packed_bytes, bytes)
+        assert len(packed_bytes) > 0
+
+    # can validate the epoch for the delay model
+    def test_validate_epoch(self):
+        start_epoch = Time("2022-01-01T00:00:00", format="isot", scale="utc")
+        end_epoch = Time("2022-01-02T00:00:00", format="isot", scale="utc")
+        delays = np.zeros((10, 5, 3))
+        delay_model = DelayModel(start_epoch, end_epoch, delays)
+
+        # Test with epoch within the validity window
+        epoch_within_window = Time("2022-01-01T12:00:00", format="isot", scale="utc")
+        assert delay_model.validate_epoch(epoch_within_window) is True
+
+        # Test with epoch before the validity window
+        epoch_before_window = Time("2021-12-31T12:00:00", format="isot", scale="utc")
+        assert delay_model.validate_epoch(epoch_before_window) is False
+
+        # Test with epoch after the validity window
+        epoch_after_window = Time("2022-01-02T12:00:00", format="isot", scale="utc")
+        assert delay_model.validate_epoch(epoch_after_window) is False
+
+    # can get the phase for a given frequency and epoch
+    def test_get_phase_for_frequency_and_epoch(self):
+        # Create a delay model
+        start_epoch = Time("2022-01-01T00:00:00", format="isot", scale="utc")
+        end_epoch = Time("2022-01-02T00:00:00", format="isot", scale="utc")
+        delays = np.zeros((10, 5, 3))
+        delay_model = DelayModel(start_epoch, end_epoch, delays)
+
+        # Define test inputs
+        frequencies = Quantity([1e6, 2e6, 3e6], unit=u.Hz)
+        epoch = Time("2022-01-01T12:00:00", format="isot", scale="utc")
+
+        # Call the method under test
+        phases = delay_model.get_phase(frequencies, epoch)
+
+        # Perform assertions
+        assert phases.shape == (10, 5, 3)
+        assert np.allclose(phases, np.zeros((10, 5, 3)))
+
+        # can get the phase for a single frequency
+    def test_get_phase_single_frequency(self):
+        start_epoch = Time("2022-01-01T00:00:00", format="isot", scale="utc")
+        end_epoch = Time("2022-01-02T00:00:00", format="isot", scale="utc")
+        delays = np.zeros((10, 5, 3))
+        delay_model = DelayModel(start_epoch, end_epoch, delays)
+
+        frequencies = Quantity([1e9], unit=u.Hz)
+        epoch = Time("2022-01-01T12:00:00", format="isot", scale="utc")
+
+        phases = delay_model.get_phase(frequencies, epoch)
+
+        assert phases.shape == (10, 5, 1)
+        assert np.allclose(phases, np.zeros((10, 5, 1)))

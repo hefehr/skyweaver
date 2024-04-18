@@ -1,0 +1,64 @@
+---
+created_at: 2024-04-05T09:33:45.326373
+created_by: ebarr
+beamformer_config:
+  # The total number of beams to be produced (must be a multiple of 32)
+  total_nbeams: 20
+  # The number of time samples that will be accumulated after detection
+  tscrunch: 4
+  # The number of frequency channels that will be accumulated after detection
+  # Will be coerced to 1 if coherent dedispersion is specified.
+  fscrunch: 1
+  # The Stokes product to be calculated in the beamformer (I=0, Q=1, U=2, V=3)
+  stokes_mode: 0
+  # Enable CB-IB subtraction in the beamformer
+  subtract_ib: True
+  # Dispersion measure for coherent dedispersion in pc cm^-3
+  coherent_dms: [123.3, 123.8, 124.3, 124.8, 125.3, 125.8, 126.3, 126.8, 127.3,
+       127.8, 128.3, 128.8, 129.3, 129.8, 130.3, 130.8, 131.3, 131.8,
+       132.3, 132.8, 133.3, 133.8, 134.3, 134.8, 135.3, 135.8, 136.3,
+       136.8, 137.3, 137.8, 138.3, 138.8, 139.3, 139.8, 140.3, 140.8,
+       141.3, 141.8, 142.3, 142.8]
+beam_sets:
+  # First beam set does blah blah blah
+  - antenna_set: ['m000','m002','m003','m004','m005','m007','m008','m009','m010','m011',
+                  'm012','m014','m015','m016','m017','m018','m019','m020','m021','m022',
+                  'm023','m024','m025','m026','m027','m029','m030','m031','m032','m033',
+                  'm034','m035','m036','m037','m038','m039','m040','m041','m042','m043',
+                  'm044','m045','m046','m048','m049','m050','m051','m053','m054','m056',
+                  'm057','m058','m059','m060','m061','m062','m063']
+    beams:
+      - 'J1748-2021A,radec,17:48:52.6883,-20:21:40.216'
+      - 'J1748-2021B,radec,17:48:52.9521,-20:21:38.896'
+      - 'J1748-2021C,radec,17:48:51.1731,-20:21:53.805'
+      - 'J1748-2021D,radec,17:48:51.6466,-20:21:07.414'
+      - 'J1748-2021E,radec,17:48:52.8004,-20:21:29.383'
+      - 'J1748-2021F,radec,17:48:52.3332,-20:21:39.449'
+      - 'J1748-2021G,radec,17:48:52.950,-20:21:38.900'
+      - 'J1748-2021H,radec,17:48:53.1996,-20:21:35.251'
+    tilings:
+      - nbeams: 20
+        reference_frequency: null
+        edelay: null
+        target: null
+        overlap: 0.7
+      - nbeams: 33
+        reference_frequency: null
+        edelay: null
+        target: null
+        shape: 'hexagon'
+        method: 'variable_overlap'
+        shape_parameters: [0.16656555, 0.0]
+        coordinate_type: 'galactic'
+  # Second beamset does blah blah blah
+  - antenna_set: ['m000','m002','m003','m004','m005','m007','m008','m009','m010','m011',
+                   'm012','m014','m015','m016','m017','m018','m019','m020','m021','m022',
+                   'm023','m024','m025','m026','m027','m029','m030','m031','m032','m033',
+                   'm034','m035','m036','m037','m038','m039','m040']
+    beams: []
+    tilings:
+      - nbeams: 12
+        reference_frequency: null
+        edelay: 0.0
+        target: null
+        overlap: 0.7

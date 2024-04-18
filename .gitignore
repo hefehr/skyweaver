@@ -1,0 +1,25 @@
+# Object files
+*.o
+*.ko
+*.obj
+*.elf
+*.pyc
+*.dat
+*.log
+*.out
+*.csv
+.coverage*
+# Ignored folders
+cpp/build/
+build/
+release/
+dist/
+eddpaf.egg-info/
+cryopaf/data/
+.vscode/
+
+# temps
+core*
+report*
+CMakeCache.txt
+

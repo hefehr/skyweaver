@@ -16,22 +16,26 @@ private:
     std::vector<long> sizes;
     std::ifstream currentStream;
     int currentFileIndex;
-    long currentPosition;
+    std::size_t currentPosition;
     std::mutex mtx;
     bool eofFlag;
-    long headerSize;
+    std::size_t headerSize;
+    std::size_t totalSize;
+
     void read_header();
     std::unique_ptr<psrdada_cpp::PsrDadaHeader> header;
 
 public:
     MultiFileReader(const std::vector<std::string>& fileNames, long headerSize = 0);
     void open();
+    void open_next();
+    void open_previous();
     void close();
     void seekg(long pos, std::ios_base::seekdir dir = std::ios_base::beg);
     long tellg() const;
     bool eof() const;
     bool good() const;
-    std::streamsize read(char* buffer, std::streamsize bytes);
+    std::streamsize read(std::unique_ptr<std::vector<char>> buffer, std::streamsize bytes);
 
     template <typename T>
     friend MultiFileReader& operator>>(MultiFileReader& reader, T& value);

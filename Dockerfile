@@ -2,15 +2,19 @@ FROM nvidia/cuda:12.4.1-devel-ubuntu22.04
 
 LABEL maintainer="erc-compact"
 
+ARG DEBIAN_FRONTEND=noninteractive
+ENV TZ=Europe/Berlin
+
 RUN apt-get update && \
-    apt-get install -y \
-    libboost-all-dev \
+    apt-get install -yq --no-install-recommends \
     cmake \
-    git \
-    python-is-python3 \
     doxygen \
+    git \
     graphviz \
-    python3-sphinx
+    libboost-all-dev \
+    libtool \
+    python-is-python3 \
+    python3-sphinx 
 
 ### PSRDADA
 RUN cd /usr/src && \

@@ -8,7 +8,12 @@ FIND_PATH(PSRDADACPP_INCLUDE_DIR dada_db.hpp
     ${PSRDADACPP_INSTALL_DIR}/include
     /usr/local/include
     /usr/include )
-message("Found ${PSRDADACPP_INCLUDE_DIR} : ${PSRDADACPP_INSTALL_DIR}")
+message(STATUS "Found ${PSRDADACPP_INCLUDE_DIR}")
+
+# Because skyweaver does not have a non-CUDA mode we need to 
+# make sure that the ENABLE_CUDA flag is set when building
+# against PSRDADA_CPP
+add_definitions(-DENABLE_CUDA)
 
 SET(PSRDADACPP_NAMES psrdada_cpp)
 FOREACH( lib ${PSRDADACPP_NAMES} )
@@ -18,9 +23,7 @@ FOREACH( lib ${PSRDADACPP_NAMES} )
         )
     LIST(APPEND PSRDADACPP_LIBRARIES ${PSRDADACPP_LIBRARY_${lib}})
 ENDFOREACH(lib)
-message("PSRDADACPP lib ${PSRDADACPP_LIBRARIES}  : ${PSRDADACPP_INSTALL_DIR}")
-    # handle the QUIETLY and REQUIRED arguments and set PSRDADACPP_FOUND to TRUE if.
-    # all listed variables are TRUE
+
 include(FindPackageHandleStandardArgs)
 FIND_PACKAGE_HANDLE_STANDARD_ARGS(PSRDADACPP DEFAULT_MSG PSRDADACPP_LIBRARIES PSRDADACPP_INCLUDE_DIR)
 
@@ -28,7 +31,6 @@ IF(NOT PSRDADACPP_FOUND)
     SET( PSRDADACPP_LIBRARIES )
     SET( PSRDADACPP_TEST_LIBRARIES )
 ELSE(NOT PSRDADACPP_FOUND)
-    # -- add dependecies
     LIST(APPEND PSRDADACPP_LIBRARIES ${PSRDADA_LIBRARIES})
 ENDIF(NOT PSRDADACPP_FOUND)
 

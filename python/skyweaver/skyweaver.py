@@ -42,8 +42,6 @@ class DelayModelHeader(ctypes.Structure):
         ("start_epoch", ctypes.c_double),
         # UNIX epoch of end of delay model validity
         ("end_epoch", ctypes.c_double),
-        # Flag notifying that the antenna weights have changed
-        ("weights_update", ctypes.c_uint8)
     ]
 
 
@@ -264,7 +262,7 @@ class DelayEngine:
                     if antenna in subarray.antenna_positions:
                         mask[ant_idx] = 1.0
                 masks[subarray_idx] = mask
-            weights[beam_idx, :] = mask[subarray_idx]
+            weights[beam_idx, :] = masks[subarray_idx][:]
         return weights.reshape((len(self._targets), self.subarray.nantennas, 1))
 
     def calculate_delays(self, start: Time, end: Time,
@@ -359,7 +357,7 @@ class Subarray:
 
     @property
     def names(self) -> list[str]:
-        """Retrun the name sof the antennas in the subarray
+        """Retrun the names of the antennas in the subarray
 
         Returns:
             list[str]: Antenna names

@@ -1,8 +1,9 @@
 #ifndef SKYWEAVER_WEIGHTSMANAGER_CUH
 #define SKYWEAVER_WEIGHTSMANAGER_CUH
 
-#include "skyweaver/PipelineConfig.hpp"
 #include "skyweaver/DelayManager.cuh"
+#include "skyweaver/PipelineConfig.hpp"
+
 #include <thrust/device_vector.h>
 
 namespace skyweaver
@@ -44,19 +45,15 @@ class WeightsManager
     WeightsManager(WeightsManager const&) = delete;
 
     /**
-     * @brief      Calculate beamforming weights for a given epock
+     * @brief      Calculate beamforming weights for a given epoch
      *
      * @param[in]  delays A vector containing delay models for all beams
      * (produced by an instance of DelayManager)
      *
      * @param[in]  epoch  The epoch at which to evaluate the given delay models
      *
-     * @detail     No check is performed here on whether the provided epoch is
-     * in the bounds of the current delay polynomial. The assumption here is the
-     * we are running real time and as such there is no large latency between
-     * the reception of a set of delay models and a request for weights from
-     * that model. If this is not the case a more sophisticated mechanism for
-     * control of the delays into the beamformer will have to be developed.
+     * @details     No check is performed here on whether the provided epoch is
+     * in the bounds of the current delay polynomial.
      *
      * @note       This function is not thread-safe!!! Competing calls will
      * overwrite the memory of the _weights object.

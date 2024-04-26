@@ -42,14 +42,39 @@ void DelayManagerTester::TearDown()
  * weights are either 1 or 0
  */
 
-TEST_F(DelayManagerTester, test_valid_read)
+TEST_F(DelayManagerTester, test_valid_read_first_block)
 {
     DelayManager delay_manager("data/test_delays.bin", _stream);
+    DelayManager::DelayVectorDType const& delays = delay_manager.delays(1708082169.0);
+    ASSERT_EQ(delays.size(), 67 * 57);
 }
 
-TEST_F(DelayManagerTester, test_invalid_read)
+TEST_F(DelayManagerTester, test_valid_read_nth_block)
 {
-    // TODO
+    DelayManager delay_manager("data/test_delays.bin", _stream);
+    DelayManager::DelayVectorDType const& delays = delay_manager.delays(1708082409.957);
+    ASSERT_EQ(delays.size(), 67 * 57);
+}
+
+
+TEST_F(DelayManagerTester, test_too_early_epoch)
+{
+    DelayManager delay_manager("data/test_delays.bin", _stream);
+    //Test an epoch that is before the start of the validity window
+    EXPECT_THROW(
+        DelayManager::DelayVectorDType const& delays = delay_manager.delays(1708082165.0),
+        InvalidDelayEpoch
+    );
+}
+
+TEST_F(DelayManagerTester, test_too_late_epoch)
+{
+    DelayManager delay_manager("data/test_delays.bin", _stream);
+    //Test an epoch that is after the end of the validity window
+    EXPECT_THROW(
+        DelayManager::DelayVectorDType const& delays = delay_manager.delays(1708082470.957),
+        std::runtime_error
+    );
 }
 
 } // namespace test

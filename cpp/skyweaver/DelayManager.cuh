@@ -57,8 +57,8 @@ class DelayManager
      * fastest dimension is antenna. This is also how the vectors 
      * are store on file.
      */
-    typedef thrust::device_vector<float3> DelayVectorHType;
-    typedef thrust::host_vector<float3> DelayVectorDType;
+    typedef thrust::device_vector<float3> DelayVectorDType;
+    typedef thrust::host_vector<float3> DelayVectorHType;
 
   public:
     /**

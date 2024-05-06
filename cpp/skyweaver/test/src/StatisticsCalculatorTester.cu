@@ -14,6 +14,8 @@
 #include <thrust/random/normal_distribution.h>
 #include <vector>
 
+#define EXPECT_RELATIVE_ERROR()
+
 namespace skyweaver
 {
 namespace test
@@ -150,13 +152,17 @@ void StatisticsCalculatorTester::compare_against_host(
     }
 
     for(std::size_t stats_idx = 0; stats_idx < fpa_size; ++stats_idx) {
-        EXPECT_DOUBLE_EQ(gpu_results[stats_idx].mean,
+        // Even though the values are doubles, we do not expect the host 
+        // and device codes to actually return identical values given 
+        // differences in operation order. Hence we compare as if the
+        // values are floats.
+        EXPECT_FLOAT_EQ(gpu_results[stats_idx].mean,
                          stats[stats_idx].mean());
-        EXPECT_DOUBLE_EQ(gpu_results[stats_idx].std,
+        EXPECT_FLOAT_EQ(gpu_results[stats_idx].std,
                          stats[stats_idx].standard_deviation());
-        EXPECT_DOUBLE_EQ(gpu_results[stats_idx].skew,
+        EXPECT_FLOAT_EQ(gpu_results[stats_idx].skew,
                          stats[stats_idx].skewness());
-        EXPECT_DOUBLE_EQ(gpu_results[stats_idx].kurtosis,
+        EXPECT_FLOAT_EQ(gpu_results[stats_idx].kurtosis,
                          stats[stats_idx].kurtosis());
     }
 }

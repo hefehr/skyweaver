@@ -39,7 +39,6 @@ __global__ void calculate_statistics(char2 const* __restrict__ ftpa_voltages,
     const int channel_idx = blockIdx.x;
     const int pol_idx     = blockIdx.y;
     const int antenna_idx = threadIdx.x;
-    const int nchannels   = gridDim.x;
     const int npol        = gridDim.y;
     const int nantennas   = blockDim.x;
     const int tpa_size    = npol * nantennas * nsamples;

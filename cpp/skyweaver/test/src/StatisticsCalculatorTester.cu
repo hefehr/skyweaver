@@ -151,17 +151,13 @@ void StatisticsCalculatorTester::compare_against_host(
 
     for(std::size_t stats_idx = 0; stats_idx < fpa_size; ++stats_idx) {
         EXPECT_DOUBLE_EQ(gpu_results[stats_idx].mean,
-                         stats[stats_idx].mean(),
-                         expected_fractional_error);
+                         stats[stats_idx].mean());
         EXPECT_DOUBLE_EQ(gpu_results[stats_idx].std,
-                         stats[stats_idx].standard_deviation(),
-                         expected_fractional_error);
+                         stats[stats_idx].standard_deviation());
         EXPECT_DOUBLE_EQ(gpu_results[stats_idx].skew,
-                         stats[stats_idx].skewness(),
-                         expected_fractional_error);
+                         stats[stats_idx].skewness());
         EXPECT_DOUBLE_EQ(gpu_results[stats_idx].kurtosis,
-                         stats[stats_idx].kurtosis(),
-                         expected_fractional_error);
+                         stats[stats_idx].kurtosis());
     }
 }
 

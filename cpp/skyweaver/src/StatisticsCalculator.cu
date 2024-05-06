@@ -42,13 +42,13 @@ __global__ void calculate_statistics(char2 const* __restrict__ ftpa_voltages,
     const int nchannels   = gridDim.x;
     const int npol        = gridDim.y;
     const int nantennas   = blockDim.x;
-    const int ftpa_size   = nchannels * npol * nantennas * nsamples;
-    const int offset      = channel_idx * nsamples * npol * nantennas +
-                       pol_idx * nantennas + antenna_idx;
+    const int tpa_size    = npol * nantennas * nsamples;
+    const int offset =
+        channel_idx * tpa_size + pol_idx * nantennas + antenna_idx;
     const int stride = npol * nantennas;
     double M1 = 0.0, M2 = 0.0, M3 = 0.0, M4 = 0.0;
-    int n  = 0;
-    for(int sample_idx = offset; sample_idx < ftpa_size; sample_idx += stride) {
+    int n = 0;
+    for(int sample_idx = offset; sample_idx < (tpa_size + offset); sample_idx += stride) {
         char2 data = ftpa_voltages[sample_idx];
         double power =
             (double)data.x * (double)data.x + (double)data.y * (double)data.y;
@@ -68,7 +68,7 @@ __global__ void calculate_statistics(char2 const* __restrict__ ftpa_voltages,
     // Output is ordered in FPA order
     int output_idx =
         channel_idx * npol * nantennas + pol_idx * nantennas + antenna_idx;
-    Statistics* output = results + output_idx;
+    Statistics* output = &results[output_idx];
     output->mean       = M1;
     output->std        = sqrt(M2 / (n - 1.0));
     output->skew       = sqrt((double)n) * M3 / pow(M2, 1.5);
@@ -142,7 +142,8 @@ void StatisticsCalculator::calculate_statistics(
 
 void StatisticsCalculator::open_statistics_file()
 {
-    _stats_file.open(_config.statistics_file(), std::ios::out | std::ios::binary);
+    _stats_file.open(_config.statistics_file(),
+                     std::ios::out | std::ios::binary);
     if(_stats_file.is_open()) {
         BOOST_LOG_TRIVIAL(info)
             << "Opened statistics file " << _config.statistics_file();

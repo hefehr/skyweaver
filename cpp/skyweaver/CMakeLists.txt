@@ -5,14 +5,16 @@ include_directories(${CMAKE_SOURCE_DIR}/cpp/)
 
 set(skyweaver_src
    src/DelayManager.cu
-   src/WeightsManager.cu
    src/PipelineConfig.cpp
+   src/StatisticsCalculator.cu
+   src/WeightsManager.cu
    )
 
 set(skyweaver_inc
     DelayManager.cuh
-    WeightsManager.cuh
     PipelineConfig.hpp
+    StatisticsCalculator.cuh
+    WeightsManager.cuh
    )
 
 set(SKYWEAVER_LIBRARIES ${CMAKE_PROJECT_NAME} ${DEPENDENCY_LIBRARIES})

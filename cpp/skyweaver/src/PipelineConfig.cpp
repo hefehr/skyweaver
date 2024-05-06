@@ -7,6 +7,7 @@ PipelineConfig::PipelineConfig()
     : _delay_file("delays.swd")
     , _input_file("input.txt")
     , _output_dir("./")
+    , _statistics_file("./statistics.bin")
     , _cfreq(1284000000.0)
     , _bw(13375000.0)
     , _channel_frequencies_stale(true)
@@ -51,6 +52,16 @@ void PipelineConfig::output_dir(std::string const& path)
 std::string const& PipelineConfig::output_dir() const
 {
     return _output_dir;
+}
+
+void PipelineConfig::statistics_file(std::string const& filename)
+{
+    _statistics_file = filename;
+}
+
+std::string const& PipelineConfig::statistics_file() const
+{
+    return _statistics_file;
 }
 
 double PipelineConfig::centre_frequency() const

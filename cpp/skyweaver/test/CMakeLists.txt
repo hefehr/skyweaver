@@ -5,6 +5,7 @@ link_directories(${GTEST_LIBRARY_DIR})
 set(
     gtest_skyweaver_src
     src/DelayManagerTester.cu
+    src/StatisticsCalculatorTester.cu
     src/WeightsManagerTester.cu
     src/gtest_skyweaver.cu
 )

@@ -50,6 +50,16 @@ class PipelineConfig
     void output_dir(std::string const&);
 
     /**
+     * @brief      Get the file path for the statistics file
+     */
+    std::string const& statistics_file() const;
+
+    /**
+     * @brief      Set the file path for the statistics file
+     */
+    void statistics_file(std::string const&);
+
+    /**
      * @brief      Get the centre frequency for the subband to
      *             be processed by this instance.
      */
@@ -109,6 +119,18 @@ class PipelineConfig
      *             in the coherent beamformer.
      */
     std::size_t cb_fscrunch() const { return SKYWEAVER_CB_FSCRUNCH; }
+
+    /**
+     * @brief      Return the number of time samples to be integrated
+     *             in the incoherent beamformer.
+     */
+    std::size_t ib_tscrunch() const { return SKYWEAVER_IB_TSCRUNCH; }
+
+    /**
+     * @brief      Return the number of frequency channels to be integrated
+     *             in the incoherent beamformer.
+     */
+    std::size_t ib_fscrunch() const { return SKYWEAVER_IB_FSCRUNCH; }
 
     /**
      * @brief     Get the setting for CB-IB subtraction
@@ -224,6 +246,7 @@ class PipelineConfig
     std::string _delay_file;
     std::string _input_file;
     std::string _output_dir;
+    std::string _statistics_file;
     double _cfreq;
     double _bw;
     mutable bool _channel_frequencies_stale;

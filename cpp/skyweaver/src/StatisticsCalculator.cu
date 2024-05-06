@@ -47,12 +47,13 @@ __global__ void calculate_statistics(char2 const* __restrict__ ftpa_voltages,
                        pol_idx * nantennas + antenna_idx;
     const int stride = npol * nantennas;
     double M1 = 0.0, M2 = 0.0, M3 = 0.0, M4 = 0.0;
-    int n  = 1;
-    int n1 = 0;
+    int n  = 0;
     for(int sample_idx = offset; sample_idx < ftpa_size; sample_idx += stride) {
         char2 data = ftpa_voltages[sample_idx];
         double power =
             (double)data.x * (double)data.x + (double)data.y * (double)data.y;
+        long long n1 = n;
+        n++;
         double delta    = power - M1;
         double delta_n  = delta / n;
         double delta_n2 = delta_n * delta_n;
@@ -62,8 +63,6 @@ __global__ void calculate_statistics(char2 const* __restrict__ ftpa_voltages,
               4 * delta_n * M3;
         M3 += term1 * delta_n * (n - 2) - 3 * delta_n * M2;
         M2 += term1;
-        ++n1;
-        ++n;
     }
 
     // Output is ordered in FPA order

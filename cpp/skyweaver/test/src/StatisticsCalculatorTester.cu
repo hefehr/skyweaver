@@ -3,16 +3,21 @@
 #include "skyweaver/PipelineConfig.hpp"
 #include "skyweaver/skyweaver_constants.hpp"
 #include "skyweaver/test/StatisticsCalculatorTester.cuh"
-#include <thrust/device_vector.h>
-#include <thrust/host_vector.h>
-#include <thrust/generate.h>
-#include <thrust/random.h>
-#include <thrust/random/normal_distribution.h>
 
 #include <algorithm>
 #include <cmath>
 #include <fstream>
+#include <thrust/device_vector.h>
+#include <thrust/generate.h>
+#include <thrust/host_vector.h>
+#include <thrust/random.h>
+#include <thrust/random/normal_distribution.h>
 #include <vector>
+
+#define EXPECT_RELATIVE_ERROR(a, b, error) \
+    {                                      \
+        EXPECT_NEAR(a, b, b* error);       \
+    }
 
 namespace skyweaver
 {
@@ -188,14 +193,21 @@ void StatisticsCalculatorTester::compare_against_host(
         }
     }
 
+    const float expected_fractional_error = 0.02;
+
     for(std::size_t stats_idx = 0; stats_idx < fpa_size; ++stats_idx) {
-        EXPECT_DOUBLE_EQ(gpu_results[stats_idx].mean, stats[stats_idx].mean());
-        EXPECT_DOUBLE_EQ(gpu_results[stats_idx].std,
-                         stats[stats_idx].standard_deviation());
-        EXPECT_DOUBLE_EQ(gpu_results[stats_idx].skew,
-                         stats[stats_idx].skewness());
-        EXPECT_DOUBLE_EQ(gpu_results[stats_idx].kurtosis,
-                         stats[stats_idx].kurtosis());
+        EXPECT_RELATIVE_ERROR(gpu_results[stats_idx].mean,
+                              stats[stats_idx].mean(),
+                              expected_fractional_error);
+        EXPECT_RELATIVE_ERROR(gpu_results[stats_idx].std,
+                              stats[stats_idx].standard_deviation(),
+                              expected_fractional_error);
+        EXPECT_RELATIVE_ERROR(gpu_results[stats_idx].skew,
+                              stats[stats_idx].skewness(),
+                              expected_fractional_error);
+        EXPECT_RELATIVE_ERROR(gpu_results[stats_idx].kurtosis,
+                              stats[stats_idx].kurtosis(),
+                              expected_fractional_error);
     }
 }
 

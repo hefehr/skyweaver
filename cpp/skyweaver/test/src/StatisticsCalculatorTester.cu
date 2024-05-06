@@ -191,5 +191,21 @@ TEST_F(StatisticsCalculatorTester, test_normal_dist)
     compare_against_host(ftpa_voltages_h, stats_h);
 }
 
+
+TEST_F(StatisticsCalculatorTester, test_file_writer)
+{
+    // Make some input data
+    std::size_t nsamples = 1024;
+    std::size_t input_size =
+        _config.nantennas() * _config.npol() * _config.nchans() * nsamples;    
+    thrust::host_vector<char2> ftpa_voltages_h(input_size, {0, 0});
+    thrust::device_vector<char2> ftpa_voltages = ftpa_voltages_h;
+    StatisticsCalculator calculator(_config, _stream);
+    calculator.open_statistics_file();
+    calculator.calculate_statistics(ftpa_voltages);
+    calculator.write_statistics();
+    thrust::device_vector<Statistics> stats = calculator.statistics();
+}
+
 } // namespace test
 } // namespace skyweaver

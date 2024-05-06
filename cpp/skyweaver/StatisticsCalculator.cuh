@@ -88,11 +88,14 @@ class StatisticsCalculator
      */
     void update_scalings();
 
-  private:
+    // These don't really belong here and should probably 
+    // be moved to some other stats outputter class. Leaving
+    // them here until there is some plan for how to write 
+    // all the statistics.
     void open_statistics_file();
-
     void write_statistics();
 
+  private:
     void dump_all_scalings() const;
 
     void dump_scalings(std::string const& timestamp,

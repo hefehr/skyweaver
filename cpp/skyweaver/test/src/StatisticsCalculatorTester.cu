@@ -189,12 +189,12 @@ void StatisticsCalculatorTester::compare_against_host(
     }
 
     for(std::size_t stats_idx = 0; stats_idx < fpa_size; ++stats_idx) {
-        ASSERT_DOUBLE_EQ(gpu_results[stats_idx].mean, stats[stats_idx].mean());
-        ASSERT_DOUBLE_EQ(gpu_results[stats_idx].std,
+        EXPECT_DOUBLE_EQ(gpu_results[stats_idx].mean, stats[stats_idx].mean());
+        EXPECT_DOUBLE_EQ(gpu_results[stats_idx].std,
                          stats[stats_idx].standard_deviation());
-        ASSERT_DOUBLE_EQ(gpu_results[stats_idx].skew,
+        EXPECT_DOUBLE_EQ(gpu_results[stats_idx].skew,
                          stats[stats_idx].skewness());
-        ASSERT_DOUBLE_EQ(gpu_results[stats_idx].kurtosis,
+        EXPECT_DOUBLE_EQ(gpu_results[stats_idx].kurtosis,
                          stats[stats_idx].kurtosis());
     }
 }

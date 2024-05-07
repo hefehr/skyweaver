@@ -106,6 +106,8 @@ StatisticsCalculator::StatisticsCalculator(PipelineConfig const& config,
     // Statistics of a data block
     _stats_d.resize(_config.nchans() * _config.nantennas() * _config.npol());
     _stats_h.resize(_config.nchans() * _config.nantennas() * _config.npol());
+
+    
 }
 
 StatisticsCalculator::~StatisticsCalculator()

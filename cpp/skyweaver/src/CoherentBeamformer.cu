@@ -69,7 +69,162 @@ __host__ __device__ static __inline__ float calculate_stokes(cuFloatComplex p0,
 #endif
 }
 
-__global__ void bf_aptf_general_k(int2 const* __restrict__ ftpa_voltages,
+__global__
+void bf_aptf_general_k(
+    int2 const* __restrict__ ftpa_voltages,
+    int2 const* __restrict__ fbpa_weights,
+    int8_t* __restrict__ tbtf_powers,
+    float const* __restrict__ output_scale,
+    float const* __restrict__ output_offset,
+    int nsamples)
+{
+    /**
+     * Perform compile time checks on requested beamforming parameters.
+     */
+    static_assert(SKYWEAVER_NBEAMS%SKYWEAVER_CB_WARP_SIZE==0,
+        "Kernel can only process a multiple of 32 beams.");
+    // This can no longer be a static assert as the NSAMPLES is no longer fixed
+    // static_assert(NSAMPLES%SKYWEAVER_CB_NSAMPLES_PER_BLOCK==0,
+    //    "Kernel can only process a multiple of (NWARPS_PER_BLOCK * SKYWEAVER_CB_TSCRUNCH) samples.");
+    static_assert(SKYWEAVER_CB_NTHREADS%SKYWEAVER_CB_WARP_SIZE==0,
+        "Number of threads must be an integer multiple of SKYWEAVER_CB_WARP_SIZE.");
+    static_assert(SKYWEAVER_NANTENNAS%4==0,
+        "Number of antennas must be a multiple of 4.");
+    static_assert(SKYWEAVER_NANTENNAS<=128,
+        "Number of antennas must be less than or equal to 128.");
+    /**
+     * Allocated shared memory to store beamforming weights and temporary space for antenna data.
+     */
+    __shared__ int2 shared_apb_weights[SKYWEAVER_NANTENNAS/4][SKYWEAVER_CB_WARP_SIZE];
+    __shared__ int2 shared_antennas[SKYWEAVER_CB_NTHREADS/SKYWEAVER_CB_WARP_SIZE][SKYWEAVER_NANTENNAS/4];
+    int const warp_idx = threadIdx.x / 0x20;
+    int const lane_idx = threadIdx.x & 0x1f;
+
+    /**
+     * Each warp processes 32 beams (i.e. one beam per lane).
+     */
+    int const start_beam_idx = blockIdx.z * SKYWEAVER_CB_WARP_SIZE;
+
+    /**
+     * Complex multiply accumulators
+     */
+    int xx, yy, xy, yx;
+    float power = 0.0f;
+
+#if SKYWEAVER_IB_SUBTRACTION
+    int ib_xx, ib_yy;
+    float ib_power = 0.0f;
+#endif //SKYWEAVER_IB_SUBTRACTION
+
+    int2 antennas, weights;
+    int antenna_group_idx;
+    const int sample_offset = SKYWEAVER_CB_TSCRUNCH * (blockIdx.x * SKYWEAVER_CB_NWARPS_PER_BLOCK + warp_idx);
+
+    for (int channel_idx = blockIdx.y * SKYWEAVER_CB_FSCRUNCH ;
+        channel_idx < (blockIdx.y + 1) * SKYWEAVER_CB_FSCRUNCH ;
+        ++channel_idx)
+    {
+
+        /**
+         * Here we load all the beamforming weights neccessary for this block. Implicit assumption here is that we do not
+         * need to change the weights over the timescale of the data processed in one block. This is almost certainly OK
+         * if the input data has already been rotated to telescope boresight and we are only applying parallactic angle
+         * tracking updates.
+         *
+         * The global load is coalesced 8-byte (vectorised int2).
+         */
+        int const fbpa_weights_offset = SKYWEAVER_NANTENNAS/4 * (SKYWEAVER_NBEAMS * channel_idx + (start_beam_idx + warp_idx));
+        for (antenna_group_idx = lane_idx; antenna_group_idx < SKYWEAVER_NANTENNAS/4; antenna_group_idx += SKYWEAVER_CB_WARP_SIZE)
+        {
+          shared_apb_weights[antenna_group_idx][warp_idx] = int2_transpose(fbpa_weights[fbpa_weights_offset + antenna_group_idx]);
+        }
+
+        //wait for all weights to load.
+        __syncthreads();
+
+        /**
+         * Below is the main loop of the kernel. Here the kernel reads all the antennas for a given sample and
+         * computes 32 beams. Each thread computes only 1 beam and access to all the antennas required for that
+         * computation is achieved via a shared memory broadcasts.
+         */
+        for (int sample_idx = sample_offset; sample_idx < (sample_offset + SKYWEAVER_CB_TSCRUNCH); ++sample_idx)
+        {
+            int ftpa_voltages_partial_idx = SKYWEAVER_NANTENNAS/4 * SKYWEAVER_NPOL * (nsamples * channel_idx + sample_idx);
+            for (int pol_idx=0; pol_idx < SKYWEAVER_NPOL; ++pol_idx)
+            {
+                // Set the complex accumulator to zero before adding the next polarisation
+                xx = 0;
+                yy = 0;
+                xy = 0;
+                yx = 0;
+#if SKYWEAVER_IB_SUBTRACTION
+                ib_xx = 0;
+                ib_yy = 0;
+#endif //SKYWEAVER_IB_SUBTRACTION
+
+               /**
+                * Load all antennas antennas required for this sample into shared memory.
+                * Without an outer loop to allow for more antennas (which would also require more shared memory),
+                * this kernel is limited to a max of 32 * 4 = 128 antennas in a sub-array.
+                */
+                if (lane_idx < SKYWEAVER_NANTENNAS/4)
+                {
+                    shared_antennas[warp_idx][lane_idx] = int2_transpose(ftpa_voltages[ftpa_voltages_partial_idx + lane_idx + SKYWEAVER_NANTENNAS/4 * pol_idx]);
+                }
+                __threadfence_block();
+                for (antenna_group_idx=0; antenna_group_idx < SKYWEAVER_NANTENNAS/4; ++antenna_group_idx)
+                {
+                    //broadcast load 4 antennas
+                    antennas = shared_antennas[warp_idx][antenna_group_idx];
+                    //load corresponding 4 weights
+                    weights = shared_apb_weights[antenna_group_idx][lane_idx];
+                    //dp4a multiply add
+                    dp4a(xx, weights.x, antennas.x);
+                    dp4a(yy, weights.y, antennas.y);
+                    dp4a(xy, weights.x, antennas.y);
+                    dp4a(yx, weights.y, antennas.x);
+
+#if SKYWEAVER_IB_SUBTRACTION
+                    //Square the antenna signals and sum
+                    dp4a(ib_xx, antennas.x, antennas.x);
+                    dp4a(ib_yy, antennas.y, antennas.y);
+#endif //SKYWEAVER_IB_SUBTRACTION
+
+                }
+#if SKYWEAVER_IB_SUBTRACTION
+                ib_power += (float)ib_xx + (float)ib_yy;
+#endif //SKYWEAVER_IB_SUBTRACTION
+                // This was previously int and was going into overflow
+                float r = (float)xx - (float)yy;
+                float i = (float)xy + (float)yx;
+                power += (r*r + i*i);
+            }
+        }
+        __syncthreads();
+    }
+    int const output_sample_idx = sample_offset / SKYWEAVER_CB_TSCRUNCH;
+    int const tf_size = SKYWEAVER_CB_NSAMPLES_PER_HEAP * gridDim.y;
+    int const btf_size = gridDim.z * SKYWEAVER_CB_WARP_SIZE * tf_size;
+    int const output_idx = (output_sample_idx / SKYWEAVER_CB_NSAMPLES_PER_HEAP * btf_size
+            + (start_beam_idx + lane_idx) * tf_size
+            + (output_sample_idx % SKYWEAVER_CB_NSAMPLES_PER_HEAP) * gridDim.y
+            + blockIdx.y);
+    float scale = output_scale[blockIdx.y];
+#if SKYWEAVER_IB_SUBTRACTION
+    /* 
+    Because we inflate the weights to have a magnitude of 127 to make sure 
+    that they can still represent many phases, we also need to account for
+    this scaling factor in the incoherent beam.
+    */
+    float power_fp32 = rintf((power - ib_power * 127.0 * 127.0) / scale);
+#else
+    float power_fp32 = rintf((power - output_offset[blockIdx.y]) / scale);
+#endif //SKYWEAVER_IB_SUBTRACTION
+    tbtf_powers[output_idx] = (int8_t) fmaxf(-127.0f, fminf(127.0f, power_fp32));
+}
+
+
+__global__ void bf_aptf_general_k_new(int2 const* __restrict__ ftpa_voltages,
                                   int2 const* __restrict__ fbpa_weights,
                                   int8_t* __restrict__ tbtf_powers,
                                   float const* __restrict__ output_scale,
@@ -123,7 +278,7 @@ __global__ void bf_aptf_general_k(int2 const* __restrict__ ftpa_voltages,
     // int ib_weight = *(int*)&ib_weight_c;
     // Simplifies to:
     int ib_weight = 0x1010101;
-    int ib_xx, ib_yy;
+    int ib_x, ib_y;
     float ib_power = 0.0f;
 #endif // SKYWEAVER_IB_SUBTRACTION
 
@@ -188,8 +343,8 @@ __global__ void bf_aptf_general_k(int2 const* __restrict__ ftpa_voltages,
                 xy = 0;
                 yx = 0;
 #if SKYWEAVER_IB_SUBTRACTION
-                ib_xx = 0;
-                ib_yy = 0;
+                ib_x = 0;
+                ib_y = 0;
 #endif // SKYWEAVER_IB_SUBTRACTION
 
                 /**
@@ -216,34 +371,33 @@ __global__ void bf_aptf_general_k(int2 const* __restrict__ ftpa_voltages,
                     dp4a(xy, weights.x, antennas.y);
                     dp4a(yx, weights.y, antennas.x);
 #if SKYWEAVER_IB_SUBTRACTION
-                    // Square the antenna signals and sum
-                    dp4a(ib_xx, ib_weight, antennas.x);
-                    dp4a(ib_yy, ib_weight, antennas.y);
+                    // Sum the antenna voltages with uniform weight
+                    dp4a(ib_x, ib_weight, antennas.x);
+                    dp4a(ib_y, ib_weight, antennas.y);
 #endif // SKYWEAVER_IB_SUBTRACTION
                 }
                 pol_voltage[pol_idx].x = (float)xx - (float)yy; // real
                 pol_voltage[pol_idx].y = (float)xy + (float)yx; // imag
 #if SKYWEAVER_IB_SUBTRACTION
-                ib_pol_voltage[pol_idx].x = ib_xx;
-                ib_pol_voltage[pol_idx].y = ib_yy;
+                ib_pol_voltage[pol_idx].x = ib_x; //real
+                ib_pol_voltage[pol_idx].y = ib_y; //imag
 #endif // SKYWEAVER_IB_SUBTRACTION
             }
             // This is after two polarisations have been computed
             power += calculate_stokes(pol_voltage[0], pol_voltage[1]);
 #if SKYWEAVER_IB_SUBTRACTION
-                ib_power +=
-                calculate_stokes(ib_pol_voltage[0], ib_pol_voltage[1]);
+            ib_power += calculate_stokes(ib_pol_voltage[0], ib_pol_voltage[1]);
 #endif // SKYWEAVER_IB_SUBTRACTION
         }
         __syncthreads();
     }
     int const output_sample_idx = sample_offset / SKYWEAVER_IB_TSCRUNCH;
-    int const tf_size           = SKYWEAVER_NSAMPLES_PER_HEAP * gridDim.y;
+    int const tf_size           = SKYWEAVER_CB_NSAMPLES_PER_HEAP * gridDim.y;
     int const btf_size          = gridDim.z * SKYWEAVER_CB_WARP_SIZE * tf_size;
     int const output_idx =
-        (output_sample_idx / SKYWEAVER_NSAMPLES_PER_HEAP * btf_size +
+        (output_sample_idx / SKYWEAVER_CB_NSAMPLES_PER_HEAP * btf_size +
          (start_beam_idx + lane_idx) * tf_size +
-         (output_sample_idx % SKYWEAVER_NSAMPLES_PER_HEAP) * gridDim.y +
+         (output_sample_idx % SKYWEAVER_CB_NSAMPLES_PER_HEAP) * gridDim.y +
          blockIdx.y);
     float scale = output_scale[blockIdx.y];
 #if SKYWEAVER_IB_SUBTRACTION
@@ -295,7 +449,7 @@ void CoherentBeamformer::beamform(VoltageVectorType const& input,
          _config.cb_tscrunch() / _config.cb_fscrunch() * _config.nbeams());
     assert(nsamples % SKYWEAVER_CB_NSAMPLES_PER_BLOCK == 0);
     std::size_t nsamples_out = nsamples / _config.cb_tscrunch();
-    assert(nsamples_out % SKYWEAVER_NSAMPLES_PER_HEAP == 0);
+    assert(nsamples_out % SKYWEAVER_CB_NSAMPLES_PER_HEAP == 0);
     BOOST_LOG_TRIVIAL(debug) << "Resizing output buffer from " << output.size()
                              << " to " << output_size << " elements";
     output.resize(output_size);

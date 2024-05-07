@@ -30,14 +30,23 @@ class PipelineConfig
     void delay_file(std::string const&);
 
     /**
-     * @brief      Get the path to the list of input files
+     * @brief      Get the list of input files
      */
-    std::string const& input_file() const;
+    std::vector<std::string> const& input_files() const;
 
     /**
-     * @brief      Set the path to the list of input files
+     * @brief      Set list of input files
      */
-    void input_file(std::string const&);
+    void input_files(std::vector<std::string> const&);
+
+    /**
+     * @brief      Set the list of input files from a text file 
+     * 
+     * @details    File format is a newline separated list of 
+     *             absolute or relative filepaths. Lines beginning 
+     *             with # are considered to be comments
+     */
+    void read_input_file_list(std::string filename);
 
     /**
      * @brief      Get the directory path for output files
@@ -244,9 +253,10 @@ class PipelineConfig
 
   private:
     std::string _delay_file;
-    std::string _input_file;
+    std::vector<std::string> _input_files;
     std::string _output_dir;
     std::string _statistics_file;
+    std::vector<float> _coherent_dms;
     double _cfreq;
     double _bw;
     mutable bool _channel_frequencies_stale;
@@ -255,7 +265,6 @@ class PipelineConfig
     float _cb_power_offset;
     float _ib_power_scaling;
     float _ib_power_offset;
-    std::vector<float> _coherent_dms;
     mutable std::vector<double> _channel_frequencies;
 };
 

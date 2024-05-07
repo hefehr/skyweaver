@@ -1,23 +1,19 @@
 #include "skyweaver/PipelineConfig.hpp"
+
+#include <boost/algorithm/string.hpp> 
+
 #include <fstream>
 
-namespace skyweaver {
+namespace skyweaver
+{
 
 PipelineConfig::PipelineConfig()
-    : _delay_file("delays.swd")
-    , _input_file("input.txt")
-    , _output_dir("./")
-    , _statistics_file("./statistics.bin")
-    , _cfreq(1284000000.0)
-    , _bw(13375000.0)
-    , _channel_frequencies_stale(true)
-    , _output_level(24.0f)
-    , _cb_power_scaling(0.0f)
-    , _cb_power_offset(0.0f)
-    , _ib_power_scaling(0.0f)
-    , _ib_power_offset(0.0f)
+    : _delay_file("delays.swd"), _input_files({}), _output_dir("./"),
+      _statistics_file("./statistics.bin"), _coherent_dms({0.0f}),
+      _cfreq(1284000000.0), _bw(13375000.0), _channel_frequencies_stale(true),
+      _output_level(24.0f), _cb_power_scaling(0.0f), _cb_power_offset(0.0f),
+      _ib_power_scaling(0.0f), _ib_power_offset(0.0f)
 {
-    _coherent_dms.push_back(0.0f);
 }
 
 PipelineConfig::~PipelineConfig()
@@ -34,14 +30,38 @@ std::string const& PipelineConfig::delay_file() const
     return _delay_file;
 }
 
-void PipelineConfig::input_file(std::string const& fpath)
+void PipelineConfig::input_files(std::vector<std::string> const& files)
 {
-    _input_file = fpath;
+    _input_files = files;
 }
 
-std::string const& PipelineConfig::input_file() const
+std::vector<std::string> const& PipelineConfig::input_files() const
 {
-    return _input_file;
+    return _input_files;
+}
+
+void PipelineConfig::read_input_file_list(std::string filename)
+{
+    std::string line;
+    std::ifstream ifs(filename.c_str());
+    if(!ifs.is_open()) {
+        std::cerr << "Unable to open input file list: " << filename
+                  << " (" << std::strerror(errno) << ")\n";
+        throw std::runtime_error(std::strerror(errno));
+    }
+    _input_files.resize(0);
+    while ( std::getline (ifs, line) )
+    {
+        boost::algorithm::trim(line);
+        if (line.rfind("#", 0))
+        {
+            // Line is a comment
+            continue;
+        } else {
+            _input_files.push_back(line);
+        }
+    }
+    ifs.close();
 }
 
 void PipelineConfig::output_dir(std::string const& path)
@@ -71,7 +91,7 @@ double PipelineConfig::centre_frequency() const
 
 void PipelineConfig::centre_frequency(double cfreq)
 {
-    _cfreq = cfreq;
+    _cfreq                     = cfreq;
     _channel_frequencies_stale = true;
 }
 
@@ -82,7 +102,7 @@ double PipelineConfig::bandwidth() const
 
 void PipelineConfig::bandwidth(double bw)
 {
-    _bw = bw;
+    _bw                        = bw;
     _channel_frequencies_stale = true;
 }
 
@@ -98,8 +118,7 @@ void PipelineConfig::coherent_dms(std::vector<float> const& coherent_dms)
 
 std::vector<double> const& PipelineConfig::channel_frequencies() const
 {
-    if (_channel_frequencies_stale)
-    {
+    if(_channel_frequencies_stale) {
         calculate_channel_frequencies();
     }
     return _channel_frequencies;
@@ -112,12 +131,12 @@ void PipelineConfig::calculate_channel_frequencies() const
      * frequencies are labeled for the data out of the F-engine. Either
      * way is a roughly correct place-holder.
      */
-    double chbw = bandwidth()/nchans();
-    double fbottom = centre_frequency() - bandwidth()/2.0;
+    double chbw    = bandwidth() / nchans();
+    double fbottom = centre_frequency() - bandwidth() / 2.0;
     _channel_frequencies.clear();
-    for (std::size_t chan_idx=0; chan_idx < nchans(); ++chan_idx)
-    {
-        _channel_frequencies.push_back(fbottom + chbw/2.0 + (chbw * chan_idx));
+    for(std::size_t chan_idx = 0; chan_idx < nchans(); ++chan_idx) {
+        _channel_frequencies.push_back(fbottom + chbw / 2.0 +
+                                       (chbw * chan_idx));
     }
     _channel_frequencies_stale = false;
 }
@@ -132,4 +151,4 @@ float PipelineConfig::output_level() const
     return _output_level;
 }
 
-} //namespace skyweaver
+} // namespace skyweaver

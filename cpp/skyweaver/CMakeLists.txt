@@ -1,8 +1,5 @@
 include_directories(${CMAKE_SOURCE_DIR}/cpp/)
 
-#SET(SKYWEAVER_NANTENNAS "option_value" CACHE STRING "Some user-specified option")
-
-
 set(skyweaver_src
    src/DelayManager.cu
    src/PipelineConfig.cpp
@@ -66,6 +63,11 @@ IF (SKYWEAVER_IB_FSCRUNCH)
     message(STATUS "Compiling for SKYWEAVER_IB_FSCRUNCH = " ${SKYWEAVER_IB_FSCRUNCH})
     target_compile_definitions(${CMAKE_PROJECT_NAME} PUBLIC SKYWEAVER_IB_FSCRUNCH=${SKYWEAVER_IB_FSCRUNCH})
 ENDIF (SKYWEAVER_IB_FSCRUNCH)
+
+# CLI applications
+cuda_add_executable(skyweavercpp src/skyweaver_cli.cu)
+target_link_libraries(skyweavercpp ${SKYWEAVER_LIBRARIES})
+install(TARGETS skyweavercpp DESTINATION bin)
 
 #install (TARGETS ... DESTINATION bin)
 #install (TARGETS ${CMAKE_PROJECT_NAME}

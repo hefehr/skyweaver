@@ -1,5 +1,5 @@
 # find the usual boost
-find_package(Boost COMPONENTS log program_options system REQUIRED)
+find_package(Boost COMPONENTS log log_setup program_options system REQUIRED)
 option(BOOST_ASIO_DEBUG "set to true to enable boost asio handler tracking" OFF)
 if(BOOST_ASIO_DEBUG)
     set(BOOST_ASIO_DEBUG true)

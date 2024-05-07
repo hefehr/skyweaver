@@ -7,8 +7,7 @@
 #include <string>
 #include <mutex>
 #include <memory>
-#include "PsrDadaHeader.hpp"
-
+#include <psrdada_cpp/psrdadaheader.hpp>
 
 class MultiFileReader {
 private:
@@ -21,12 +20,13 @@ private:
     bool eofFlag;
     std::size_t headerSize;
     std::size_t totalSize;
+    bool  checkContinuity;
 
     void read_header();
     std::unique_ptr<psrdada_cpp::PsrDadaHeader> header;
 
 public:
-    MultiFileReader(const std::vector<std::string>& fileNames, long headerSize = 0);
+    MultiFileReader(const std::vector<std::string>& fileNames, long headerSize = 0, bool checkContinuity = false);
     void open();
     void open_next();
     void open_previous();
@@ -36,6 +36,10 @@ public:
     bool eof() const;
     bool good() const;
     std::streamsize read(std::unique_ptr<std::vector<char>> buffer, std::streamsize bytes);
+
+
+
+
 
     template <typename T>
     friend MultiFileReader& operator>>(MultiFileReader& reader, T& value);

@@ -2,14 +2,14 @@
 
 
 
-MultiFileReader::MultiFileReader(const std::vector<std::string>& fileNames, long headerSize) : 
-    files(fileNames), currentFileIndex(0), currentPosition(0), eofFlag(false), headerSize(headerSize) {
+MultiFileReader::MultiFileReader(const std::vector<std::string>& fileNames, long headerSize, bool checkContinuity) : 
+    files(fileNames), currentFileIndex(0), currentPosition(0), eofFlag(false), headerSize(headerSize), checkContinuity(checkContinuity) {
     std::size_t totalSize = 0;
     for (const auto& file : files) {
         std::ifstream f(file, std::ifstream::ate | std::ifstream::binary);
         f.seekg(0, std::ios::end); // Move to the end of the file
         std::size_t size = f.tellg();
-        totalSize += (size - headerSize);
+        totalSize += (size - headerSize); // skip header
         sizes.push_back(size - headerSize);
         f.close();
     }
@@ -107,6 +107,8 @@ std::streamsize MultiFileReader::read(std::unique_ptr<std::vector<char>> buffer,
             bytes -= bytesRead;
             currentPosition += bytesRead;
         }
+
+        if(eofFlag) break;  
     }
     return totalRead;
 }

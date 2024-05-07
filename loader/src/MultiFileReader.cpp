@@ -2,7 +2,7 @@
 
 
 
-MultiFileReader::MultiFileReader(const std::vector<std::string>& fileNames, long headerSize, bool checkContinuity) : 
+MultiFileReader::MultiFileReader(const std::vector<std::string>& fileNames,  std::size_t headerSize, bool checkContinuity) : 
     files(fileNames), currentFileIndex(0), currentPosition(0), eofFlag(false), headerSize(headerSize), checkContinuity(checkContinuity) {
     std::size_t totalSize = 0;
     for (const auto& file : files) {
@@ -62,16 +62,16 @@ void MultiFileReader::open_previous() {
 }
 
 
-void MultiFileReader::seekg(long pos, std::ios_base::seekdir dir) {
+void MultiFileReader::seekg(std::size_t pos, std::ios_base::seekdir dir) {
     std::lock_guard<std::mutex> lock(mtx);
-    long targetPos = (dir == std::ios_base::cur) ? currentPosition + pos : pos;
+     std::size_t targetPos = (dir == std::ios_base::cur) ? currentPosition + pos : pos;
     if (dir == std::ios_base::end && pos < 0) targetPos = this->totalSize + pos;
 
-    long cumulativeSize = 0;
+    std::size_t cumulativeSize = 0;
     for (size_t i = 0; i < sizes.size(); i++) {
         cumulativeSize += sizes[i];
         if (targetPos < cumulativeSize) {
-            long filePos = targetPos - (cumulativeSize - sizes[i]); // position in file
+            std::size_t filePos = targetPos - (cumulativeSize - sizes[i]); // position in file
             if (currentFileIndex != i) {
                 currentStream.close();
                 currentFileIndex = i;
@@ -121,7 +121,7 @@ bool MultiFileReader::good() const {
     return currentStream.good() && !eofFlag;
 }
 
-long MultiFileReader::tellg() const {
+std::size_t MultiFileReader::tellg() const {
     return currentPosition;
 }
 

@@ -144,7 +144,7 @@ class PipelineConfig
     /**
      * @brief     Get the setting for CB-IB subtraction
      */
-    bool cb_ib_subtract() const { return SKYWEAVER_CB_IB_SUBTRACT; }
+    bool cb_ib_subtract() const { return SKYWEAVER_IB_SUBTRACTION; }
 
     /**
      * @brief      Return the number of beams to be formed by the coherent

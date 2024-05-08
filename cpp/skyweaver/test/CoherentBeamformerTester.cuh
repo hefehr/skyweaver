@@ -16,6 +16,8 @@ public:
     typedef thrust::host_vector<char2> HostVoltageVectorType;
     typedef CoherentBeamformer::PowerVectorType DevicePowerVectorType;
     typedef thrust::host_vector<char> HostPowerVectorType;
+    typedef CoherentBeamformer::RawPowerVectorType DeviceRawPowerVectorType;
+    typedef thrust::host_vector<float> HostRawPowerVectorType;
     typedef CoherentBeamformer::WeightsVectorType DeviceWeightsVectorType;
     typedef thrust::host_vector<char2> HostWeightsVectorType;
     typedef CoherentBeamformer::ScalingVectorType DeviceScalingVectorType;

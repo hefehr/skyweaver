@@ -40,6 +40,7 @@ public:
     typedef thrust::device_vector<char2> VoltageVectorType;
     // TBTF order
     typedef thrust::device_vector<int8_t> PowerVectorType;
+    typedef thrust::device_vector<float> RawPowerVectorType;
     // FBA order (assuming equal weight per polarisation)
     typedef thrust::device_vector<char2> WeightsVectorType;
     typedef thrust::device_vector<float> ScalingVectorType;
@@ -68,6 +69,7 @@ public:
         WeightsVectorType const& weights,
         ScalingVectorType const& scales,
         ScalingVectorType const& offsets,
+        RawPowerVectorType const& ib_powers,
         PowerVectorType& output,
         cudaStream_t stream);
 

@@ -33,7 +33,7 @@ void IncoherentBeamformerTester::TearDown()
 }
 
 void IncoherentBeamformerTester::beamformer_c_reference(
-    HostVoltageVectorType const& taftp_voltages,
+    HostVoltageVectorType const& ftpa_voltages,
     HostRawPowerVectorType& tf_powers_raw,
     HostPowerVectorType& tf_powers,
     int nchannels,
@@ -46,85 +46,61 @@ void IncoherentBeamformerTester::beamformer_c_reference(
     HostScalingVectorType const& offset)
 {
     static_assert(SKYWEAVER_NPOL == 2, "Tests only work for dual poln data.");
-    const int tp        = nsamples_per_timestamp;
-    const int ftp       = nchannels * tp;
-    const int aftp      = nantennas * ftp;
-    double power_sum    = 0.0;
-    double power_sq_sum = 0.0;
-    std::size_t count   = 0;
+    const int nchans_out = SKYWEAVER_NCHANS / SKYWEAVER_IB_FSCRUNCH;
+    const int a          = SKYWEAVER_NANTENNAS;
+    const int pa         = SKYWEAVER_NPOL * a;
+    const int tpa        = ntimestamps * pa;
 
-    char4 const* taftp_voltages_c4 =
-        (char4 const*)thrust::raw_pointer_cast(taftp_voltages.data());
-    for(int timestamp_idx = 0; timestamp_idx < ntimestamps; ++timestamp_idx) {
-        for(int subint_idx = 0; subint_idx < nsamples_per_timestamp / tscrunch;
-            ++subint_idx) {
-            int subint_start = subint_idx * tscrunch;
-            for(int subband_idx = 0; subband_idx < nchannels / fscrunch;
-                ++subband_idx) {
-                int subband_start = subband_idx * fscrunch;
-                {
-                    float power = 0.0f;
-                    for(int antenna_idx = 0; antenna_idx < nantennas;
-                        ++antenna_idx) {
-                        for(int channel_idx = subband_start;
-                            channel_idx < subband_start + fscrunch;
-                            ++channel_idx) {
-                            for(int sample_idx = subint_start;
-                                sample_idx < subint_start + tscrunch;
-                                ++sample_idx) {
-                                int input_index = timestamp_idx * aftp +
-                                                  antenna_idx * ftp +
-                                                  channel_idx * tp + sample_idx;
-                                char4 ant = taftp_voltages_c4[input_index];
-                                cuFloatComplex p0 =
-                                    make_cuFloatComplex((float)ant.x,
-                                                        (float)ant.y);
-                                cuFloatComplex p1 =
-                                    make_cuFloatComplex((float)ant.z,
-                                                        (float)ant.w);
-                                power += calculate_stokes(p0, p1);
-                            }
-                        }
+    for(int F_idx = 0; F_idx < SKYWEAVER_NCHANS;
+        F_idx += SKYWEAVER_IB_FSCRUNCH) {
+        for(int T_idx = 0; T_idx < SKYWEAVER_NCHANS;
+            T_idx += SKYWEAVER_IB_TSCRUNCH) {
+            float power = 0.0f;
+            for(int f_idx = F_idx; f_idx < F_idx + SKYWEAVER_IB_FSCRUNCH;
+                ++f_idx) {
+                for(int t_idx = T_idx; t_idx < T_idx + SKYWEAVER_IB_TSCRUNCH;
+                    ++t_idx) {
+                    for(int a_idx = 0; a_idx < SKYWEAVER_NANTENNAS; ++a_idx) {
+                        int input_p0_idx = f_idx * tpa + t_idx * pa + a_idx;
+                        int input_p1_idx = f_idx * tpa + t_idx * pa + a + a_idx;
+                        char2 p0_v       = ftpa_voltages[input_p0_idx];
+                        char2 p1_v       = ftpa_voltages[input_p1_idx];
+                        cuFloatComplex p0 =
+                            make_cuFloatComplex((float)p0_v.x, (float)p0_v.y);
+                        cuFloatComplex p1 =
+                            make_cuFloatComplex((float)p1_v.x, (float)p1_v.y);
+                        power += calculate_stokes(p0, p1);
                     }
-                    int time_idx =
-                        timestamp_idx * nsamples_per_timestamp / tscrunch +
-                        subint_idx;
-                    int output_idx =
-                        time_idx * nchannels / fscrunch + subband_idx;
-                    power_sum += power;
-                    power_sq_sum += power * power;
-                    ++count;
-                    tf_powers_raw[output_idx] = power;
-                    float scaled_power =
-                        ((power - offset[subband_idx]) / scale[subband_idx]);
-                    tf_powers[output_idx] =
-                        (int8_t)fmaxf(-127.0f, fminf(127.0f, scaled_power));
                 }
             }
+            int subband_idx           = F_idx / SKYWEAVER_IB_FSCRUNCH;
+            int subbint_idx           = T_idx / SKYWEAVER_IB_TSCRUNCH;
+            int output_idx            = subbint_idx * nchans_out + subband_idx;
+            tf_powers_raw[output_idx] = power;
+            float scaled_power =
+                ((power - offset[subband_idx]) / scale[subband_idx]);
+            tf_powers[output_idx] =
+                (int8_t)fmaxf(-127.0f, fminf(127.0f, scaled_power));
         }
     }
-    double power_mean = power_sum / count;
-    BOOST_LOG_TRIVIAL(debug) << "Average power level: " << power_mean;
-    BOOST_LOG_TRIVIAL(debug)
-        << "Power variance: " << power_sq_sum / count - power_mean * power_mean;
 }
 
 void IncoherentBeamformerTester::compare_against_host(
-    DeviceVoltageVectorType const& taftp_voltages_gpu,
+    DeviceVoltageVectorType const& ftpa_voltages_gpu,
     DeviceRawPowerVectorType& tf_powers_raw_gpu,
     DevicePowerVectorType& tf_powers_gpu,
     DeviceScalingVectorType const& scaling_vector,
     DeviceScalingVectorType const& offset_vector,
     int ntimestamps)
 {
-    HostVoltageVectorType taftp_voltages_host = taftp_voltages_gpu;
+    HostVoltageVectorType ftpa_voltages_host  = ftpa_voltages_gpu;
     HostPowerVectorType tf_powers_cuda        = tf_powers_gpu;
     HostRawPowerVectorType tf_powers_raw_cuda = tf_powers_raw_gpu;
     HostScalingVectorType h_scaling_vector    = scaling_vector;
     HostScalingVectorType h_offset_vector     = offset_vector;
     HostRawPowerVectorType tf_powers_raw_host(tf_powers_raw_gpu.size());
     HostPowerVectorType tf_powers_host(tf_powers_gpu.size());
-    beamformer_c_reference(taftp_voltages_host,
+    beamformer_c_reference(ftpa_voltages_host,
                            tf_powers_raw_host,
                            tf_powers_host,
                            _config.nchans(),
@@ -155,11 +131,11 @@ TEST_F(IncoherentBeamformerTester, ib_representative_noise_test)
     std::size_t input_size =
         (ntimestamps * _config.nantennas() * _config.nchans() *
          _config.nsamples_per_heap() * _config.npol());
-    HostVoltageVectorType taftp_voltages_host(input_size);
-    for(int ii = 0; ii < taftp_voltages_host.size(); ++ii) {
-        taftp_voltages_host[ii].x =
+    HostVoltageVectorType ftpa_voltages_host(input_size);
+    for(int ii = 0; ii < ftpa_voltages_host.size(); ++ii) {
+        ftpa_voltages_host[ii].x =
             static_cast<int8_t>(std::lround(normal_dist(generator)));
-        taftp_voltages_host[ii].y =
+        ftpa_voltages_host[ii].y =
             static_cast<int8_t>(std::lround(normal_dist(generator)));
     }
 
@@ -173,16 +149,16 @@ TEST_F(IncoherentBeamformerTester, ib_representative_noise_test)
                                    ib_power_scaling);
     DeviceScalingVectorType offset(_config.nchans() / _config.ib_fscrunch(),
                                    ib_power_offset);
-    DeviceVoltageVectorType taftp_voltages_gpu = taftp_voltages_host;
+    DeviceVoltageVectorType ftpa_voltages_gpu = ftpa_voltages_host;
     DevicePowerVectorType tf_powers_gpu;
     DeviceRawPowerVectorType tf_powers_raw_gpu;
-    incoherent_beamformer.beamform(taftp_voltages_gpu,
+    incoherent_beamformer.beamform(ftpa_voltages_gpu,
                                    tf_powers_raw_gpu,
                                    tf_powers_gpu,
                                    scales,
                                    offset,
                                    _stream);
-    compare_against_host(taftp_voltages_gpu,
+    compare_against_host(ftpa_voltages_gpu,
                          tf_powers_raw_gpu,
                          tf_powers_gpu,
                          scales,

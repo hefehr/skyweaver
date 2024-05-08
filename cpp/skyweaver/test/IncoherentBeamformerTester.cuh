@@ -31,7 +31,7 @@ public:
 
 protected:
     void beamformer_c_reference(
-        HostVoltageVectorType const& taftp_voltages,
+        HostVoltageVectorType const& ftpa_voltages,
         HostRawPowerVectorType& tf_powers_raw,
         HostPowerVectorType& tf_powers,
         int nchannels,
@@ -44,7 +44,7 @@ protected:
         HostScalingVectorType const& offset);
 
     void compare_against_host(
-        DeviceVoltageVectorType const& taftp_voltages_gpu,
+        DeviceVoltageVectorType const& ftpa_voltages_gpu,
         DeviceRawPowerVectorType& tf_powers_raw_gpu,
         DevicePowerVectorType& tf_powers_gpu,
         DeviceScalingVectorType const& scaling_vector,

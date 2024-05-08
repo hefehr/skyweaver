@@ -61,7 +61,6 @@ class IncoherentBeamformer
 
   private:
     PipelineConfig const& _config;
-    std::size_t _size_per_aftp_block;
 };
 
 } // namespace skyweaver

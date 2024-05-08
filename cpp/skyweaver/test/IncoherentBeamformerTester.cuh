@@ -13,7 +13,7 @@ class IncoherentBeamformerTester: public ::testing::Test
 {
 public:
     typedef IncoherentBeamformer::VoltageVectorType DeviceVoltageVectorType;
-    typedef thrust::host_vector<char2> HostVoltageVectorType;
+    typedef thrust::host_vector<char4> HostVoltageVectorType;
     typedef IncoherentBeamformer::PowerVectorType DevicePowerVectorType;
     typedef thrust::host_vector<int8_t> HostPowerVectorType;
     typedef IncoherentBeamformer::RawPowerVectorType DeviceRawPowerVectorType;
@@ -39,7 +39,6 @@ protected:
         int fscrunch,
         int ntimestamps,
         int nantennas,
-        int npol,
         int nsamples_per_timestamp,
         HostScalingVectorType const& scale,
         HostScalingVectorType const& offset);

@@ -41,12 +41,12 @@ void IncoherentBeamformerTester::beamformer_c_reference(
     int fscrunch,
     int ntimestamps,
     int nantennas,
-    int npol,
     int nsamples_per_timestamp,
     HostScalingVectorType const& scale,
     HostScalingVectorType const& offset)
 {
-    const int tp        = nsamples_per_timestamp * npol;
+    static_assert(SKYWEAVER_NPOL == 2, "Tests only work for dual poln data.");
+    const int tp        = nsamples_per_timestamp;
     const int ftp       = nchannels * tp;
     const int aftp      = nantennas * ftp;
     double power_sum    = 0.0;
@@ -61,7 +61,7 @@ void IncoherentBeamformerTester::beamformer_c_reference(
                 ++subband_idx) {
                 int subband_start = subband_idx * fscrunch;
                 {
-                    float xx = 0.0f, yy = 0.0f;
+                    float power = 0.0f;
                     for(int antenna_idx = 0; antenna_idx < nantennas;
                         ++antenna_idx) {
                         for(int channel_idx = subband_start;
@@ -70,16 +70,17 @@ void IncoherentBeamformerTester::beamformer_c_reference(
                             for(int sample_idx = subint_start;
                                 sample_idx < subint_start + tscrunch;
                                 ++sample_idx) {
-                                for(int pol_idx = 0; pol_idx < npol;
-                                    ++pol_idx) {
-                                    int input_index =
-                                        timestamp_idx * aftp +
-                                        antenna_idx * ftp + channel_idx * tp +
-                                        sample_idx * npol + pol_idx;
-                                    char2 ant = taftp_voltages[input_index];
-                                    xx += ((float)ant.x) * ant.x;
-                                    yy += ((float)ant.y) * ant.y;
-                                }
+                                int input_index = timestamp_idx * aftp +
+                                                  antenna_idx * ftp +
+                                                  channel_idx * tp + sample_idx;
+                                char4 ant = taftp_voltages[input_index];
+                                cuFloatComplex p0 =
+                                    make_cuFloatComplex((float)ant.x,
+                                                        (float)ant.y);
+                                cuFloatComplex p1 =
+                                    make_cuFloatComplex((float)ant.z,
+                                                        (float)ant.w);
+                                power += calculate_stokes(p0, p1);
                             }
                         }
                     }
@@ -88,7 +89,6 @@ void IncoherentBeamformerTester::beamformer_c_reference(
                         subint_idx;
                     int output_idx =
                         time_idx * nchannels / fscrunch + subband_idx;
-                    float power = (xx + yy);
                     power_sum += power;
                     power_sq_sum += power * power;
                     ++count;
@@ -117,7 +117,7 @@ void IncoherentBeamformerTester::compare_against_host(
 {
     HostVoltageVectorType taftp_voltages_host = taftp_voltages_gpu;
     HostPowerVectorType tf_powers_cuda        = tf_powers_gpu;
-    HostRawPowerVectorType tf_powers_raw_cuda    = tf_powers_raw_gpu;
+    HostRawPowerVectorType tf_powers_raw_cuda = tf_powers_raw_gpu;
     HostScalingVectorType h_scaling_vector    = scaling_vector;
     HostScalingVectorType h_offset_vector     = offset_vector;
     HostRawPowerVectorType tf_powers_raw_host(tf_powers_raw_gpu.size());
@@ -130,7 +130,6 @@ void IncoherentBeamformerTester::compare_against_host(
                            _config.ib_fscrunch(),
                            ntimestamps,
                            _config.nantennas(),
-                           _config.npol(),
                            _config.nsamples_per_heap(),
                            h_scaling_vector,
                            h_offset_vector);
@@ -149,9 +148,8 @@ TEST_F(IncoherentBeamformerTester, ib_representative_noise_test)
     std::normal_distribution<float> normal_dist(0.0, 32.0f);
     IncoherentBeamformer incoherent_beamformer(_config);
     std::size_t ntimestamps = 32;
-    std::size_t input_size =
-        (ntimestamps * _config.nantennas() * _config.nchans() *
-         _config.nsamples_per_heap() * _config.npol());
+    std::size_t input_size  = (ntimestamps * _config.nantennas() *
+                              _config.nchans() * _config.nsamples_per_heap());
     HostVoltageVectorType taftp_voltages_host(input_size);
     for(int ii = 0; ii < taftp_voltages_host.size(); ++ii) {
         taftp_voltages_host[ii].x =
@@ -166,13 +164,6 @@ TEST_F(IncoherentBeamformerTester, ib_representative_noise_test)
     float ib_power_offset = ib_scale * ib_dof;
     float ib_power_scaling =
         ib_scale * std::sqrt(2 * ib_dof) / _config.output_level();
-    /*
-    printf("Nantennas: %d, tscrunch: %d, fscrunch: %d, npol: %d, Output level:
-    %f, Input level: %f, Scale val: %f, Offset val: %f\n",
-           _config.nantennas(), _config.ib_tscrunch(), _config.ib_fscrunch(),
-    _config.npol(), _config.output_level(), input_level, ib_power_scaling,
-    ib_power_offset);
-    */
     DeviceScalingVectorType scales(_config.nchans() / _config.ib_fscrunch(),
                                    ib_power_scaling);
     DeviceScalingVectorType offset(_config.nchans() / _config.ib_fscrunch(),

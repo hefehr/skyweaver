@@ -127,10 +127,9 @@ TEST_F(IncoherentBeamformerTester, ib_representative_noise_test)
     std::default_random_engine generator;
     std::normal_distribution<float> normal_dist(0.0, 32.0f);
     IncoherentBeamformer incoherent_beamformer(_config);
-    std::size_t ntimestamps = 32;
+    std::size_t ntimestamps = 8192;
     std::size_t input_size =
-        (ntimestamps * _config.nantennas() * _config.nchans() *
-         _config.nsamples_per_heap() * _config.npol());
+        (ntimestamps * _config.nantennas() * _config.nchans() * _config.npol());
     HostVoltageVectorType ftpa_voltages_host(input_size);
     for(int ii = 0; ii < ftpa_voltages_host.size(); ++ii) {
         ftpa_voltages_host[ii].x =

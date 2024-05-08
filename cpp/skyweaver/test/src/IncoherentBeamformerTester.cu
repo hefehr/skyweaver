@@ -52,7 +52,8 @@ void IncoherentBeamformerTester::beamformer_c_reference(
     double power_sum    = 0.0;
     double power_sq_sum = 0.0;
     std::size_t count   = 0;
-
+    
+    char4 const* taftp_voltages_c4 = (char4 const*) thrust::raw_pointer_cast(taftp_voltages.data());
     for(int timestamp_idx = 0; timestamp_idx < ntimestamps; ++timestamp_idx) {
         for(int subint_idx = 0; subint_idx < nsamples_per_timestamp / tscrunch;
             ++subint_idx) {
@@ -73,7 +74,7 @@ void IncoherentBeamformerTester::beamformer_c_reference(
                                 int input_index = timestamp_idx * aftp +
                                                   antenna_idx * ftp +
                                                   channel_idx * tp + sample_idx;
-                                char4 ant = taftp_voltages[input_index];
+                                char4 ant = taftp_voltages_c4[input_index];
                                 cuFloatComplex p0 =
                                     make_cuFloatComplex((float)ant.x,
                                                         (float)ant.y);

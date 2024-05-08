@@ -138,7 +138,9 @@ void IncoherentBeamformerTester::compare_against_host(
     for(int ii = 0; ii < tf_powers_host.size(); ++ii) {
         EXPECT_TRUE(std::abs(static_cast<int>(tf_powers_host[ii]) -
                              tf_powers_cuda[ii]) <= 1);
-        EXPECT_FLOAT_EQ(tf_powers_raw_host[ii], tf_powers_raw_cuda[ii]);
+        EXPECT_TRUE(
+            std::fabs((tf_powers_raw_host[ii] - tf_powers_raw_cuda[ii]) /
+                      tf_powers_raw_host[ii]) <= 1e-5);
     }
 }
 

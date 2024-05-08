@@ -23,7 +23,7 @@ __global__ void icbf_taftp_general_k(char4 const* __restrict__ taftp_voltages,
     const int nchans_out = SKYWEAVER_NCHANS / SKYWEAVER_IB_FSCRUNCH;
     const int nsamps_out = SKYWEAVER_NSAMPLES_PER_HEAP / SKYWEAVER_IB_TSCRUNCH;
     volatile __shared__ float acc_buffer[SKYWEAVER_NSAMPLES_PER_HEAP];
-    volatile __shared__ int8_t output_buffer_raw[nsamps_out * nchans_out];
+    volatile __shared__ float output_buffer_raw[nsamps_out * nchans_out];
     volatile __shared__ int8_t output_buffer[nsamps_out * nchans_out];
 
     for(int timestamp_idx = blockIdx.x; timestamp_idx < ntimestamps;

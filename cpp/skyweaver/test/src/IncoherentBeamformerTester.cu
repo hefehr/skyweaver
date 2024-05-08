@@ -92,9 +92,9 @@ void IncoherentBeamformerTester::beamformer_c_reference(
                     power_sum += power;
                     power_sq_sum += power * power;
                     ++count;
+                    tf_powers_raw[output_idx] = power;
                     float scaled_power =
                         ((power - offset[subband_idx]) / scale[subband_idx]);
-                    tf_powers_raw[output_idx] = power;
                     tf_powers[output_idx] =
                         (int8_t)fmaxf(-127.0f, fminf(127.0f, scaled_power));
                 }
@@ -117,7 +117,7 @@ void IncoherentBeamformerTester::compare_against_host(
 {
     HostVoltageVectorType taftp_voltages_host = taftp_voltages_gpu;
     HostPowerVectorType tf_powers_cuda        = tf_powers_gpu;
-    HostPowerVectorType tf_powers_raw_cuda    = tf_powers_raw_gpu;
+    HostRawPowerVectorType tf_powers_raw_cuda    = tf_powers_raw_gpu;
     HostScalingVectorType h_scaling_vector    = scaling_vector;
     HostScalingVectorType h_offset_vector     = offset_vector;
     HostRawPowerVectorType tf_powers_raw_host(tf_powers_raw_gpu.size());
@@ -137,8 +137,7 @@ void IncoherentBeamformerTester::compare_against_host(
     for(int ii = 0; ii < tf_powers_host.size(); ++ii) {
         EXPECT_TRUE(std::abs(static_cast<int>(tf_powers_host[ii]) -
                              tf_powers_cuda[ii]) <= 1);
-        EXPECT_TRUE(
-            std::fabs(tf_powers_raw_host[ii] - tf_powers_raw_cuda[ii]) <= 1);
+        EXPECT_FLOAT_EQ(tf_powers_raw_host[ii], tf_powers_raw_cuda[ii]);
     }
 }
 

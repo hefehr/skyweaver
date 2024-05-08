@@ -64,10 +64,9 @@ __global__ void icbf_taftp_general_k(char4 const* __restrict__ taftp_voltages,
                     output_scale[start_channel_idx / SKYWEAVER_IB_FSCRUNCH];
                 float offset =
                     output_offset[start_channel_idx / SKYWEAVER_IB_FSCRUNCH];
-                float power_fp32 = rintf((power - offset) / scale);
                 output_buffer_raw[output_buffer_idx] = power;
                 output_buffer[output_buffer_idx] =
-                    (int8_t)fmaxf(-127.0f, fminf(127.0f, power_fp32));
+                    (int8_t)fmaxf(-127.0f, fminf(127.0f, rintf((power - offset) / scale)));
             }
             __syncthreads();
         }

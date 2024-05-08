@@ -52,8 +52,9 @@ void IncoherentBeamformerTester::beamformer_c_reference(
     double power_sum    = 0.0;
     double power_sq_sum = 0.0;
     std::size_t count   = 0;
-    
-    char4 const* taftp_voltages_c4 = (char4 const*) thrust::raw_pointer_cast(taftp_voltages.data());
+
+    char4 const* taftp_voltages_c4 =
+        (char4 const*)thrust::raw_pointer_cast(taftp_voltages.data());
     for(int timestamp_idx = 0; timestamp_idx < ntimestamps; ++timestamp_idx) {
         for(int subint_idx = 0; subint_idx < nsamples_per_timestamp / tscrunch;
             ++subint_idx) {
@@ -149,8 +150,9 @@ TEST_F(IncoherentBeamformerTester, ib_representative_noise_test)
     std::normal_distribution<float> normal_dist(0.0, 32.0f);
     IncoherentBeamformer incoherent_beamformer(_config);
     std::size_t ntimestamps = 32;
-    std::size_t input_size  = (ntimestamps * _config.nantennas() *
-                              _config.nchans() * _config.nsamples_per_heap());
+    std::size_t input_size =
+        (ntimestamps * _config.nantennas() * _config.nchans() *
+         _config.nsamples_per_heap() * _config.npol());
     HostVoltageVectorType taftp_voltages_host(input_size);
     for(int ii = 0; ii < taftp_voltages_host.size(); ++ii) {
         taftp_voltages_host[ii].x =

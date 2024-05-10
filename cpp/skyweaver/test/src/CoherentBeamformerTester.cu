@@ -1,5 +1,7 @@
 #include "psrdada_cpp/common.hpp"
 #include "psrdada_cpp/cuda_utils.hpp"
+#include "skyweaver/IncoherentBeamformer.cuh"
+#include "skyweaver/beamformer_utils.cuh"
 #include "skyweaver/skyweaver_constants.hpp"
 #include "skyweaver/test/CoherentBeamformerTester.cuh"
 
@@ -86,7 +88,7 @@ void CoherentBeamformerTester::beamformer_c_reference(
                             cuFloatComplex ant_p0 = make_cuFloatComplex(
                                 static_cast<float>(ant_p0_c2.x),
                                 static_cast<float>(ant_p0_c2.y));
-                            cuFloatComplex ant_p0 = make_cuFloatComplex(
+                            cuFloatComplex ant_p1 = make_cuFloatComplex(
                                 static_cast<float>(ant_p1_c2.x),
                                 static_cast<float>(ant_p1_c2.y));
 
@@ -196,19 +198,10 @@ TEST_F(CoherentBeamformerTester, representative_noise_test)
         2 * _config.cb_tscrunch() * _config.cb_fscrunch() * _config.npol();
     float offset_val = (scale * dof);
     float scale_val  = (scale * std::sqrt(2 * dof) / _config.output_level());
-
-    /*
-    printf("Nantennas: %d, tscrunch: %d, fscrunch: %d, npol: %d, Output level:
-    %f, Input level: %f, Scale val: %f, Offset val: %f\n", _config.nantennas(),
-    _config.cb_tscrunch(), _config.cb_fscrunch(), _config.npol(),
-       _config.output_level(), input_level, scale_val, offset_val);
-    */
-
-    DeviceScalingVectorType scales(_config.nchans() / _config.cb_fscrunch(),
+    DeviceScalingVectorType cb_scales(_config.nchans() / _config.cb_fscrunch(),
                                    scale_val);
-    DeviceScalingVectorType offsets(_config.nchans() / _config.cb_fscrunch(),
+    DeviceScalingVectorType cb_offsets(_config.nchans() / _config.cb_fscrunch(),
                                     offset_val);
-
     std::default_random_engine generator;
     std::normal_distribution<float> normal_dist(0.0, input_level);
     std::uniform_real_distribution<float> uniform_dist(0.0, 2 * pi);
@@ -263,24 +256,29 @@ TEST_F(CoherentBeamformerTester, representative_noise_test)
     float ib_power_offset = ib_scale * ib_dof;
     float ib_power_scaling =
         ib_scale * std::sqrt(2 * ib_dof) / _config.output_level();
-    DeviceScalingVectorType scales(_config.nchans() / _config.cb_fscrunch(),
+    DeviceScalingVectorType ib_scales(_config.nchans() / _config.cb_fscrunch(),
                                    ib_power_scaling);
-    DeviceScalingVectorType offset(_config.nchans() / _config.cb_fscrunch(),
+    DeviceScalingVectorType ib_offset(_config.nchans() / _config.cb_fscrunch(),
                                    ib_power_offset);
-    DeviceVoltageVectorType taftp_voltages_gpu = taftp_voltages_host;
     DevicePowerVectorType tf_powers_gpu;
     DeviceRawPowerVectorType tf_powers_raw_gpu;
-
+    incoherent_beamformer.beamform(ftpa_voltages_gpu,
+                                   tf_powers_raw_gpu,
+                                   tf_powers_gpu,
+                                   ib_scales,
+                                   ib_offset,
+                                   _stream);
     coherent_beamformer.beamform(ftpa_voltages_gpu,
                                  fbpa_weights_gpu,
-                                 scales,
-                                 offsets,
+                                 cb_scales,
+                                 cb_offsets,
+                                 tf_powers_raw_gpu,
                                  btf_powers_gpu,
                                  _stream);
     compare_against_host(ftpa_voltages_gpu,
                          fbpa_weights_gpu,
-                         scales,
-                         offsets,
+                         cb_scales,
+                         cb_offsets,
                          btf_powers_gpu,
                          nsamples);
 }

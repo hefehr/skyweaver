@@ -14,6 +14,7 @@ __global__ void bf_ftpa_general_k(int2 const* __restrict__ ftpa_voltages,
                                   int2 const* __restrict__ fbpa_weights,
                                   int8_t* __restrict__ tbtf_powers,
                                   float const* __restrict__ output_scale,
+                                  float const* __restrict__ output_offset,
                                   float const* __restrict__ ib_powers,
                                   int nsamples)
 {
@@ -148,7 +149,7 @@ __global__ void bf_ftpa_general_k(int2 const* __restrict__ ftpa_voltages,
          (output_sample_idx % SKYWEAVER_CB_NSAMPLES_PER_HEAP) * gridDim.y +
          blockIdx.y);
     float scale = output_scale[blockIdx.y];
-    int const ib_idx = output_sample_idx * gridDim.y + blockIdx.y
+    int const ib_idx = output_sample_idx * gridDim.y + blockIdx.y;
     float ib_power = ib_powers[ib_idx];
 #if SKYWEAVER_IB_SUBTRACTION
     /*
@@ -190,8 +191,14 @@ void CoherentBeamformer::beamform(VoltageVectorType const& input,
                                   PowerVectorType& output,
                                   cudaStream_t stream)
 {
-    assert(output_scale.size() == SKYWEAVER_NCHANS / SKYWEAVER_CB_FSCRUNCH /* Unexpected number of channels in scaling vector */);
-    assert(output_offset.size() == SKYWEAVER_NCHANS / SKYWEAVER_CB_FSCRUNCH /* Unexpected number of channels in offset vector */);
+    if (output_scale.size() != SKYWEAVER_NCHANS / SKYWEAVER_CB_FSCRUNCH)
+    {
+        throw std::runtime_error("Unexpected number of channels in scaling vector");
+    }
+    if (output_offset.size() != SKYWEAVER_NCHANS / SKYWEAVER_CB_FSCRUNCH)
+    {
+        throw std::runtime_error("Unexpected number of channels in offset vector ");
+    }
     // First work out nsamples and resize output if not done already
     BOOST_LOG_TRIVIAL(debug) << "Executing coherent beamforming";
     assert(input.size() % _size_per_sample == 0);
@@ -215,7 +222,7 @@ void CoherentBeamformer::beamform(VoltageVectorType const& input,
     int8_t* tbtf_powers_ptr        = thrust::raw_pointer_cast(output.data());
     float const* power_scaling = thrust::raw_pointer_cast(output_scale.data());
     float const* power_offset  = thrust::raw_pointer_cast(output_offset.data());
-    float const* ib_powers = thrust::raw_pointer_cast(ib_powers.data());
+    float const* ib_powers_ptr = thrust::raw_pointer_cast(ib_powers.data());
     BOOST_LOG_TRIVIAL(debug) << "Executing beamforming kernel";
     kernels::bf_ftpa_general_k<<<grid, SKYWEAVER_CB_NTHREADS, 0, stream>>>(
         (int2 const*)ftpa_voltages_ptr,
@@ -223,7 +230,7 @@ void CoherentBeamformer::beamform(VoltageVectorType const& input,
         tbtf_powers_ptr,
         power_scaling,
         power_offset,
-        ib_powers,
+        ib_powers_ptr,
         static_cast<int>(nsamples));
     CUDA_ERROR_CHECK(cudaStreamSynchronize(stream));
     BOOST_LOG_TRIVIAL(debug) << "Beamforming kernel complete";

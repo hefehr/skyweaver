@@ -41,26 +41,25 @@ void IncoherentBeamformerTester::beamformer_c_reference(
     int fscrunch,
     int ntimestamps,
     int nantennas,
-    int nsamples_per_timestamp,
     HostScalingVectorType const& scale,
     HostScalingVectorType const& offset)
 {
     static_assert(SKYWEAVER_NPOL == 2, "Tests only work for dual poln data.");
-    const int nchans_out = SKYWEAVER_NCHANS / SKYWEAVER_IB_FSCRUNCH;
-    const int a          = SKYWEAVER_NANTENNAS;
+    const int nchans_out = nchannels / fscrunch;
+    const int a          = nantennas;
     const int pa         = SKYWEAVER_NPOL * a;
     const int tpa        = ntimestamps * pa;
 
-    for(int F_idx = 0; F_idx < SKYWEAVER_NCHANS;
-        F_idx += SKYWEAVER_IB_FSCRUNCH) {
-        for(int T_idx = 0; T_idx < SKYWEAVER_NCHANS;
-            T_idx += SKYWEAVER_IB_TSCRUNCH) {
+    for(int F_idx = 0; F_idx < nchannels;
+        F_idx += fscrunch) {
+        for(int T_idx = 0; T_idx < ntimestamps;
+            T_idx += tscrunch) {
             float power = 0.0f;
-            for(int f_idx = F_idx; f_idx < F_idx + SKYWEAVER_IB_FSCRUNCH;
+            for(int f_idx = F_idx; f_idx < F_idx + fscrunch;
                 ++f_idx) {
-                for(int t_idx = T_idx; t_idx < T_idx + SKYWEAVER_IB_TSCRUNCH;
+                for(int t_idx = T_idx; t_idx < T_idx + tscrunch;
                     ++t_idx) {
-                    for(int a_idx = 0; a_idx < SKYWEAVER_NANTENNAS; ++a_idx) {
+                    for(int a_idx = 0; a_idx < nantennas; ++a_idx) {
                         int input_p0_idx = f_idx * tpa + t_idx * pa + a_idx;
                         int input_p1_idx = f_idx * tpa + t_idx * pa + a + a_idx;
                         char2 p0_v       = ftpa_voltages[input_p0_idx];
@@ -73,8 +72,8 @@ void IncoherentBeamformerTester::beamformer_c_reference(
                     }
                 }
             }
-            int subband_idx           = F_idx / SKYWEAVER_IB_FSCRUNCH;
-            int subbint_idx           = T_idx / SKYWEAVER_IB_TSCRUNCH;
+            int subband_idx           = F_idx / fscrunch;
+            int subbint_idx           = T_idx / tscrunch;
             int output_idx            = subbint_idx * nchans_out + subband_idx;
             tf_powers_raw[output_idx] = power;
             float scaled_power =
@@ -108,7 +107,6 @@ void IncoherentBeamformerTester::compare_against_host(
                            _config.ib_fscrunch(),
                            ntimestamps,
                            _config.nantennas(),
-                           _config.nsamples_per_heap(),
                            h_scaling_vector,
                            h_offset_vector);
     for(int ii = 0; ii < tf_powers_host.size(); ++ii) {

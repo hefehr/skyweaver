@@ -18,6 +18,13 @@ __global__ void icbf_taftp_general_k(char4 const* __restrict__ taftp_voltages,
                                      float const* __restrict__ output_offset,
                                      int nsamples);
 
+__global__ void icbf_ftpa_general_k(char4 const* __restrict__ ftpa_voltages,
+                                     float* __restrict__ tf_powers_raw,
+                                     int8_t* __restrict__ tf_powers,
+                                     float const* __restrict__ output_scale,
+                                     float const* __restrict__ output_offset,
+                                     int nsamples);                              
+
 } // namespace kernels
 
 /**

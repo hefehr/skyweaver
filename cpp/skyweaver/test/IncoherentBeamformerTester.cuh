@@ -39,7 +39,6 @@ protected:
         int fscrunch,
         int ntimestamps,
         int nantennas,
-        int nsamples_per_timestamp,
         HostScalingVectorType const& scale,
         HostScalingVectorType const& offset);
 

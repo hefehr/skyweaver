@@ -6,6 +6,7 @@ set(skyweaver_src
    src/IncoherentBeamformer.cu
    src/PipelineConfig.cpp
    src/StatisticsCalculator.cu
+   src/Transposer.cu
    src/WeightsManager.cu
    )
 
@@ -15,6 +16,7 @@ set(skyweaver_inc
     IncoherentBeamformer.cuh
     PipelineConfig.hpp
     StatisticsCalculator.cuh
+    Transposer.cuh
     WeightsManager.cuh
    )
 

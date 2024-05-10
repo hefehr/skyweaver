@@ -123,9 +123,15 @@ void Transposer::transpose(VoltageType const& taftp_voltages,
     std::size_t heap_group_size = (_config.npol() * _config.nsamples_per_heap() *
                         _config.nchans() * input_nantennas);
 
-
     // Check sizes
-    assert(taftp_voltages.size() % heap_group_size == 0);
+    if (taftp_voltages.size() % heap_group_size != 0)
+    {
+        throw std::runtime_error("Voltages are not a multiple of the heap size");
+    }
+    if (input_nantennas > _config.nantennas())
+    {
+        throw std::runtime_error("Input number of antennas must be <= to the maximum nantennas");
+    }
     int nheap_groups = taftp_voltages.size() / heap_group_size;
     BOOST_LOG_TRIVIAL(debug) << "Number of heap groups: " << nheap_groups;
     // Resize output buffer

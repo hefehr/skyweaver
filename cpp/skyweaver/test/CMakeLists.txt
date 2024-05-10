@@ -8,6 +8,7 @@ set(
     src/DelayManagerTester.cu
     src/IncoherentBeamformerTester.cu
     src/StatisticsCalculatorTester.cu
+    src/TransposerTester.cu
     src/WeightsManagerTester.cu
     src/gtest_skyweaver.cu
 )

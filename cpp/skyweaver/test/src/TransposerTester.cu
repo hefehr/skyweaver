@@ -109,7 +109,7 @@ TEST_P(TransposerTester, cycling_prime_test)
 
 INSTANTIATE_TEST_SUITE_P(TransposerTesterSuite,
                          TransposerTester,
-                         ::testing::Range<std::size_t>(1, SKYWEAVER_NANTENNAS, 1));
+                         ::testing::Range<std::size_t>(1, SKYWEAVER_NANTENNAS, 13));
 
 } // namespace test
 } // namespace skyweaver

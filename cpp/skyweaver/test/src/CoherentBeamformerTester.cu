@@ -77,21 +77,18 @@ void CoherentBeamformerTester::beamformer_c_reference(
                                 nantennas * npol *
                                     (sample_idx + sample_offset) +
                                 +antenna_idx;
-
                             const int p0_idx = ftpa_voltages_partial_idx;
                             const int p1_idx =
                                 ftpa_voltages_partial_idx + nantennas;
-
-                            char2 ant_p0_c2 = ftpa_voltages[p0_idx];
-                            char2 ant_p1_c2 = ftpa_voltages[p1_idx];
-
+                            char2 ant_p0_c2       = ftpa_voltages[p0_idx];
+                            char2 ant_p1_c2       = ftpa_voltages[p1_idx];
                             cuFloatComplex ant_p0 = make_cuFloatComplex(
                                 static_cast<float>(ant_p0_c2.x),
                                 static_cast<float>(ant_p0_c2.y));
                             cuFloatComplex ant_p1 = make_cuFloatComplex(
                                 static_cast<float>(ant_p1_c2.x),
                                 static_cast<float>(ant_p1_c2.y));
-
+                            ib_power += calculate_stokes(ant_p0, ant_p1);
                             int fbpa_weights_idx =
                                 nantennas * nbeams * sub_channel_idx +
                                 nantennas * beam_idx + antenna_idx;
@@ -99,13 +96,10 @@ void CoherentBeamformerTester::beamformer_c_reference(
                             cuFloatComplex weight = make_cuFloatComplex(
                                 static_cast<float>(weight_c2.x),
                                 static_cast<float>(weight_c2.y));
-
                             cuFloatComplex p0 = cuCmulf(weight, ant_p0);
                             cuFloatComplex p1 = cuCmulf(weight, ant_p1);
-                            ib_power += calculate_stokes(p0, p1);
-
-                            p0_accumulator = cuCaddf(p0_accumulator, p0);
-                            p1_accumulator = cuCaddf(p0_accumulator, p1);
+                            p0_accumulator    = cuCaddf(p0_accumulator, p0);
+                            p1_accumulator    = cuCaddf(p1_accumulator, p1);
                         }
                         power +=
                             calculate_stokes(p0_accumulator, p1_accumulator);
@@ -116,9 +110,10 @@ void CoherentBeamformerTester::beamformer_c_reference(
                     SKYWEAVER_CB_NSAMPLES_PER_HEAP * nchannels / fscrunch;
                 int btf_size          = nbeams * tf_size;
                 int output_sample_idx = sample_idx / tscrunch;
-                int output_chan_idx = channel_idx / fscrunch;
-                int nchans_out =  nchannels / fscrunch;
-                int output_idx = output_sample_idx * nchans_out + output_chan_idx;
+                int output_chan_idx   = channel_idx / fscrunch;
+                int nchans_out        = nchannels / fscrunch;
+                int output_idx =
+                    output_sample_idx * nchans_out + output_chan_idx;
                 power_sum += power;
                 ib_power_sum += ib_power;
                 power_sq_sum += power * power;
@@ -195,9 +190,9 @@ TEST_F(CoherentBeamformerTester, representative_noise_test)
     float offset_val = (scale * dof);
     float scale_val  = (scale * std::sqrt(2 * dof) / _config.output_level());
     DeviceScalingVectorType cb_scales(_config.nchans() / _config.cb_fscrunch(),
-                                   scale_val);
+                                      scale_val);
     DeviceScalingVectorType cb_offsets(_config.nchans() / _config.cb_fscrunch(),
-                                    offset_val);
+                                       offset_val);
     std::default_random_engine generator;
     std::normal_distribution<float> normal_dist(0.0, input_level);
     std::uniform_real_distribution<float> uniform_dist(0.0, 2 * pi);
@@ -253,9 +248,9 @@ TEST_F(CoherentBeamformerTester, representative_noise_test)
     float ib_power_scaling =
         ib_scale * std::sqrt(2 * ib_dof) / _config.output_level();
     DeviceScalingVectorType ib_scales(_config.nchans() / _config.cb_fscrunch(),
-                                   ib_power_scaling);
+                                      ib_power_scaling);
     DeviceScalingVectorType ib_offset(_config.nchans() / _config.cb_fscrunch(),
-                                   ib_power_offset);
+                                      ib_power_offset);
     DevicePowerVectorType tf_powers_gpu;
     DeviceRawPowerVectorType tf_powers_raw_gpu;
     incoherent_beamformer.beamform(ftpa_voltages_gpu,

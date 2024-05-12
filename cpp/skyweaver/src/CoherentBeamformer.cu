@@ -141,16 +141,9 @@ __global__ void bf_ftpa_general_k(int2 const* __restrict__ ftpa_voltages,
         __syncthreads();
     }
     int const output_sample_idx = sample_offset / SKYWEAVER_IB_TSCRUNCH;
-    int const tf_size           = SKYWEAVER_CB_NSAMPLES_PER_HEAP * gridDim.y;
-    int const btf_size          = gridDim.z * SKYWEAVER_CB_WARP_SIZE * tf_size;
-    int const output_idx =
-        (output_sample_idx / SKYWEAVER_CB_NSAMPLES_PER_HEAP * btf_size +
-         (start_beam_idx + lane_idx) * tf_size +
-         (output_sample_idx % SKYWEAVER_CB_NSAMPLES_PER_HEAP) * gridDim.y +
-         blockIdx.y);
+    int const output_idx = output_sample_idx * gridDim.y + blockIdx.y;
     float scale = output_scale[blockIdx.y];
-    int const ib_idx = output_sample_idx * gridDim.y + blockIdx.y;
-    float ib_power = ib_powers[ib_idx];
+    float ib_power = ib_powers[output_idx];
 #if SKYWEAVER_IB_SUBTRACTION
     /*
     Because we inflate the weights to have a magnitude of 127 to make sure

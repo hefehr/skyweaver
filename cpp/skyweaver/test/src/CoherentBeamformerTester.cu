@@ -116,23 +116,19 @@ void CoherentBeamformerTester::beamformer_c_reference(
                     SKYWEAVER_CB_NSAMPLES_PER_HEAP * nchannels / fscrunch;
                 int btf_size          = nbeams * tf_size;
                 int output_sample_idx = sample_idx / tscrunch;
-                int tbtf_powers_idx =
-                    (output_sample_idx / SKYWEAVER_CB_NSAMPLES_PER_HEAP *
-                         btf_size +
-                     beam_idx * tf_size +
-                     (output_sample_idx % SKYWEAVER_CB_NSAMPLES_PER_HEAP) *
-                         nchannels / fscrunch +
-                     channel_idx / fscrunch);
+                int output_chan_idx = channel_idx / fscrunch;
+                int nchans_out =  nchannels / fscrunch;
+                int output_idx = output_sample_idx * nchans_out + output_chan_idx;
                 power_sum += power;
                 ib_power_sum += ib_power;
                 power_sq_sum += power * power;
                 ++count;
 #if SKYWEAVER_IB_SUBTRACTION
                 float powerf32 = ((power - (127.0f * 127.0f * ib_power)) /
-                                  scales[channel_idx / fscrunch]);
+                                  scales[output_chan_idx]);
 #else
-                float powerf32 = ((power - offsets[channel_idx / fscrunch]) /
-                                  scales[channel_idx / fscrunch]);
+                float powerf32 = ((power - offsets[output_chan_idx]) /
+                                  scales[output_chan_idx]);
 #endif // SKYWEAVER_IB_SUBTRACTION
                 tbtf_powers[tbtf_powers_idx] =
                     (int8_t)fmaxf(-127.0f, fminf(127.0f, powerf32));

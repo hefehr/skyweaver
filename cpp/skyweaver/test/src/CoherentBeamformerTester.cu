@@ -47,7 +47,6 @@ void CoherentBeamformerTester::beamformer_c_reference(
     float const* scales,
     float const* offsets)
 {
-    float xx, yy, xy, yx;
     double power_sum    = 0.0;
     double power_sq_sum = 0.0;
     double ib_power_sum = 0.0;
@@ -68,7 +67,6 @@ void CoherentBeamformerTester::beamformer_c_reference(
                         ++sample_offset) {
                         cuFloatComplex p0_accumulator = {0, 0};
                         cuFloatComplex p1_accumulator = {0, 0};
-
                         // new loop
                         for(int antenna_idx = 0; antenna_idx < nantennas;
                             ++antenna_idx) {
@@ -125,7 +123,7 @@ void CoherentBeamformerTester::beamformer_c_reference(
                 float powerf32 = ((power - offsets[output_chan_idx]) /
                                   scales[output_chan_idx]);
 #endif // SKYWEAVER_IB_SUBTRACTION
-                tbtf_powers[tbtf_powers_idx] =
+                tbtf_powers[output_idx] =
                     (int8_t)fmaxf(-127.0f, fminf(127.0f, powerf32));
             }
         }

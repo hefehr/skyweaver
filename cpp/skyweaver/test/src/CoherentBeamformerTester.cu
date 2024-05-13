@@ -24,7 +24,7 @@ void dump_host_vector(VectorType const& vec, std::string filename)
         throw std::runtime_error("Unable to open file");
     }
     infile.write(reinterpret_cast<char const*>(thrust::raw_pointer_cast(vec.data())),
-                 vec.size() * sizeof(VectorType::value_type));
+                 vec.size() * sizeof(typename VectorType::value_type));
     infile.close();
 }
 

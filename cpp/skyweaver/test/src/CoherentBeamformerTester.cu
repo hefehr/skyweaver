@@ -15,6 +15,7 @@ namespace skyweaver
 namespace test
 {
 
+/**
 template <typename VectorType>
 void dump_host_vector(VectorType const& vec, std::string filename)
 {
@@ -34,6 +35,7 @@ static void dump_device_vector(VectorType const& vec, std::string filename)
     thrust::host_vector<typename VectorType::value_type> host_vec = vec;
     dump_host_vector(host_vec, filename);
 }
+*/
 
 CoherentBeamformerTester::CoherentBeamformerTester()
     : ::testing::Test(), _stream(0)
@@ -57,7 +59,7 @@ void CoherentBeamformerTester::TearDown()
 void CoherentBeamformerTester::beamformer_c_reference(
     HostVoltageVectorType const& ftpa_voltages,
     HostWeightsVectorType const& fbpa_weights,
-    HostPowerVectorType& tbtf_powers,
+    HostPowerVectorType& btf_powers,
     int nchannels,
     int tscrunch,
     int fscrunch,
@@ -142,7 +144,7 @@ void CoherentBeamformerTester::beamformer_c_reference(
                 float powerf32 = ((power - offsets[output_chan_idx]) /
                                   scales[output_chan_idx]);
 #endif // SKYWEAVER_IB_SUBTRACTION
-                tbtf_powers[output_idx] =
+                btf_powers[output_idx] =
                     (int8_t)fmaxf(-127.0f, fminf(127.0f, powerf32));
             }
         }
@@ -272,15 +274,15 @@ TEST_F(CoherentBeamformerTester, representative_noise_test)
     DevicePowerVectorType tf_powers_gpu;
     DeviceRawPowerVectorType tf_powers_raw_gpu;
 
-    dump_device_vector(ftpa_voltages_gpu, "ftpa_voltages_gpu.bin");
+    //dump_device_vector(ftpa_voltages_gpu, "ftpa_voltages_gpu.bin");
     incoherent_beamformer.beamform(ftpa_voltages_gpu,
                                    tf_powers_raw_gpu,
                                    tf_powers_gpu,
                                    ib_scales,
                                    ib_offset,
                                    _stream);
-    dump_device_vector(tf_powers_raw_gpu, "tf_powers_raw_gpu.bin");
-    dump_device_vector(fbpa_weights_gpu, "fbpa_weights_gpu.bin");
+    //dump_device_vector(tf_powers_raw_gpu, "tf_powers_raw_gpu.bin");
+    //dump_device_vector(fbpa_weights_gpu, "fbpa_weights_gpu.bin");
     coherent_beamformer.beamform(ftpa_voltages_gpu,
                                  fbpa_weights_gpu,
                                  cb_scales,
@@ -288,7 +290,7 @@ TEST_F(CoherentBeamformerTester, representative_noise_test)
                                  tf_powers_raw_gpu,
                                  btf_powers_gpu,
                                  _stream);
-    dump_device_vector(btf_powers_gpu, "btf_powers_gpu.bin");
+    //dump_device_vector(btf_powers_gpu, "btf_powers_gpu.bin");
     compare_against_host(ftpa_voltages_gpu,
                          fbpa_weights_gpu,
                          cb_scales,

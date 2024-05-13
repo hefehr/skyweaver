@@ -140,8 +140,8 @@ __global__ void bf_ftpa_general_k(int2 const* __restrict__ ftpa_voltages,
         }
         __syncthreads();
     }
-    int const output_sample_idx = sample_offset / SKYWEAVER_IB_TSCRUNCH;
-    int const nsamps_out = nsamples / SKYWEAVER_IB_TSCRUNCH;
+    int const output_sample_idx = sample_offset / SKYWEAVER_CB_TSCRUNCH;
+    int const nsamps_out = nsamples / SKYWEAVER_CB_TSCRUNCH;
     int const output_idx = (start_beam_idx + lane_idx) * nsamps_out * gridDim.y + output_sample_idx * gridDim.y + blockIdx.y;
     int const ib_power_idx = output_sample_idx * gridDim.y + blockIdx.y;
     float scale = output_scale[blockIdx.y];

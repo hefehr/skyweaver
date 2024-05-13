@@ -130,7 +130,7 @@ void CoherentBeamformerTester::beamformer_c_reference(
                 const int output_chan_idx   = channel_idx / fscrunch;
                 const int nchans_out        = nchannels / fscrunch;
                 const int tf_size           = nsamps_out * nchans_out;
-                int output_idx = beam_idx * tf_size + output_sample_idx * nchans_out + output_chan_idx;
+                const int output_idx = beam_idx * tf_size + output_sample_idx * nchans_out + output_chan_idx;
                 power_sum += power;
                 ib_power_sum += ib_power;
                 power_sq_sum += power * power;

@@ -12,7 +12,7 @@ namespace kernels
 
 __global__ void bf_ftpa_general_k(int2 const* __restrict__ ftpa_voltages,
                                   int2 const* __restrict__ fbpa_weights,
-                                  int8_t* __restrict__ tbtf_powers,
+                                  int8_t* __restrict__ btf_powers,
                                   float const* __restrict__ output_scale,
                                   float const* __restrict__ output_offset,
                                   float const* __restrict__ ib_powers,
@@ -143,8 +143,9 @@ __global__ void bf_ftpa_general_k(int2 const* __restrict__ ftpa_voltages,
     int const output_sample_idx = sample_offset / SKYWEAVER_IB_TSCRUNCH;
     int const nsamps_out = nsamples / SKYWEAVER_IB_TSCRUNCH;
     int const output_idx = (start_beam_idx + lane_idx) * nsamps_out * gridDim.y + output_sample_idx * gridDim.y + blockIdx.y;
+    int const ib_power_idx = output_sample_idx * gridDim.y + blockIdx.y;
     float scale = output_scale[blockIdx.y];
-    float ib_power = ib_powers[output_idx];
+    float ib_power = ib_powers[ib_power_idx];
 #if SKYWEAVER_IB_SUBTRACTION
     /*
     Because we inflate the weights to have a magnitude of 127 to make sure
@@ -156,7 +157,7 @@ __global__ void bf_ftpa_general_k(int2 const* __restrict__ ftpa_voltages,
     float power_fp32 = rintf((power - output_offset[blockIdx.y]) / scale);
 #endif // SKYWEAVER_IB_SUBTRACTION
 
-    tbtf_powers[output_idx] = (int8_t)fmaxf(-127.0f, fminf(127.0f, power_fp32));
+    btf_powers[output_idx] = (int8_t)fmaxf(-127.0f, fminf(127.0f, power_fp32));
 }
 
 } // namespace kernels
@@ -213,7 +214,7 @@ void CoherentBeamformer::beamform(VoltageVectorType const& input,
               _config.nbeams() / SKYWEAVER_CB_WARP_SIZE);
     char2 const* ftpa_voltages_ptr = thrust::raw_pointer_cast(input.data());
     char2 const* fbpa_weights_ptr  = thrust::raw_pointer_cast(weights.data());
-    int8_t* tbtf_powers_ptr        = thrust::raw_pointer_cast(output.data());
+    int8_t* btf_powers_ptr        = thrust::raw_pointer_cast(output.data());
     float const* power_scaling = thrust::raw_pointer_cast(output_scale.data());
     float const* power_offset  = thrust::raw_pointer_cast(output_offset.data());
     float const* ib_powers_ptr = thrust::raw_pointer_cast(ib_powers.data());
@@ -221,7 +222,7 @@ void CoherentBeamformer::beamform(VoltageVectorType const& input,
     kernels::bf_ftpa_general_k<<<grid, SKYWEAVER_CB_NTHREADS, 0, stream>>>(
         (int2 const*)ftpa_voltages_ptr,
         (int2 const*)fbpa_weights_ptr,
-        tbtf_powers_ptr,
+        btf_powers_ptr,
         power_scaling,
         power_offset,
         ib_powers_ptr,

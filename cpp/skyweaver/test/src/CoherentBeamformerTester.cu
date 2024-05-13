@@ -8,11 +8,32 @@
 #include <cmath>
 #include <complex>
 #include <random>
+#include <fstream>
 
 namespace skyweaver
 {
 namespace test
 {
+
+template <typename VectorType>
+void dump_host_vector(VectorType const& vec, std::string filename)
+{
+    std::ofstream infile;
+    infile.open(filename.c_str(), std::ifstream::out | std::ifstream::binary);
+    if(!infile.is_open()) {
+        throw std::runtime_error("Unable to open file");
+    }
+    infile.write(reinterpret_cast<char const*>(thrust::raw_pointer_cast(vec.data())),
+                 vec.size() * sizeof(VectorType::value_type));
+    infile.close();
+}
+
+template <typename VectorType>
+static void dump_device_vector(VectorType const& vec, std::string filename)
+{
+    thrust::host_vector<typename VectorType::value_type> host_vec = vec;
+    dump_host_vector(host_vec, filename);
+}
 
 CoherentBeamformerTester::CoherentBeamformerTester()
     : ::testing::Test(), _stream(0)
@@ -104,9 +125,6 @@ void CoherentBeamformerTester::beamformer_c_reference(
                         // end new loop
                     }
                 }
-                int tf_size =
-                    SKYWEAVER_CB_NSAMPLES_PER_HEAP * nchannels / fscrunch;
-                int btf_size          = nbeams * tf_size;
                 int output_sample_idx = sample_idx / tscrunch;
                 int output_chan_idx   = channel_idx / fscrunch;
                 int nchans_out        = nchannels / fscrunch;
@@ -174,7 +192,6 @@ TEST_F(CoherentBeamformerTester, representative_noise_test)
 #else
     BOOST_LOG_TRIVIAL(info) << "Running without IB subtraction";
 #endif
-
     const float input_level = 32.0f;
     const double pi         = std::acos(-1);
     _config.output_level(input_level);
@@ -191,6 +208,9 @@ TEST_F(CoherentBeamformerTester, representative_noise_test)
                                       scale_val);
     DeviceScalingVectorType cb_offsets(_config.nchans() / _config.cb_fscrunch(),
                                        offset_val);
+    BOOST_LOG_TRIVIAL(info) << "CB scaling: " << scale_val;
+    BOOST_LOG_TRIVIAL(info) << "CB offset: " << offset_val;
+
     std::default_random_engine generator;
     std::normal_distribution<float> normal_dist(0.0, input_level);
     std::uniform_real_distribution<float> uniform_dist(0.0, 2 * pi);
@@ -205,11 +225,10 @@ TEST_F(CoherentBeamformerTester, representative_noise_test)
     ntimestamps =
         max(ntimestamps,
             SKYWEAVER_CB_NSAMPLES_PER_BLOCK / _config.nsamples_per_heap());
-    printf("Using %ld timestamps\n", ntimestamps);
-
     std::size_t input_size =
         (ntimestamps * _config.nantennas() * _config.nchans() *
          _config.nsamples_per_heap() * _config.npol());
+    BOOST_LOG_TRIVIAL(info) << "FTPA input dims: " << _config.nchans() << ", " << ntimestamps * _config.nsamples_per_heap() << ", " << _config.npol() << ", " << _config.nantennas();
     int nsamples = _config.nsamples_per_heap() * ntimestamps;
 
     std::size_t weights_size =
@@ -251,12 +270,16 @@ TEST_F(CoherentBeamformerTester, representative_noise_test)
                                       ib_power_offset);
     DevicePowerVectorType tf_powers_gpu;
     DeviceRawPowerVectorType tf_powers_raw_gpu;
+
+    dump_device_vector(ftpa_voltages_gpu, "ftpa_voltages_gpu.bin");
     incoherent_beamformer.beamform(ftpa_voltages_gpu,
                                    tf_powers_raw_gpu,
                                    tf_powers_gpu,
                                    ib_scales,
                                    ib_offset,
                                    _stream);
+    dump_device_vector(tf_powers_raw_gpu, "tf_powers_raw_gpu.bin");
+    dump_device_vector(fbpa_weights_gpu, "fbpa_weights_gpu.bin");
     coherent_beamformer.beamform(ftpa_voltages_gpu,
                                  fbpa_weights_gpu,
                                  cb_scales,
@@ -264,6 +287,7 @@ TEST_F(CoherentBeamformerTester, representative_noise_test)
                                  tf_powers_raw_gpu,
                                  btf_powers_gpu,
                                  _stream);
+    dump_device_vector(btf_powers_gpu, "btf_powers_gpu.bin");
     compare_against_host(ftpa_voltages_gpu,
                          fbpa_weights_gpu,
                          cb_scales,

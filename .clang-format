@@ -33,7 +33,7 @@ DisableFormat: 'false'
 FixNamespaceComments: 'true'
 IncludeBlocks: Regroup
 IndentCaseLabels: 'false'
-IndentPPDirectives: None
+IndentPPDirectives: 'BeforeHash'
 IndentWrappedFunctionNames: 'false'
 IndentWidth: '4'
 KeepEmptyLinesAtTheStartOfBlocks: 'false'

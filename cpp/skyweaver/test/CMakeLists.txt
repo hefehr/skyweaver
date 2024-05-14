@@ -4,7 +4,12 @@ link_directories(${GTEST_LIBRARY_DIR})
 
 set(
     gtest_skyweaver_src
+    src/CoherentBeamformerTester.cu
     src/DelayManagerTester.cu
+    src/IncoherentBeamformerTester.cu
+    src/StatisticsCalculatorTester.cu
+    src/TransposerTester.cu
+    src/WeightsManagerTester.cu
     src/gtest_skyweaver.cu
 )
 cuda_add_executable(gtest_skyweaver ${gtest_skyweaver_src} )

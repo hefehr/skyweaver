@@ -1,5 +1,5 @@
-#ifndef SKYWEAVER_DELAYMANAGER_HPP
-#define SKYWEAVER_DELAYMANAGER_HPP
+#ifndef SKYWEAVER_DELAYMANAGER_CUH
+#define SKYWEAVER_DELAYMANAGER_CUH
 
 #include <boost/log/trivial.hpp>
 #include <exception>
@@ -96,4 +96,4 @@ class DelayManager
 
 } // namespace skyweaver
 
-#endif // SKYWEAVER_DELAYMANAGER_HPP
+#endif // SKYWEAVER_DELAYMANAGER_CUH

@@ -4,6 +4,8 @@
 
 #include <cassert>
 
+#define ACC_BUFFER_SIZE 64
+
 namespace skyweaver
 {
 namespace kernels
@@ -29,7 +31,12 @@ __global__ void icbf_ftpa_general_k(char2 const* __restrict__ ftpa_voltages,
     const int pa  = SKYWEAVER_NPOL * a;
     const int tpa = ntimestamps * pa;
 
-    volatile __shared__ float acc_buffer[SKYWEAVER_NANTENNAS];
+    volatile __shared__ float acc_buffer[ACC_BUFFER_SIZE];
+
+    for(int ii = threadIdx.x; ii < ACC_BUFFER_SIZE; ii += blockDim.x) {
+        acc_buffer[ii] = 0.0f;
+    }
+    __syncthreads();
 
     const int output_t_idx = blockIdx.x;
     const int output_f_idx = blockIdx.y;
@@ -54,7 +61,7 @@ __global__ void icbf_ftpa_general_k(char2 const* __restrict__ ftpa_voltages,
         }
     }
     acc_buffer[threadIdx.x] = power;
-    for(unsigned int ii = blockDim.x / 2; ii > 0; ii >>= 1) {
+    for(unsigned int ii = ACC_BUFFER_SIZE / 2; ii > 0; ii >>= 1) {
         __syncthreads();
         if(threadIdx.x < ii) {
             // Changed from += due to warning #3012-D
@@ -75,77 +82,6 @@ __global__ void icbf_ftpa_general_k(char2 const* __restrict__ ftpa_voltages,
     }
 }
 
-__global__ void icbf_taftp_general_k(char4 const* __restrict__ taftp_voltages,
-                                     float* __restrict__ tf_powers_raw,
-                                     int8_t* __restrict__ tf_powers,
-                                     float const* __restrict__ output_scale,
-                                     float const* __restrict__ output_offset,
-                                     int ntimestamps)
-{
-    // TAFTP
-    const int tp         = SKYWEAVER_NSAMPLES_PER_HEAP;
-    const int ftp        = SKYWEAVER_NCHANS * tp;
-    const int aftp       = SKYWEAVER_NANTENNAS * ftp;
-    const int nchans_out = SKYWEAVER_NCHANS / SKYWEAVER_IB_FSCRUNCH;
-    const int nsamps_out = SKYWEAVER_NSAMPLES_PER_HEAP / SKYWEAVER_IB_TSCRUNCH;
-    volatile __shared__ float acc_buffer[SKYWEAVER_NSAMPLES_PER_HEAP];
-    volatile __shared__ float output_buffer_raw[nsamps_out * nchans_out];
-    volatile __shared__ int8_t output_buffer[nsamps_out * nchans_out];
-
-    for(int timestamp_idx = blockIdx.x; timestamp_idx < ntimestamps;
-        timestamp_idx += gridDim.x) {
-        for(int start_channel_idx = 0; start_channel_idx < SKYWEAVER_NCHANS;
-            start_channel_idx += SKYWEAVER_IB_FSCRUNCH) {
-            float power = 0.0f;
-            for(int sub_channel_idx = start_channel_idx;
-                sub_channel_idx < start_channel_idx + SKYWEAVER_IB_FSCRUNCH;
-                ++sub_channel_idx) {
-                for(int antenna_idx = 0; antenna_idx < SKYWEAVER_NANTENNAS;
-                    ++antenna_idx) {
-                    int input_index = timestamp_idx * aftp + antenna_idx * ftp +
-                                      sub_channel_idx * tp + threadIdx.x;
-
-                    // Each ant here is both polarisations for one antenna
-                    char4 ant = taftp_voltages[input_index];
-                    cuFloatComplex p0 =
-                        make_cuFloatComplex((float)ant.x, (float)ant.y);
-                    cuFloatComplex p1 =
-                        make_cuFloatComplex((float)ant.z, (float)ant.w);
-                    power += calculate_stokes(p0, p1);
-                }
-            }
-            acc_buffer[threadIdx.x] = power;
-            __syncthreads();
-            for(int ii = 1; ii < SKYWEAVER_IB_TSCRUNCH; ++ii) {
-                int idx = threadIdx.x + ii;
-                if(idx < SKYWEAVER_NSAMPLES_PER_HEAP) {
-                    power += acc_buffer[idx];
-                }
-            }
-            if(threadIdx.x % SKYWEAVER_IB_TSCRUNCH == 0) {
-                int output_buffer_idx =
-                    threadIdx.x / SKYWEAVER_IB_TSCRUNCH * nchans_out +
-                    start_channel_idx / SKYWEAVER_IB_FSCRUNCH;
-                float scale =
-                    output_scale[start_channel_idx / SKYWEAVER_IB_FSCRUNCH];
-                float offset =
-                    output_offset[start_channel_idx / SKYWEAVER_IB_FSCRUNCH];
-                output_buffer_raw[output_buffer_idx] = power;
-                output_buffer[output_buffer_idx]     = (int8_t)fmaxf(
-                    -127.0f,
-                    fminf(127.0f, rintf((power - offset) / scale)));
-            }
-            __syncthreads();
-        }
-        int output_offset = timestamp_idx * nsamps_out * nchans_out;
-        for(int idx = threadIdx.x;
-            idx < nsamps_out * SKYWEAVER_NCHANS / SKYWEAVER_IB_FSCRUNCH;
-            idx += blockDim.x) {
-            tf_powers_raw[output_offset + idx] = output_buffer_raw[idx];
-            tf_powers[output_offset + idx]     = output_buffer[idx];
-        }
-        __syncthreads();
-    }
 }
 
 } // namespace kernels
@@ -195,7 +131,7 @@ void IncoherentBeamformer::beamform(VoltageVectorType const& input,
     RawPowerVectorType::value_type* tf_powers_raw_ptr =
         thrust::raw_pointer_cast(output_raw.data());
     BOOST_LOG_TRIVIAL(debug) << "Executing incoherent beamforming kernel";
-    kernels::icbf_ftpa_general_k<<<grid, block, 0, stream>>>(
+    kernels::icbf_ftpa_general_shfl_k<<<grid, block, 0, stream>>>(
         ftpa_voltages_ptr,
         tf_powers_raw_ptr,
         tf_powers_ptr,

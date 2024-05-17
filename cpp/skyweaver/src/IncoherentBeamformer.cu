@@ -82,8 +82,6 @@ __global__ void icbf_ftpa_general_k(char2 const* __restrict__ ftpa_voltages,
     }
 }
 
-}
-
 } // namespace kernels
 
 IncoherentBeamformer::IncoherentBeamformer(PipelineConfig const& config)
@@ -131,7 +129,7 @@ void IncoherentBeamformer::beamform(VoltageVectorType const& input,
     RawPowerVectorType::value_type* tf_powers_raw_ptr =
         thrust::raw_pointer_cast(output_raw.data());
     BOOST_LOG_TRIVIAL(debug) << "Executing incoherent beamforming kernel";
-    kernels::icbf_ftpa_general_shfl_k<<<grid, block, 0, stream>>>(
+    kernels::icbf_ftpa_general_k<<<grid, block, 0, stream>>>(
         ftpa_voltages_ptr,
         tf_powers_raw_ptr,
         tf_powers_ptr,

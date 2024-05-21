@@ -8,10 +8,11 @@ namespace skyweaver
 {
 
 PipelineConfig::PipelineConfig()
-    : _delay_file("delays.swd"), _input_files({}), _output_dir("./"),
-      _statistics_file("./statistics.bin"), _coherent_dms({0.0f}),
-      _cfreq(1284000000.0), _bw(13375000.0), _channel_frequencies_stale(true),
-      _output_level(24.0f), _cb_power_scaling(0.0f), _cb_power_offset(0.0f),
+    : _delay_file("delays.swd"), _input_files({}), _check_input_contiguity(false),
+      _dada_header_size(4096),_output_dir("./"), _statistics_file("./statistics.bin"), 
+      _coherent_dms({0.0f}), _dedisp_kernel_length_samps(8192),
+      _cfreq(1284000000.0), _bw(13375000.0), 
+      _channel_frequencies_stale(true), _output_level(24.0f), _cb_power_scaling(0.0f), _cb_power_offset(0.0f),
       _ib_power_scaling(0.0f), _ib_power_offset(0.0f)
 {
 }
@@ -39,6 +40,27 @@ std::vector<std::string> const& PipelineConfig::input_files() const
 {
     return _input_files;
 }
+
+void PipelineConfig::check_input_contiguity(bool check)
+{
+    _check_input_contiguity = check;
+}
+
+bool PipelineConfig::check_input_contiguity() const
+{
+    return _check_input_contiguity;
+}
+
+void PipelineConfig::dada_header_size(std::size_t size)
+{
+    _dada_header_size = size;
+}
+
+std::size_t PipelineConfig::dada_header_size() const
+{
+    return _dada_header_size;
+}
+
 
 void PipelineConfig::read_input_file_list(std::string filename)
 {
@@ -114,6 +136,16 @@ std::vector<float> const& PipelineConfig::coherent_dms() const
 void PipelineConfig::coherent_dms(std::vector<float> const& coherent_dms)
 {
     _coherent_dms = coherent_dms;
+}
+
+void PipelineConfig::dedisp_kernel_length_samps(std::size_t kernel_length)
+{
+    _dedisp_kernel_length_samps = kernel_length;
+}
+
+std::size_t PipelineConfig::dedisp_kernel_length_samps() const
+{
+    return _dedisp_kernel_length_samps;
 }
 
 std::vector<double> const& PipelineConfig::channel_frequencies() const

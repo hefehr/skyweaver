@@ -14,6 +14,7 @@
  *
  */
 
+
 /**
  * The number of antennas to use for beamforming
  *
@@ -108,6 +109,16 @@ static_assert(SKYWEAVER_NBEAMS % 32 == 0,
 // These are fixed for MeerKAT F-engine data
 #define SKYWEAVER_NSAMPLES_PER_HEAP 256
 #define SKYWEAVER_NPOL              2
+
+//A useful number to compute is the size of each AFTP in TAFTP input data
+// Usually for A=64, N=64, T=256, P=2, this is 8192 bytes
+#define SKYWEAVER_INPUT_NBITS sizeof(std::int8_t)
+#define SKYWEAVER_AFTP_SIZE \
+                SKYWEAVER_NANTENNAS * \
+                SKYWEAVER_NCHANS * \
+                SKYWEAVER_NSAMPLES_PER_HEAP * \
+                SKYWEAVER_NPOL * \
+                SKYWEAVER_INPUT_NBITS
 
 // These parameters are fixed for beamformer 
 // kernel performance. 

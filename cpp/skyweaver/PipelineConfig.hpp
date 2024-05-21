@@ -39,6 +39,27 @@ class PipelineConfig
      */
     void input_files(std::vector<std::string> const&);
 
+
+    /**
+     * @brief      Check if the input files are contiguous
+    */
+    bool check_input_contiguity() const;
+
+    /**
+     * @brief      Set whether the input files are contiguous
+     */
+    void check_input_contiguity(bool);
+    
+    /**
+     * @brief      Get the size of the DADA header in the input files
+     */
+    std::size_t dada_header_size() const;
+
+    /**
+     * @brief      Set the size of the DADA header in the input files
+     */
+    void dada_header_size(std::size_t);   
+
     /**
      * @brief      Set the list of input files from a text file 
      * 
@@ -116,6 +137,16 @@ class PipelineConfig
      *
      */
     void coherent_dms(std::vector<float> const&);
+
+    /**
+     * @brief      Return the length of the kernel in samples
+    */
+    std::size_t dedisp_kernel_length_samps() const;
+
+    /**
+     * @brief      Set the length of the kernel in samples
+    */
+    void dedisp_kernel_length_samps(std::size_t);
 
     /**
      * @brief      Return the number of time samples to be integrated
@@ -252,11 +283,18 @@ class PipelineConfig
     void update_power_offsets_and_scalings();
 
   private:
-    std::string _delay_file;
+    /* input file options*/
     std::vector<std::string> _input_files;
-    std::string _output_dir;
+    bool _check_input_contiguity;
+    std::size_t _dada_header_size;
+
+    /* Other required files*/
+    std::string _delay_file;
     std::string _statistics_file;
+
+    std::string _output_dir;
     std::vector<float> _coherent_dms;
+    std::size_t _dedisp_kernel_length_samps; 
     double _cfreq;
     double _bw;
     mutable bool _channel_frequencies_stale;

@@ -39,7 +39,7 @@ long double Header::get<long double>(char const* key) const
     fetch_header_string(key);
     long double value = std::strtold(_buffer, NULL);
     BOOST_LOG_TRIVIAL(debug)
-        << "Retrieved from header: " << key << " = " << value;
+        << "Header get: " << key << " = " << value;
     return value;
 }
 
@@ -49,7 +49,7 @@ std::size_t Header::get<std::size_t>(char const* key) const
     fetch_header_string(key);
     std::size_t value = std::strtoul(_buffer, NULL, 0);
     BOOST_LOG_TRIVIAL(debug)
-        << "Retrieved from header: " << key << " = " << value;
+        << "Header get: " << key << " = " << value;
     return value;
 }
 

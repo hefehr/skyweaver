@@ -1,7 +1,6 @@
 #include "skyweaver/PipelineConfig.hpp"
 
-#include <boost/algorithm/string.hpp> 
-
+#include <boost/algorithm/string.hpp>
 #include <fstream>
 
 namespace skyweaver
@@ -12,7 +11,7 @@ PipelineConfig::PipelineConfig()
       _dada_header_size(4096),_output_dir("./"), _statistics_file("./statistics.bin"), 
       _coherent_dms({0.0f}), _dedisp_kernel_length_samps(8192),
       _cfreq(1284000000.0), _bw(13375000.0), 
-      _channel_frequencies_stale(true), _output_level(24.0f), _cb_power_scaling(0.0f), _cb_power_offset(0.0f),
+	_channel_frequencies_stale(true), _gulp_length_samps(0), _output_level(24.0f), _cb_power_scaling(0.0f), _cb_power_offset(0.0f),
       _ib_power_scaling(0.0f), _ib_power_offset(0.0f)
 {
 }
@@ -67,16 +66,14 @@ void PipelineConfig::read_input_file_list(std::string filename)
     std::string line;
     std::ifstream ifs(filename.c_str());
     if(!ifs.is_open()) {
-        std::cerr << "Unable to open input file list: " << filename
-                  << " (" << std::strerror(errno) << ")\n";
+        std::cerr << "Unable to open input file list: " << filename << " ("
+                  << std::strerror(errno) << ")\n";
         throw std::runtime_error(std::strerror(errno));
     }
     _input_files.resize(0);
-    while ( std::getline (ifs, line) )
-    {
+    while(std::getline(ifs, line)) {
         boost::algorithm::trim(line);
-        if (line.rfind("#", 0))
-        {
+        if(line.rfind("#", 0)) {
             // Line is a comment
             continue;
         } else {
@@ -171,6 +168,16 @@ void PipelineConfig::calculate_channel_frequencies() const
                                        (chbw * chan_idx));
     }
     _channel_frequencies_stale = false;
+}
+
+std::size_t PipelineConfig::gulp_length_samps() const
+{
+    return _gulp_length_samps;
+}
+
+void PipelineConfig::gulp_length_samps(std::size_t nsamps)
+{
+    _gulp_length_samps = nsamps;
 }
 
 void PipelineConfig::output_level(float level)

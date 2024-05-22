@@ -40,10 +40,10 @@ class PipelineConfig
     void input_files(std::vector<std::string> const&);
 
     /**
-     * @brief      Set the list of input files from a text file 
-     * 
-     * @details    File format is a newline separated list of 
-     *             absolute or relative filepaths. Lines beginning 
+     * @brief      Set the list of input files from a text file
+     *
+     * @details    File format is a newline separated list of
+     *             absolute or relative filepaths. Lines beginning
      *             with # are considered to be comments
      */
     void read_input_file_list(std::string filename);
@@ -153,13 +153,29 @@ class PipelineConfig
     std::size_t nbeams() const { return SKYWEAVER_NBEAMS; }
 
     /**
-     * @brief      Return the number of samples that will be processed 
+     * @brief      Return the number of samples that will be processed
      *             in each batch.
      */
     std::size_t nsamples_per_block() const
     {
         return SKYWEAVER_CB_NSAMPLES_PER_BLOCK;
     }
+
+    /**
+     * @brief Return the total number of samples to read from file in each gulp.
+     * 
+     * @details Must be a multiple of nsamps per heap and greater than\
+     *          the dedispersion kernel size.
+     */
+    std::size_t gulp_length_samps() const;
+
+    /**
+     * @brief Set the total number of samples to read from file in each gulp.
+     * 
+     * @details Must be a multiple of nsamps per heap and greater than\
+     *          the dedispersion kernel size.
+     */
+    void gulp_length_samps(std::size_t);
 
     /**
      * Below are methods to get and set the power scaling and offset in the
@@ -229,6 +245,18 @@ class PipelineConfig
      */
     std::size_t nchans() const { return SKYWEAVER_NCHANS; }
 
+    /** 
+     * @brief      Return the F-engine channelisation mode
+     * data
+     */
+    std::size_t total_nchans() const;
+
+     /** 
+     * @brief      Set the F-engine channelisation mode
+     * data
+     */
+    void total_nchans(std::size_t); 
+
     /**
      * @brief      Return the number of polarisations in the observation
      *
@@ -260,6 +288,8 @@ class PipelineConfig
     double _cfreq;
     double _bw;
     mutable bool _channel_frequencies_stale;
+    std::size_t _gulp_length_samps;
+    std::size_t _total_nchans;
     float _output_level;
     float _cb_power_scaling;
     float _cb_power_offset;

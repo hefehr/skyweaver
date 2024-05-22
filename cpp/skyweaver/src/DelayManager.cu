@@ -1,5 +1,6 @@
 #include "psrdada_cpp/cuda_utils.hpp"
 #include "skyweaver/DelayManager.cuh"
+#include "skyweaver/PipelineConfig.hpp"
 
 #include <cerrno>
 #include <cstring>
@@ -11,10 +12,11 @@
 namespace skyweaver
 {
 
-DelayManager::DelayManager(std::string delay_file, cudaStream_t stream)
-    : _copy_stream(stream)
+DelayManager::DelayManager(PipelineConfig const& config, cudaStream_t stream)
+    : _config(config), _copy_stream(stream)
 {
   BOOST_LOG_TRIVIAL(debug) << "Constructing new DelayManager instance";
+  std::string delay_file = _config.delay_file();
   BOOST_LOG_TRIVIAL(debug) << "Opening delay model file: " << delay_file;
   _input_stream.open(delay_file, std::ios::in | std::ios::binary);
   if(!_input_stream.is_open()) {
@@ -49,8 +51,24 @@ DelayManager::DelayVectorDType const& DelayManager::delays(double epoch)
   }
   
   while(!validate_model(epoch)) { read_next_model(); }
-  
-  thrust::copy(_delays_h.begin(), _delays_h.end(), _delays_d.begin());
+
+  // Resize the arrays for the delay model on the GPU
+  const std::size_t out_nelements = _config.nantennas() * _config.nbeams();
+  _delays_d.resize(out_nelements, {0.0f, 0.0f, 0.0f});
+
+  // In order to ensure that the correct sizes are available for the pipeline 
+  // implementation, we here pad the delays array out to the maximum number of 
+  // antennas and beams that will be processed by the pipeline.
+  void* host_ptr = static_cast<void*>(thrust::raw_pointer_cast(_delays_h.data()));
+  void* dev_ptr = static_cast<void*>(thrust::raw_pointer_cast(_delays_d.data()));
+  unsigned host_pitch = _header.nantennas;
+  unsigned dev_pitch = _config.nantennas();
+  unsigned ncols = _header.nantennas * sizeof(float3);
+  unsigned nrows = _header.nbeams;
+
+  // This could be made async
+  cudaMemcpy2D(host_ptr, host_pitch, dev_ptr, dev_pitch, ncols * sizeof(float), nrows, cudaMemcpyDeviceToHost);
+  CUDA_ERROR_CHECK(cudaDeviceSynchronize());
   return _delays_d;
 }
 
@@ -88,11 +106,8 @@ void DelayManager::read_next_model()
                            << "Start = " << _header.start_epoch << ", "
                            << "End = " << _header.end_epoch;
 
-  // Resize the arrays for the delay model on the host and GPU
   const std::size_t nelements = _header.nantennas * _header.nbeams;
   _delays_h.resize(nelements);
-  _delays_d.resize(nelements);
-
   // Read the weight, offset, rate tuples from the file
   safe_read(reinterpret_cast<char*>(thrust::raw_pointer_cast(_delays_h.data())),
             nelements * sizeof(DelayVectorHType::value_type));

@@ -20,6 +20,7 @@ DelayManagerTester::~DelayManagerTester()
 
 void DelayManagerTester::SetUp()
 {
+    _config.delay_file("data/test_delays.bin");
     CUDA_ERROR_CHECK(cudaStreamCreate(&_stream));
 }
 
@@ -44,22 +45,22 @@ void DelayManagerTester::TearDown()
 
 TEST_F(DelayManagerTester, test_valid_read_first_block)
 {
-    DelayManager delay_manager("data/test_delays.bin", _stream);
+    DelayManager delay_manager(_config, _stream);
     DelayManager::DelayVectorDType const& delays = delay_manager.delays(1708082169.0);
-    ASSERT_EQ(delays.size(), 67 * 57);
+    ASSERT_EQ(delays.size(), _config.nbeams() * _config.nantennas());
 }
 
 TEST_F(DelayManagerTester, test_valid_read_nth_block)
 {
-    DelayManager delay_manager("data/test_delays.bin", _stream);
+    DelayManager delay_manager(_config, _stream);
     DelayManager::DelayVectorDType const& delays = delay_manager.delays(1708082409.957);
-    ASSERT_EQ(delays.size(), 67 * 57);
+    ASSERT_EQ(delays.size(), _config.nbeams() * _config.nantennas());
 }
 
 
 TEST_F(DelayManagerTester, test_too_early_epoch)
 {
-    DelayManager delay_manager("data/test_delays.bin", _stream);
+    DelayManager delay_manager(_config, _stream);
     //Test an epoch that is before the start of the validity window
     EXPECT_THROW(
         DelayManager::DelayVectorDType const& delays = delay_manager.delays(1708082165.0),
@@ -69,7 +70,7 @@ TEST_F(DelayManagerTester, test_too_early_epoch)
 
 TEST_F(DelayManagerTester, test_too_late_epoch)
 {
-    DelayManager delay_manager("data/test_delays.bin", _stream);
+    DelayManager delay_manager(_config, _stream);
     //Test an epoch that is after the end of the validity window
     EXPECT_THROW(
         DelayManager::DelayVectorDType const& delays = delay_manager.delays(1708082470.957),

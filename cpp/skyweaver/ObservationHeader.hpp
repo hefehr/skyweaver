@@ -6,54 +6,6 @@
 
 namespace skyweaver
 {
-
-/** --- example header ---
-
-    HEADER       DADA
-    HDR_VERSION  1.0
-    HDR_SIZE     4096
-    DADA_VERSION 1.0
-
-    # DADA parameters
-    OBS_ID       test
-
-    FILE_SIZE    956305408
-    FILE_NUMBER  0
-
-    # time of the rising edge of the first time sample
-    UTC_START    1708082229.000020336
-    MJD_START    60356.47024305579093
-
-    OBS_OFFSET   0
-    OBS_OVERLAP  0
-
-    SOURCE       J1644-4559
-    RA           16:44:49.27
-    DEC          -45:59:09.7
-    TELESCOPE    MeerKAT
-    INSTRUMENT   CBF-Feng
-    RECEIVER     L-band
-    FREQ         1284000000.000000
-    BW           856000000.000000
-    TSAMP        4.7850467290
-
-    BYTES_PER_SECOND 3424000000.000000
-
-    NBIT         8
-    NDIM         2
-    NPOL         2
-    NCHAN        64
-    NANT         57
-    ORDER        TAFTP
-    INNER_T      256
-
-    #MeerKAT specifics
-    SYNC_TIME    1708039531.000000
-    SAMPLE_CLOCK 1712000000.000000
-    SAMPLE_CLOCK_START 73098976034816
-    CHAN0_IDX 2688
- */
-
 struct ObservationHeader {
     std::size_t nchans             = 0;   // Number of frequency channels
     std::size_t npol               = 0;   // Number of polarisations

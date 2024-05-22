@@ -22,6 +22,14 @@ void DelayManagerTester::SetUp()
 {
     _config.delay_file("data/test_delays.bin");
     CUDA_ERROR_CHECK(cudaStreamCreate(&_stream));
+    if (_config.nantennas() < 57)
+    {
+        GTEST_SKIP();
+    }
+    if (_config.nbeams() < 67)
+    {
+        GTEST_SKIP();
+    }
 }
 
 void DelayManagerTester::TearDown()

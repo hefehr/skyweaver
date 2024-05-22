@@ -47,6 +47,8 @@ struct DelayModelHeader {
     double end_epoch;
 };
 
+typedef float3 DelayModel;
+
 /**
  * @brief      Class for managing loading of delay models from
  *             file and provisioning of them on the GPU.
@@ -59,8 +61,8 @@ class DelayManager
      * fastest dimension is antenna. This is also how the vectors 
      * are store on file.
      */
-    typedef thrust::device_vector<float3> DelayVectorDType;
-    typedef thrust::host_vector<float3> DelayVectorHType;
+    typedef thrust::device_vector<DelayModel> DelayVectorDType;
+    typedef thrust::host_vector<DelayModel> DelayVectorHType;
 
   public:
     /**

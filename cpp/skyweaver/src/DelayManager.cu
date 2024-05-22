@@ -1,6 +1,5 @@
 #include "psrdada_cpp/cuda_utils.hpp"
 #include "skyweaver/DelayManager.cuh"
-#include "skyweaver/PipelineConfig.hpp"
 
 #include <cerrno>
 #include <cstring>
@@ -51,7 +50,14 @@ DelayManager::DelayVectorDType const& DelayManager::delays(double epoch)
   }
   
   while(!validate_model(epoch)) { read_next_model(); }
-
+  if (_header.nantennas > _config.nantennas())
+  {
+    throw std::runtime_error("Delay model contains too many antennas");
+  }
+  if (_header.nbeams > _config.nbeams())
+  {
+    throw std::runtime_error("Delay model contains too many beams");
+  }
   // Resize the arrays for the delay model on the GPU
   const std::size_t out_nelements = _config.nantennas() * _config.nbeams();
   _delays_d.resize(out_nelements, {0.0f, 0.0f, 0.0f});
@@ -61,14 +67,13 @@ DelayManager::DelayVectorDType const& DelayManager::delays(double epoch)
   // antennas and beams that will be processed by the pipeline.
   void* host_ptr = static_cast<void*>(thrust::raw_pointer_cast(_delays_h.data()));
   void* dev_ptr = static_cast<void*>(thrust::raw_pointer_cast(_delays_d.data()));
-  unsigned host_pitch = _header.nantennas;
-  unsigned dev_pitch = _config.nantennas();
-  unsigned ncols = _header.nantennas * sizeof(float3);
+  unsigned host_pitch = _header.nantennas * sizeof(DelayModel);
+  unsigned dev_pitch = _config.nantennas() * sizeof(DelayModel);
+  unsigned ncols = _header.nantennas * sizeof(DelayModel);
   unsigned nrows = _header.nbeams;
 
   // This could be made async
-  cudaMemcpy2D(host_ptr, host_pitch, dev_ptr, dev_pitch, ncols * sizeof(float), nrows, cudaMemcpyDeviceToHost);
-  CUDA_ERROR_CHECK(cudaDeviceSynchronize());
+  CUDA_ERROR_CHECK(cudaMemcpy2D(dev_ptr, dev_pitch, host_ptr, host_pitch, ncols, nrows, cudaMemcpyHostToDevice));
   return _delays_d;
 }
 

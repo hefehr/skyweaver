@@ -10,7 +10,7 @@ PipelineConfig::PipelineConfig()
     : _delay_file("delays.swd"), _input_files({}), _output_dir("./"),
       _statistics_file("./statistics.bin"), _coherent_dms({0.0f}),
       _cfreq(1284000000.0), _bw(13375000.0), _channel_frequencies_stale(true),
-      _gulp_length_samps(0), _output_level(24.0f), _cb_power_scaling(0.0f),
+      _gulp_length_samps(0), _total_nchans(4096), _output_level(24.0f), _cb_power_scaling(0.0f),
       _cb_power_offset(0.0f), _ib_power_scaling(0.0f), _ib_power_offset(0.0f)
 {
 }
@@ -156,6 +156,16 @@ void PipelineConfig::output_level(float level)
 float PipelineConfig::output_level() const
 {
     return _output_level;
+}
+
+std::size_t PipelineConfig::total_nchans() const
+{
+    return _total_nchans;
+}
+
+void PipelineConfig::total_nchans(std::size_t nchans)
+{
+    _total_nchans = nchans;
 }
 
 } // namespace skyweaver

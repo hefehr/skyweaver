@@ -1,6 +1,8 @@
 #ifndef SKYWEAVER_DELAYMANAGER_CUH
 #define SKYWEAVER_DELAYMANAGER_CUH
 
+#include "skyweaver/PipelineConfig.hpp"
+
 #include <boost/log/trivial.hpp>
 #include <exception>
 #include <fstream>
@@ -45,6 +47,8 @@ struct DelayModelHeader {
     double end_epoch;
 };
 
+typedef float3 DelayModel;
+
 /**
  * @brief      Class for managing loading of delay models from
  *             file and provisioning of them on the GPU.
@@ -57,8 +61,8 @@ class DelayManager
      * fastest dimension is antenna. This is also how the vectors 
      * are store on file.
      */
-    typedef thrust::device_vector<float3> DelayVectorDType;
-    typedef thrust::host_vector<float3> DelayVectorHType;
+    typedef thrust::device_vector<DelayModel> DelayVectorDType;
+    typedef thrust::host_vector<DelayModel> DelayVectorHType;
 
   public:
     /**
@@ -67,7 +71,7 @@ class DelayManager
      * @param delay_file A file containing delay models in skyweaver format
      * @param stream A cuda stream on which to execute host to device copies
      */
-    DelayManager(std::string delay_file, cudaStream_t stream);
+    DelayManager(PipelineConfig const& config, cudaStream_t stream);
     ~DelayManager();
     DelayManager(DelayManager const&) = delete;
 
@@ -87,6 +91,7 @@ class DelayManager
     void read_next_model();
     void safe_read(char* buffer, std::size_t nbytes);
 
+    PipelineConfig const& _config;
     cudaStream_t _copy_stream;
     DelayModelHeader _header;
     std::ifstream _input_stream;

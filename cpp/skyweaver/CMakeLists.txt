@@ -3,7 +3,9 @@ include_directories(${CMAKE_SOURCE_DIR}/cpp/)
 set(skyweaver_src
    src/CoherentBeamformer.cu
    src/DelayManager.cu
+   src/Header.cpp
    src/IncoherentBeamformer.cu
+   src/ObservationHeader.cpp
    src/PipelineConfig.cpp
    src/StatisticsCalculator.cu
    src/Transposer.cu
@@ -13,7 +15,9 @@ set(skyweaver_src
 set(skyweaver_inc
     CoherentBeamformer.cuh
     DelayManager.cuh
+    Header.hpp
     IncoherentBeamformer.cuh
+    ObservationHeader.hpp
     PipelineConfig.hpp
     StatisticsCalculator.cuh
     Transposer.cuh

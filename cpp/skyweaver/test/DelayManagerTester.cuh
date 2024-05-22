@@ -2,6 +2,7 @@
 #define SKYWEAVER_TEST_DELAYMANAGERTESTER_CUH
 
 #include "skyweaver/DelayManager.cuh"
+#include "skyweaver/PipelineConfig.hpp"
 
 #include <gtest/gtest.h>
 
@@ -21,6 +22,7 @@ class DelayManagerTester: public ::testing::Test
     ~DelayManagerTester();
 
   protected:
+    PipelineConfig _config;
     cudaStream_t _stream;
 };
 

@@ -4,7 +4,7 @@ include_directories(${CUDA_TOOLKIT_INCLUDE})
 set(CUDA_HOST_COMPILER ${CMAKE_CXX_COMPILER})
 set(CUDA_PROPAGATE_HOST_FLAGS OFF)
 
-list(APPEND CUDA_NVCC_FLAGS --std=c++${CMAKE_CXX_STANDARD} -Wno-deprecated-gpu-targets --ptxas-options=-v)
+list(APPEND CUDA_NVCC_FLAGS --std=c++${CMAKE_CXX_STANDARD} --expt-extended-lambda -Wno-deprecated-gpu-targets  )
 list(APPEND CUDA_NVCC_FLAGS_DEBUG -O2 -Xcompiler "-Wextra" --Werror all-warnings -Xcudafe "--diag_suppress=20012")
 list(APPEND CUDA_NVCC_FLAGS_PROFILE --generate-line-info)
 list(APPEND CUDA_NVCC_FLAGS_RELEASE -O3 -use_fast_math -restrict)
@@ -36,7 +36,6 @@ elseif(CMAKE_BUILD_TYPE_UPPER STREQUAL "RELEASE")
 elseif(CMAKE_BUILD_TYPE_UPPER STREQUAL "PROFILE")
     set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} ${CUDA_NVCC_FLAGS_PROFILE}")
 endif()
-
 
 get_property(dirs DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY INCLUDE_DIRECTORIES)
 add_definitions(-DUSE_NVTX)

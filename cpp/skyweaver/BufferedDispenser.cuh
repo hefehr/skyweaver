@@ -40,7 +40,7 @@ class skyweaver::BufferedDispenser
     cudaStream_t _stream;
 
   public:
-    BufferedDispenser(PipelineConfig const& config, cudaStream_t stream));
+    BufferedDispenser(PipelineConfig const& config, cudaStream_t stream);
     void hoard(DeviceVoltageType const& ftpa_voltages_in);
     DeviceVoltageType const& dispense(std::size_t chan_idx) const;
 };

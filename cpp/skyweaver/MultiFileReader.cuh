@@ -30,17 +30,18 @@ class skyweaver::MultiFileReader
     PipelineConfig const& _config;
     std::vector<std::string> files;
     std::vector<std::size_t> sizes;
+    std::vector<ObservationHeader> headers;
     std::ifstream _current_stream;
     int _current_file_idx;
     std::size_t _current_position;
-    std::mutex mtx;
     bool eofFlag;
     std::size_t _dada_header_size;
     std::size_t _total_size;
     bool _is_open;
 
-    void read_header();
-    std::unique_ptr<ObservationHeader> header;
+    void read_header(std::vector<char>& headerBytes);
+    void check_contiguity();
+    std::shared_ptr<ObservationHeader> header;
 
   public:
     MultiFileReader(PipelineConfig const& config);
@@ -48,20 +49,24 @@ class skyweaver::MultiFileReader
     void open_next();
     void open_previous();
     void close();
-    void seekg(std::size_t pos,
+    void seekg(long pos,
                std::ios_base::seekdir dir = std::ios_base::beg);
     std::size_t tellg() const;
     bool eof() const;
     bool good() const;
-    bool can_read(std::size_t bytes);
-    bool has_next();
-    void next();
+    bool can_read(std::size_t bytes) const;
     std::streamsize read(thrust::host_vector<char2>& buffer,
                          std::streamsize bytes);
     bool is_open() const;
 
+    std::size_t get_total_size() const;
+
+    skyweaver::ObservationHeader const& get_header() const;
+
     template <typename T>
     friend MultiFileReader& operator>>(MultiFileReader& reader, T& value);
+
+    ~MultiFileReader();
 };
 
 #endif // MULTIFILE_READER_HPP

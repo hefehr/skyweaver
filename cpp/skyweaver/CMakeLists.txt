@@ -7,7 +7,7 @@ set(skyweaver_src
    src/DelayManager.cu
    src/Header.cpp
    src/IncoherentBeamformer.cu
-   src/MultiFileReader.cpp
+   src/MultiFileReader.cu
    src/ObservationHeader.cpp
    src/PipelineConfig.cpp
    src/StatisticsCalculator.cu
@@ -22,7 +22,7 @@ set(skyweaver_inc
     DelayManager.cuh
     Header.hpp
     IncoherentBeamformer.cuh
-    MultiFileReader.hpp    
+    MultiFileReader.cuh    
     ObservationHeader.hpp
     PipelineConfig.hpp
     StatisticsCalculator.cuh

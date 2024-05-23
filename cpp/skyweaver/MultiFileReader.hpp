@@ -1,34 +1,33 @@
 #ifndef MULTIFILE_READER_HPP
 #define MULTIFILE_READER_HPP
 
-#include <iostream>
-#include <fstream>
-#include <vector>
-#include <string>
-#include <mutex>
-#include <memory>
+#include "cuda.h"
 #include "psrdada_cpp/psrdadaheader.hpp"
 #include "psrdada_cpp/raw_bytes.hpp"
-#include "skyweaver/PipelineConfig.hpp"
-#include <thrust/device_vector.h>
-#include "cuda.h"
-#include  <thrust/host_vector.h>
-#include <cassert>
 #include "skyweaver/ObservationHeader.hpp"
+#include "skyweaver/PipelineConfig.hpp"
+
+#include <cassert>
+#include <fstream>
+#include <iostream>
 #include <memory>
+#include <mutex>
+#include <string>
+#include <thrust/device_vector.h>
+#include <thrust/host_vector.h>
+#include <vector>
 namespace skyweaver
 {
-    class MultiFileReader;
+class MultiFileReader;
 }
 
 class skyweaver::MultiFileReader
 {
-
-public:
+  public:
     typedef thrust::device_vector<char2> VoltageType;
 
-private:
-    PipelineConfig const &_config;
+  private:
+    PipelineConfig const& _config;
     std::vector<std::string> files;
     std::vector<std::size_t> sizes;
     std::ifstream _current_stream;
@@ -43,24 +42,26 @@ private:
     void read_header();
     std::unique_ptr<ObservationHeader> header;
 
-public:
-    MultiFileReader(PipelineConfig const &config);
+  public:
+    MultiFileReader(PipelineConfig const& config);
     void open();
     void open_next();
     void open_previous();
     void close();
-    void seekg(std::size_t pos, std::ios_base::seekdir dir = std::ios_base::beg);
+    void seekg(std::size_t pos,
+               std::ios_base::seekdir dir = std::ios_base::beg);
     std::size_t tellg() const;
     bool eof() const;
     bool good() const;
     bool can_read(std::size_t bytes);
     bool has_next();
     void next();
-    std::streamsize read(thrust::host_vector<char2>& buffer, std::streamsize bytes);
+    std::streamsize read(thrust::host_vector<char2>& buffer,
+                         std::streamsize bytes);
     bool is_open() const;
 
     template <typename T>
-    friend MultiFileReader &operator>>(MultiFileReader &reader, T &value);
+    friend MultiFileReader& operator>>(MultiFileReader& reader, T& value);
 };
 
 #endif // MULTIFILE_READER_HPP

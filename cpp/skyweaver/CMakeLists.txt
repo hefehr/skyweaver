@@ -1,10 +1,13 @@
 include_directories(${CMAKE_SOURCE_DIR}/cpp/)
 
 set(skyweaver_src
+   src/BufferedDispenser.cu
    src/CoherentBeamformer.cu
+   src/CoherentDedisperser.cu
    src/DelayManager.cu
    src/Header.cpp
    src/IncoherentBeamformer.cu
+   src/MultiFileReader.cpp
    src/ObservationHeader.cpp
    src/PipelineConfig.cpp
    src/StatisticsCalculator.cu
@@ -13,10 +16,13 @@ set(skyweaver_src
    )
 
 set(skyweaver_inc
+    BufferedDispenser.cuh
     CoherentBeamformer.cuh
+    CoherentDedisperser.cuh
     DelayManager.cuh
     Header.hpp
     IncoherentBeamformer.cuh
+    MultiFileReader.hpp    
     ObservationHeader.hpp
     PipelineConfig.hpp
     StatisticsCalculator.cuh
@@ -28,7 +34,7 @@ set(SKYWEAVER_LIBRARIES ${CMAKE_PROJECT_NAME} ${DEPENDENCY_LIBRARIES})
 # -- the main library target
 add_library(${CMAKE_PROJECT_NAME} ${skyweaver_src})
 target_link_libraries(${CMAKE_PROJECT_NAME} ${DEPENDENCY_LIBRARIES})
-
+target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>: ${CUDA_NVCC_FLAGS}>)
 IF (DEFINED SKYWEAVER_NANTENNAS)
     message(STATUS "Compiling for SKYWEAVER_NANTENNAS = " ${SKYWEAVER_NANTENNAS})
     target_compile_definitions(${CMAKE_PROJECT_NAME} PUBLIC SKYWEAVER_NANTENNAS=${SKYWEAVER_NANTENNAS})

@@ -16,34 +16,36 @@ BufferedDispenser::BufferedDispenser(PipelineConfig const& config) : _config(con
     }
 
 void BufferedDispenser::hoard(DeviceVoltageType const& new_ftpa_voltages_in, cudaStream_t stream){
-
+    char2 zeros;
+    zeros.x = 0;
+    zeros.y = 0;
     _stream = stream;
     for (std::size_t i = 0; i < _config.nchans(); i++){
 
-        if(!_d_prev_channeled_tpa_voltages){ // if first time set overlaps as zeros
+        if(_d_prev_channeled_tpa_voltages.size() == 0){ // if first time set overlaps as zeros
             thrust::fill(_d_channeled_tpa_voltages[i].begin(),
-                         _d_channeled_tpa_voltages[i].begin() + kernel_length_tpa, 
-                         0); 
+                         _d_channeled_tpa_voltages[i].begin() + _kernel_length_tpa, 
+                         zeros); 
         }
         else{ // first add corresponding overlap to output 
-            thrust::copy(_d_prev_channeled_tpa_voltages[i].begin()  
-                        _d_prev_channeled_tpa_voltages[i].end() 
+            thrust::copy(_d_prev_channeled_tpa_voltages[i].begin(),  
+                        _d_prev_channeled_tpa_voltages[i].end(), 
                         _d_channeled_tpa_voltages[i].begin()); 
         }
         // then add the input data
-        thrust::copy(ftpa_voltages_in.begin() + i * _block_length_tpa, 
-                     ftpa_voltages_in.begin() + (i + 1) * _block_length_tpa, 
-                     _d_channeled_tpa_voltages[i].begin() + kernel_length_tpa);
+        thrust::copy(new_ftpa_voltages_in.begin() + i * _block_length_tpa, 
+        new_ftpa_voltages_in.begin() + (i + 1) * _block_length_tpa, 
+                     _d_channeled_tpa_voltages[i].begin() + _kernel_length_tpa);
 
         // update the overlap for the next hoard
-        thrust::copy(ftpa_voltages_in.begin() + (i+1) * _block_length_tpa - kernel_length_tpa, 
-                     ftpa_voltages_in.begin() + (i+1) * _block_length_tpa, 
+        thrust::copy(new_ftpa_voltages_in.begin() + (i+1) * _block_length_tpa - _kernel_length_tpa, 
+                    new_ftpa_voltages_in.begin() + (i+1) * _block_length_tpa, 
                      _d_prev_channeled_tpa_voltages[i].begin());
     }
 
 }
 
-DeviceVoltageType const& BufferedDispenser::dispense(std::size_t chan_idx) const { // implements overlapped buffering of data
+BufferedDispenser::DeviceVoltageType const& BufferedDispenser::dispense(std::size_t chan_idx) const { // implements overlapped buffering of data
 
    return _d_channeled_tpa_voltages[chan_idx];
     

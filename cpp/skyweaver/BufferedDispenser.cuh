@@ -2,8 +2,7 @@
 #define BUFFERED_DISPENSER_HPP
 
 #pragma once
-#include "common.hpp"
-#include "skyweaver/MultifileReader.hpp"
+#include "skyweaver/MultiFileReader.hpp"
 #include "cuda.h"
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
@@ -38,8 +37,7 @@ class skyweaver::BufferedDispenser {
 
             BufferedDispenser(PipelineConfig const& config); 
             void hoard(DeviceVoltageType const& ftpa_voltages_in, cudaStream_t stream);
-            void dispense(std::size_t chan_idx, DeviceVoltageType& tpa_voltages_out);
-
+            DeviceVoltageType const& dispense(std::size_t chan_idx) const;
 
 };
 

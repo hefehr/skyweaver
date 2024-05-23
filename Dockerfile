@@ -16,6 +16,15 @@ RUN apt-get update && \
     python-is-python3 \
     python3-sphinx 
 
+### PYTHON DEPENDENCIES
+RUN apt-get install -yq --no-install-recommends \
+    python3-pip \
+    python3-setuptools \
+    python3-wheel
+
+RUN pip3 install --upgrade pip && \
+    pip3 install numpy scipy matplotlib
+
 ### PSRDADA
 RUN cd /usr/src && \
     git clone https://git.code.sf.net/p/psrdada/code psrdada && \
@@ -42,9 +51,9 @@ RUN cd /usr/src && \
 ### SKYWEAVER
 WORKDIR /usr/src/skyweaver
 COPY . . 
-RUN  cmake -S . -B build/ -DARCH=native \
-        -DPSRDADA_INCLUDE_DIR=/usr/local/include/psrdada \
-        -DPSRDADACPP_INCLUDE_DIR=/usr/local/include/psrdada_cpp \
-        -DBUILD_SUBMODULES=OFF .. &&\
-        make -C build/ -j8 && make -C build/ install
+#RUN  cmake -S . -B build/ -DARCH=native \
+#        -DPSRDADA_INCLUDE_DIR=/usr/local/include/psrdada \
+#        -DPSRDADACPP_INCLUDE_DIR=/usr/local/include/psrdada_cpp \
+#        -DBUILD_SUBMODULES=OFF .. &&\
+#        make -C build/ -j8 && make -C build/ install
 

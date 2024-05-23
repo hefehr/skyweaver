@@ -6,9 +6,11 @@ set(
     gtest_skyweaver_src
     src/BeamformerPipelineTester.cu
     src/CoherentBeamformerTester.cu
+    src/CoherentDedisperserTester.cu
     src/DelayManagerTester.cu
     src/ObservationHeaderTester.cpp
     src/IncoherentBeamformerTester.cu
+    src/MultiFileReaderTester.cu
     src/StatisticsCalculatorTester.cu
     src/TransposerTester.cu
     src/WeightsManagerTester.cu

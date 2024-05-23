@@ -3,7 +3,7 @@
 
 #pragma once
 #include "cuda.h"
-#include "skyweaver/MultiFileReader.hpp"
+#include "skyweaver/MultiFileReader.cuh"
 #include "skyweaver/PipelineConfig.hpp"
 
 #include <cassert>

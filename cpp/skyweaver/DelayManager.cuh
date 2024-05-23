@@ -86,6 +86,13 @@ class DelayManager
      */
     DelayVectorDType const& delays(double epoch);
 
+    /**
+     * @brief Return the UNIX epoch of the current delay model
+     * 
+     * @return double UNIX epoch
+     */
+    double epoch() const;
+
   private:
     bool validate_model(double epoch) const;
     void read_next_model();

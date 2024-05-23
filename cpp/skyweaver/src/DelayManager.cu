@@ -37,6 +37,11 @@ DelayManager::~DelayManager()
   }
 }
 
+double DelayManager::epoch() const
+{
+    return _header.start_epoch;
+}
+
 DelayManager::DelayVectorDType const& DelayManager::delays(double epoch)
 {
   // This function should return the delays in GPU memory

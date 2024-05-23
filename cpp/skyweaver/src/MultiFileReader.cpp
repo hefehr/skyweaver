@@ -1,5 +1,6 @@
 #include "skyweaver/MultiFileReader.hpp"
 
+
 using namespace skyweaver;
 
 MultiFileReader::MultiFileReader(PipelineConfig const& config): 
@@ -28,9 +29,13 @@ MultiFileReader::MultiFileReader(PipelineConfig const& config):
 void MultiFileReader::read_header() {
     std::ifstream f(files[0], std::ifstream::binary);
     std::vector<char> headerBytes(_dada_header_size);
-    char headerBytes[_dada_header_size];
     f.read(headerBytes.data(), _dada_header_size);
-    this->header = std::make_unique<psrdada_cpp::PsrDadaHeader>(headerBytes);
+    
+    psrdada_cpp::RawBytes block(headerBytes.data(), _dada_header_size, _dada_header_size, false);
+
+    this->header = std::make_unique<ObservationHeader>();
+    read_dada_header(block, *header);
+
     f.close();
 }
 
@@ -106,25 +111,26 @@ void MultiFileReader::close() {
 }
 
 std::streamsize MultiFileReader::read(thrust::host_vector<char2>& buffer, std::streamsize bytes) {
-    std::lock_guard<std::mutex> lock(mtx);
-    std::streamsize totalRead = 0;
-    // get raw pointer to the data
-    char2* raw_ptr = thrust::raw_pointer_cast(buffer.data());
-    while (bytes > 0) {
-        _current_stream.read(reinterpret_cast<char*>(raw_ptr) + totalRead, bytes);
-        std::streamsize bytesRead = _current_stream.gcount();
-        if (bytesRead == 0 || bytesRead < bytes) {  // End of file or error
-            open_next();
-        } else {
-            totalRead += bytesRead;
-            bytes -= bytesRead;
-            _current_position += bytesRead;
+        std::lock_guard<std::mutex> lock(mtx);
+        std::streamsize totalRead = 0;
+        // get raw pointer to the data
+        char2* raw_ptr = thrust::raw_pointer_cast(buffer.data());
+        while (bytes > 0) {
+            _current_stream.read(reinterpret_cast<char*>(raw_ptr) + totalRead, bytes);
+            std::streamsize bytesRead = _current_stream.gcount();
+            if (bytesRead == 0 || bytesRead < bytes) {  // End of file or error
+                open_next();
+            } else {
+                totalRead += bytesRead;
+                bytes -= bytesRead;
+                _current_position += bytesRead;
 
 
-        if(eofFlag) break;  
+            if(eofFlag) break;  
+        }
     }
     return totalRead;
-}
+
 }
 
 bool MultiFileReader::eof() const {

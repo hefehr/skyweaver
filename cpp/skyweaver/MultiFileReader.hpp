@@ -8,11 +8,14 @@
 #include <mutex>
 #include <memory>
 #include "psrdada_cpp/psrdadaheader.hpp"
+#include "psrdada_cpp/raw_bytes.hpp"
 #include "skyweaver/PipelineConfig.hpp"
 #include <thrust/device_vector.h>
 #include "cuda.h"
 #include  <thrust/host_vector.h>
 #include <cassert>
+#include "skyweaver/ObservationHeader.hpp"
+#include <memory>
 namespace skyweaver
 {
     class MultiFileReader;
@@ -38,7 +41,7 @@ private:
     bool _is_open;
 
     void read_header();
-    std::shared_ptr<psrdada_cpp::PsrDadaHeader> header;
+    std::unique_ptr<ObservationHeader> header;
 
 public:
     MultiFileReader(PipelineConfig const &config);

@@ -4,12 +4,14 @@
 #include "inttypes.h"
 
 #include <cstring>
+#include <iomanip>
 
 namespace skyweaver
 {
 
 Header::Header(psrdada_cpp::RawBytes& header): _header(header)
 {
+
 }
 
 Header::~Header()
@@ -65,7 +67,7 @@ std::string Header::get<std::string>(char const* key) const
 template <>
 void Header::set<long double>(char const* key, long double value)
 {
-    BOOST_LOG_TRIVIAL(debug) << "Header set: " << key << " = " << value;
+    BOOST_LOG_TRIVIAL(debug) << "Header set: " << key << " = " << std::setprecision(15) << value;
     ascii_header_set(this->_header.ptr(), key, "%Lf", value);
 }
 

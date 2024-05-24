@@ -39,7 +39,6 @@ class PipelineConfig
      */
     void input_files(std::vector<std::string> const&);
 
-
     /**
      * @brief      Check if the input files are contiguous
     */
@@ -78,6 +77,26 @@ class PipelineConfig
      * @brief      Set the directory path for output files
      */
     void output_dir(std::string const&);
+
+    /**
+     * @brief Get the prefix for the output files
+     */
+    std::string const& output_file_prefix() const;
+
+    /**
+     * @brief Set the prefix for the output files
+     */
+    void output_file_prefix(std::string const&);
+
+    /**
+     * @brief Get the maximum size of the output files
+     */
+    std::size_t max_output_filesize() const;
+
+    /**
+     * @brief Set the maximum output file size
+     */
+    void max_output_filesize(std::size_t);
 
     /**
      * @brief      Get the file path for the statistics file
@@ -321,6 +340,8 @@ class PipelineConfig
     std::string _statistics_file;
 
     std::string _output_dir;
+    std::size_t _max_output_filesize;
+    std::string _output_file_prefix;
     std::vector<float> _coherent_dms;
     std::size_t _dedisp_kernel_length_samps; 
     double _cfreq;

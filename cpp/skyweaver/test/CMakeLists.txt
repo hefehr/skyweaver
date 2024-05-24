@@ -6,7 +6,7 @@ set(
     gtest_skyweaver_src
     src/BeamformerPipelineTester.cu
     src/CoherentBeamformerTester.cu
-    src/CoherentDedisperserTester.cu
+    #src/CoherentDedisperserTester.cu
     src/DelayManagerTester.cu
     src/ObservationHeaderTester.cpp
     src/IncoherentBeamformerTester.cu

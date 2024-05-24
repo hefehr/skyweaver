@@ -24,6 +24,7 @@ struct ObservationHeader {
     std::string dec;                      // Declination
     std::string telescope;                // Telescope name
     std::string instrument;               // Name of the recording instrument
+    std::string to_string() const;
 };
 
 /**

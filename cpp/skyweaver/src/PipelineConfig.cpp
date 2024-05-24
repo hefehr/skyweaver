@@ -7,12 +7,15 @@ namespace skyweaver
 {
 
 PipelineConfig::PipelineConfig()
-    : _delay_file("delays.swd"), _input_files({}), _check_input_contiguity(false),
-      _dada_header_size(4096),_output_dir("./"), _statistics_file("./statistics.bin"), 
+    : _delay_file("delays.swd"), _input_files({}),
+      _check_input_contiguity(false), _dada_header_size(4096),
+      _output_dir("./"), _max_output_filesize(10000000000000),
+      _output_file_prefix(""), _statistics_file("./statistics.bin"),
       _coherent_dms({0.0f}), _dedisp_kernel_length_samps(8192),
-      _cfreq(1284000000.0), _bw(13375000.0), 
-	_channel_frequencies_stale(true), _gulp_length_samps(0),  _total_nchans(4096), _output_level(24.0f), _cb_power_scaling(0.0f), _cb_power_offset(0.0f),
-      _ib_power_scaling(0.0f), _ib_power_offset(0.0f)
+      _cfreq(1284000000.0), _bw(13375000.0), _channel_frequencies_stale(true),
+      _gulp_length_samps(0), _total_nchans(4096), _output_level(24.0f),
+      _cb_power_scaling(0.0f), _cb_power_offset(0.0f), _ib_power_scaling(0.0f),
+      _ib_power_offset(0.0f)
 {
 }
 
@@ -60,7 +63,6 @@ std::size_t PipelineConfig::dada_header_size() const
     return _dada_header_size;
 }
 
-
 void PipelineConfig::read_input_file_list(std::string filename)
 {
     std::string line;
@@ -91,6 +93,26 @@ void PipelineConfig::output_dir(std::string const& path)
 std::string const& PipelineConfig::output_dir() const
 {
     return _output_dir;
+}
+
+std::size_t PipelineConfig::max_output_filesize() const
+{
+    return _max_output_filesize;
+}
+
+void PipelineConfig::max_output_filesize(std::size_t nbytes)
+{
+    _max_output_filesize = nbytes;
+}
+
+std::string const& PipelineConfig::output_file_prefix() const
+{
+    return _output_file_prefix;
+}
+
+void PipelineConfig::output_file_prefix(std::string const& prefix)
+{
+    _output_file_prefix = prefix;
 }
 
 void PipelineConfig::statistics_file(std::string const& filename)

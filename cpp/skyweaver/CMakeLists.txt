@@ -5,6 +5,7 @@ set(skyweaver_src
    src/CoherentBeamformer.cu
    src/CoherentDedisperser.cu
    src/DelayManager.cu
+   src/FileOutputStream.cpp
    src/Header.cpp
    src/IncoherentBeamformer.cu
    src/MultiFileReader.cu
@@ -20,6 +21,7 @@ set(skyweaver_inc
     CoherentBeamformer.cuh
     CoherentDedisperser.cuh
     DelayManager.cuh
+    FileOutputStream.hpp
     Header.hpp
     IncoherentBeamformer.cuh
     MultiFileReader.cuh    

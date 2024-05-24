@@ -5,6 +5,7 @@ link_directories(${GTEST_LIBRARY_DIR})
 set(
     gtest_skyweaver_src
     src/BeamformerPipelineTester.cu
+    src/BufferedDispenserTester.cu
     src/CoherentBeamformerTester.cu
     #src/CoherentDedisperserTester.cu
     src/DelayManagerTester.cu

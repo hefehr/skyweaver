@@ -106,7 +106,7 @@ endif()
 # Add benchmark binaries here to get executed with make benchmark
 if(ENABLE_BENCHMARK)
   add_custom_target(benchmark
-    COMMAND gspectrometer_benchmark --benchmark_counters_tabular=true
-    COMMAND merger_benchmark --benchmark_counters_tabular=true
+    COMMAND beamformer_bench --benchmark_counters_tabular=true
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  add_subdirectory(benchmark)
 endif()

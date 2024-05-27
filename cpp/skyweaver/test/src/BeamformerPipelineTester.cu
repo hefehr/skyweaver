@@ -1,6 +1,9 @@
 #include "skyweaver/PipelineConfig.hpp"
 #include "skyweaver/test/BeamformerPipelineTester.cuh"
 
+#include <filesystem>
+namespace fs = std::filesystem;
+
 namespace skyweaver
 {
 namespace test

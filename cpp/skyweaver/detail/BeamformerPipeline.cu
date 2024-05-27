@@ -121,7 +121,6 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler>::process()
                                               freq_idx * tpa_voltages.size(),
                                               dm_idx);
 
-
             // TODO: Scalings need to be calculated based on the effective 
             // TODO: number of antennas
             auto const& ib_scaling = _stats_manager->ib_scaling();

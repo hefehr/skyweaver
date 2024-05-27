@@ -12,6 +12,7 @@ set(
     src/ObservationHeaderTester.cpp
     src/IncoherentBeamformerTester.cu
     src/MultiFileReaderTester.cu
+    src/MultiFileWriterTester.cpp
     src/StatisticsCalculatorTester.cu
     src/TransposerTester.cu
     src/WeightsManagerTester.cu

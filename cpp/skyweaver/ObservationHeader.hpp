@@ -12,6 +12,7 @@ struct ObservationHeader {
     std::size_t nbits              = 0;   // Number of bits per sample
     std::size_t nantennas          = 0;   // Number of antennas
     std::size_t sample_clock_start = 0;   // The start epoch in sampler ticks
+    std::size_t chan0_idx          = 0;   // The index of the first channel 
     long double bandwidth          = 0.0; // Bandwidth in Hz
     long double frequency          = 0.0; // Centre frequency in Hz
     long double tsamp              = 0.0; // Sampling interval in microseconds

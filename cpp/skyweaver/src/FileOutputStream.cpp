@@ -54,7 +54,7 @@ FileStream::FileStream(std::string const& directory,
     : _directory(directory), _base_filename(base_filename),
       _extension(extension), _bytes_per_file(bytes_per_file),
       _header_update_callback(header_update_callback), _total_bytes_written(0),
-      _current_file(nullptr)
+      _current_file(nullptr), _file_count(0)
 {
     if(_bytes_per_file == 0) {
         throw std::runtime_error(
@@ -100,7 +100,7 @@ void FileStream::new_file()
     BOOST_LOG_TRIVIAL(debug) << "Retrieving updated header";
     // The callback needs to guarantee the lifetime of the returned pointer here
     std::shared_ptr<char const> header_ptr =
-        _header_update_callback(header_bytes, _total_bytes_written);
+        _header_update_callback(header_bytes, _total_bytes_written, _file_count);
     _current_file.reset(
         new File(full_path.str(), _bytes_per_file + header_bytes));
     // Here we are directly invoking the write method on the File object
@@ -109,6 +109,7 @@ void FileStream::new_file()
     if(_current_file->write(header_ptr.get(), header_bytes) != header_bytes) {
         throw std::runtime_error("Unable to write header to File instance");
     }
+    ++_file_count;
 }
 
 } // namespace skyweaver

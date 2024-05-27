@@ -11,7 +11,7 @@ namespace skyweaver {
 class FileStream
 {
 public:
-    typedef std::function<std::shared_ptr<char const>(std::size_t&, std::size_t)> HeaderUpdateCallback;
+    typedef std::function<std::shared_ptr<char const>(std::size_t&, std::size_t, std::size_t)> HeaderUpdateCallback;
 
 private:
 
@@ -93,6 +93,7 @@ private:
     HeaderUpdateCallback _header_update_callback;
     std::size_t _total_bytes_written;
     std::unique_ptr<File> _current_file;
+    std::size_t _file_count;
 };
 
 }

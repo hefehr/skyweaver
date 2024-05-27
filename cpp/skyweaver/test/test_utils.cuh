@@ -66,6 +66,14 @@ void random_normal_complex(VectorType& vec,
     }
 }
 
+std::string make_temporary_dir()
+{
+    char template_dirname[] = "/tmp/skyweaver_test_XXXXXX";
+    char* directory_path    = mkdtemp(template_dirname);
+    return std::string(directory_path);
+}
+
+
 } // namespace test
 } // namespace skyweaver
 

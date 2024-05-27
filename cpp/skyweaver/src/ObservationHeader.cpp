@@ -26,30 +26,32 @@ void read_dada_header(psrdada_cpp::RawBytes& raw_header,
     header.dec         = parser.get<decltype(header.dec)>("DEC");
     header.telescope   = parser.get<decltype(header.telescope)>("TELESCOPE");
     header.instrument  = parser.get<decltype(header.instrument)>("INSTRUMENT");
+    header.chan0_idx   = parser.get<decltype(header.chan0_idx)>("CHAN0_IDX");
 }
 
-    std::string ObservationHeader::to_string() const
-    {
-        std::ostringstream oss;
-        oss << "ObservationHeader:\n"
-            << "  nchans: " << nchans << "\n"
-            << "  npol: " << npol << "\n"
-            << "  nbits: " << nbits << "\n"
-            << "  nantennas: " << nantennas << "\n"
-            << "  sample_clock_start: " << sample_clock_start << "\n"
-            << "  bandwidth (Hz): " << bandwidth << "\n"
-            << "  centre frequency (Hz): " << frequency << "\n"
-            << "  tsamp (s): " << tsamp << "\n"
-            << "  sample_clock: " << sample_clock << "\n"
-            << "  sync_time: " << sync_time << "\n"
-            << "  utc_start: " << utc_start << "\n"
-            << "  mjd_start: " << mjd_start << "\n"
-            << "  source_name: " << source_name << "\n"
-            << "  ra: " << ra << "\n"
-            << "  dec: " << dec << "\n"
-            << "  telescope: " << telescope << "\n"
-            << "  instrument: " << instrument << "\n";
-        return oss.str();
-    }
+std::string ObservationHeader::to_string() const
+{
+    std::ostringstream oss;
+    oss << "ObservationHeader:\n"
+        << "  nchans: " << nchans << "\n"
+        << "  npol: " << npol << "\n"
+        << "  nbits: " << nbits << "\n"
+        << "  nantennas: " << nantennas << "\n"
+        << "  sample_clock_start: " << sample_clock_start << "\n"
+        << "  bandwidth (Hz): " << bandwidth << "\n"
+        << "  centre frequency (Hz): " << frequency << "\n"
+        << "  tsamp (s): " << tsamp << "\n"
+        << "  sample_clock: " << sample_clock << "\n"
+        << "  sync_time: " << sync_time << "\n"
+        << "  utc_start: " << utc_start << "\n"
+        << "  mjd_start: " << mjd_start << "\n"
+        << "  source_name: " << source_name << "\n"
+        << "  ra: " << ra << "\n"
+        << "  dec: " << dec << "\n"
+        << "  telescope: " << telescope << "\n"
+        << "  instrument: " << instrument << "\n"
+        << "  chan0_idx: " << chan0_idx << "\n";
+    return oss.str();
+}
 
 } // namespace skyweaver

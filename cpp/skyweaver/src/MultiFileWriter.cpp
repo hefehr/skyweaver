@@ -1,5 +1,12 @@
 #include "skyweaver/MultiFileWriter.hpp"
+
 #include "skyweaver/Header.hpp"
+
+#include <cstring>
+#include <ctime>
+#include <iomanip>
+#include <sstream>
+#include <string>
 
 /**
  * Now write a DADA file per DM
@@ -59,49 +66,59 @@ INNER_T      256
 
 CHAN0_IDX 2688
 )";
-}
 
-MultiFileWriter::MultiFileWriter(PipelineConfig const& config)
-    : _config(config)
+} // namespace
+
+MultiFileWriter::MultiFileWriter(PipelineConfig const& config): _config(config)
 {
-    _file_streams.resize(_config.coherent_dms());
+    _file_streams.resize(_config.coherent_dms().size());
 }
 MultiFileWriter::~MultiFileWriter() {};
 
 void MultiFileWriter::init(ObservationHeader const& header)
 {
-    // TODO
-    // Use pipeline config and obs header to create filterbank headers for all
-    // beams Instantiate FileWriter instances for each beam
-    std::size_t output_nchans = header.nchans() / _config.cb_fscrunch();
-    long double output_tsamp  = header.tsamp() * _config.cb_tscrunch();
+    std::size_t output_nchans = header.nchans / _config.cb_fscrunch();
+    long double output_tsamp  = header.tsamp * _config.cb_tscrunch();
+    BOOST_LOG_TRIVIAL(debug) << "Output Nchans = " << output_nchans;
+    BOOST_LOG_TRIVIAL(debug) << "Output tsamp = " << output_tsamp << " s";
 
     // TODO this needs to include a 4 if running in full Stokes
     std::size_t btf_size =
         _config.nbeams() * _config.nsamples_per_block() * output_nchans;
+    BOOST_LOG_TRIVIAL(debug) << "BTF size: " << btf_size;
+    BOOST_LOG_TRIVIAL(debug)
+        << "Requested max file size: " << _config.max_output_filesize();
     std::size_t filesize =
         (_config.max_output_filesize() / btf_size) * btf_size;
     if(filesize == 0)
         filesize = btf_size;
-
+    BOOST_LOG_TRIVIAL(debug)
+        << "Revised max size per file: " << filesize << " bytes";
     char formatted_time[80];
+    std::time_t unix_time = header.utc_start;
+    struct std::tm* ptm   = std::gmtime(&unix_time);
     strftime(formatted_time, 80, "%Y-%m-%d-%H:%M:%S", ptm);
+    BOOST_LOG_TRIVIAL(debug) << "Timestamp for filename: " << formatted_time;
 
-    for(std::size_t dm_idx = 0; dm_idx < _config.coherent_dms(); ++dm_idx) {
+    for(std::size_t dm_idx = 0; dm_idx < _config.coherent_dms().size();
+        ++dm_idx) {
         // Output file format
         // <prefix>_<utcstart>_<dm:%f.03>_<byte_offset>.tbtf/tbt
-        std::stringsteam base_filename;
-        base_filename << std::setprecision(3);
+        std::stringstream base_filename;
+
         if(!_config.output_file_prefix().empty()) {
             base_filename << _config.output_file_prefix() << "_";
         }
-        base_filename << formatted_time << "_" << _config.coherent_dm()[dm_idx];
+        base_filename << formatted_time << "_" << std::fixed
+                      << std::setprecision(3) << std::setfill('0')
+                      << std::setw(9) << _config.coherent_dms()[dm_idx];
         _file_streams[dm_idx].reset(new FileStream(
             _config.output_dir(),
             base_filename.str(),
             ".tbtf",  // TODO: Update after incoherent dedispersion implemented
             filesize, // This has to be a BTF multiple
-            [&](std::size_t& header_size,
+            [&, dm_idx, output_nchans, output_tsamp, filesize](
+                std::size_t& header_size,
                 std::size_t bytes_written,
                 std::size_t file_idx) -> std::shared_ptr<char const> {
                 // We do not explicitly delete[] this array
@@ -120,15 +137,18 @@ void MultiFileWriter::init(ObservationHeader const& header)
                 header_writer.set<std::size_t>("INNER_T",
                                                _config.nsamples_per_block());
                 header_writer.set<std::size_t>("NBEAMS", _config.nbeams());
+                BOOST_LOG_TRIVIAL(debug) << "dereferencing IDX " << dm_idx;
+                BOOST_LOG_TRIVIAL(debug)
+                    << "array size " << _config.coherent_dms().size();
                 header_writer.set<long double>(
                     "DM",
                     static_cast<long double>(_config.coherent_dms()[dm_idx]));
-                header_writer.set<long double>("FREQ", header.frequency());
-                header_writer.set<long double>("BW", header.bandwidth());
+                header_writer.set<long double>("FREQ", header.frequency);
+                header_writer.set<long double>("BW", header.bandwidth);
                 header_writer.set<long double>("TSAMP", output_tsamp);
                 // TODO change when using full Stokes
                 header_writer.set<std::size_t>("NPOL", 1);
-                header_writer.set<std::size_t>("CHAN0_IDX", header.chan0_idx());
+                header_writer.set<std::size_t>("CHAN0_IDX", header.chan0_idx);
                 header_writer.set<std::size_t>("FILE_SIZE", filesize);
                 header_writer.set<std::size_t>("FILE_NUMBER", file_idx);
                 header_writer.set<std::size_t>("OBS_OFFSET", bytes_written);
@@ -150,14 +170,13 @@ void MultiFileWriter::init(ObservationHeader const& header)
     }
 }
 
-void MultiFileWriter::operator()(PowerVectorType const& btf_powers,
-                                     std::size_t dm_idx)
+bool MultiFileWriter::operator()(PowerVectorType const& btf_powers,
+                                 std::size_t dm_idx)
 {
-    _file_streams[dm_idx].write(
+    _file_streams[dm_idx]->write(
         reinterpret_cast<char const*>(btf_powers.data()),
         btf_powers.size() * sizeof(typename PowerVectorType::value_type));
-}
-
+    return false;
 }
 
 } // namespace skyweaver

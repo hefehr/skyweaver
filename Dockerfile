@@ -14,7 +14,8 @@ RUN apt-get update && \
     libboost-all-dev \
     libtool \
     python-is-python3 \
-    python3-sphinx 
+    python3-sphinx \
+    wget
 
 ### PYTHON DEPENDENCIES
 RUN apt-get install -yq --no-install-recommends \
@@ -24,6 +25,12 @@ RUN apt-get install -yq --no-install-recommends \
 
 RUN pip3 install --upgrade pip && \
     pip3 install numpy scipy matplotlib
+
+### NSIGHT-SYSTEMS PROFILER
+RUN cd /tmp && \
+    wget https://developer.nvidia.com/downloads/assets/tools/secure/nsight-systems/2024_4/nsight-systems-2024.4.1_2024.4.1.61-1_amd64.deb &&\
+    apt-get install -y ./nsight-systems-2024.4.1_2024.4.1.61-1_amd64.deb && \
+    rm -rf /tmp/*
 
 ### PSRDADA
 RUN cd /usr/src && \
@@ -51,16 +58,9 @@ RUN cd /usr/src && \
 ### SKYWEAVER
 WORKDIR /usr/src/skyweaver
 COPY . . 
-#RUN  cmake -S . -B build/ -DARCH=native \
-#        -DPSRDADA_INCLUDE_DIR=/usr/local/include/psrdada \
-#        -DPSRDADACPP_INCLUDE_DIR=/usr/local/include/psrdada_cpp \
-#        -DBUILD_SUBMODULES=OFF .. &&\
-#        make -C build/ -j8 && make -C build/ install
+RUN cmake -S . -B build/ -DARCH=native -DPSRDADA_INCLUDE_DIR=/usr/local/include/psrdada \ 
+    -DPSRDADACPP_INCLUDE_DIR=/usr/local/include/psrdada_cpp -DSKYWEAVER_NANTENNAS=64 \
+    -DSKYWEAVER_NBEAMS=128 -DSKYWEAVER_NCHANS=64 -DSKYWEAVER_IB_SUBTRACTION=1 -DBUILD_SUBMODULES=1 \
+    -DENABLE_TESTING=1 -ENABLE_BENCHMARK=1 &&\
+    make -C build/ -j 16 && make -C build/ install
 
-### Install nsight-systems profiler
-RUN apt update && \
-    apt install -y --no-install-recommends gnupg && \
-    echo "deb http://developer.download.nvidia.com/devtools/repos/ubuntu$(source /etc/lsb-release; echo "$DISTRIB_RELEASE" | tr -d .)/$(dpkg --print-architecture) /" | tee /etc/apt/sources.list.d/nvidia-devtools.list && \
-    apt-key adv --fetch-keys http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/7fa2af80.pub && \
-    apt update && \
-    apt install nsight-systems-cli

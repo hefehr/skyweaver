@@ -61,6 +61,6 @@ COPY . .
 RUN cmake -S . -B build/ -DARCH=native -DPSRDADA_INCLUDE_DIR=/usr/local/include/psrdada \ 
     -DPSRDADACPP_INCLUDE_DIR=/usr/local/include/psrdada_cpp -DSKYWEAVER_NANTENNAS=64 \
     -DSKYWEAVER_NBEAMS=128 -DSKYWEAVER_NCHANS=64 -DSKYWEAVER_IB_SUBTRACTION=1 -DBUILD_SUBMODULES=1 \
-    -DENABLE_TESTING=1 -ENABLE_BENCHMARK=1 &&\
+    -DENABLE_TESTING=1 -DENABLE_BENCHMARK=1 &&\
     make -C build/ -j 16 && make -C build/ install
 

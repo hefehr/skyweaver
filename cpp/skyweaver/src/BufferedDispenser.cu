@@ -28,21 +28,27 @@ void BufferedDispenser::hoard(DeviceVoltageType const& new_ftpa_voltages_in)
     for(std::size_t i = 0; i < _config.nchans(); i++) {
         if(_d_prev_channeled_tpa_voltages.size() ==
            0) { // if first time set overlaps as zeros
+           BOOST_LOG_TRIVIAL(debug) << "BD -> Filling TPA voltages " << i 
+                                    << " with zeros up to length " << _kernel_length_tpa; 
             thrust::fill(_d_channeled_tpa_voltages[i].begin(),
                          _d_channeled_tpa_voltages[i].begin() +
                              _kernel_length_tpa,
                          zeros);
+
         } else { // first add corresponding overlap to output
+            BOOST_LOG_TRIVIAL(debug) << "BD -> Copying previous voltages";
             thrust::copy(_d_prev_channeled_tpa_voltages[i].begin(),
                          _d_prev_channeled_tpa_voltages[i].end(),
                          _d_channeled_tpa_voltages[i].begin());
         }
         // then add the input data
+        BOOST_LOG_TRIVIAL(debug) << "BD -> Copying new voltages";
         thrust::copy(new_ftpa_voltages_in.begin() + i * _block_length_tpa,
                      new_ftpa_voltages_in.begin() + (i + 1) * _block_length_tpa,
                      _d_channeled_tpa_voltages[i].begin() + _kernel_length_tpa);
 
         // update the overlap for the next hoard
+        BOOST_LOG_TRIVIAL(debug) << "BD -> Updating overlap";
         thrust::copy(new_ftpa_voltages_in.begin() +
                          (i + 1) * _block_length_tpa - _kernel_length_tpa,
                      new_ftpa_voltages_in.begin() + (i + 1) * _block_length_tpa,

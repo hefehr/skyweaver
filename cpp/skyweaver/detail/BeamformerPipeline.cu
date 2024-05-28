@@ -19,32 +19,26 @@ BeamformerPipeline<CBHandler, IBHandler, StatsHandler>::BeamformerPipeline(
     : _config(config), _cb_handler(cb_handler), _ib_handler(ib_handler),
       _stats_handler(stats_handler), _unix_timestamp(0.0), _call_count(0)
 {
-    BOOST_LOG_TRIVIAL(debug) << "Allocating buffers from config sizes";
+    BOOST_LOG_TRIVIAL(debug) << "Constructing beanmformer pipeline";
     std::size_t nsamples = _config.gulp_length_samps();
+    BOOST_LOG_TRIVIAL(debug) << "Expected gulp size: " << nsamples << " (samples)";
     if(nsamples % _config.nsamples_per_heap() != 0) {
         throw std::runtime_error("Gulp size is not a multiple of "
                                  "the number of samples per heap");
     }
-    std::size_t nheap_groups = nsamples / _config.nsamples_per_heap();
-    std::size_t input_taftp_size =
-        nheap_groups * nsamples / _config.nsamples_per_heap();
-    _taftp_from_host.resize(input_taftp_size, {0, 0});
-
     std::size_t expected_cb_size =
         (_config.nbeams() * nsamples / _config.cb_tscrunch() *
          _config.nchans() / _config.cb_fscrunch());
     _btf_cbs.resize(expected_cb_size, 0);
-
+    BOOST_LOG_TRIVIAL(debug) << "Expected CB output size: " << expected_cb_size << " (elements)";
     std::size_t expected_ib_size = (nsamples / _config.ib_tscrunch() *
                                     _config.nchans() / _config.ib_fscrunch());
     _tf_ib.resize(expected_ib_size, 0);
-
+    BOOST_LOG_TRIVIAL(debug) << "Expected IB output size: " << expected_ib_size << " (elements)";
     // Calculate the timestamp step per block
     _sample_clock_tick_per_block = 2 * _config.total_nchans() * nsamples;
     BOOST_LOG_TRIVIAL(debug)
         << "Sample clock tick per block: " << _sample_clock_tick_per_block;
-
-    BOOST_LOG_TRIVIAL(debug) << "Allocating CUDA streams";
     CUDA_ERROR_CHECK(cudaStreamCreate(&_h2d_copy_stream));
     CUDA_ERROR_CHECK(cudaStreamCreate(&_processing_stream));
     CUDA_ERROR_CHECK(cudaStreamCreate(&_d2h_copy_stream));
@@ -78,6 +72,8 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler>::init(
     _cb_handler.init(_header);
     _ib_handler.init(_header);
     _stats_handler.init(_header);
+    _taftp_from_host.resize(_config.gulp_length_samps() * header.nantennas * _config.nchans() * _config.npol(), {0, 0});
+    BOOST_LOG_TRIVIAL(debug) << "Resized TAFTP input vector to " << _taftp_from_host.size() << " elements";
 }
 
 template <typename CBHandler, typename IBHandler, typename StatsHandler>
@@ -107,46 +103,52 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler>::process()
     BOOST_LOG_TRIVIAL(debug) << "Checking if channel statistics update request";
     _stats_manager->calculate_statistics(_ftpa_post_transpose);
 
+    BOOST_LOG_TRIVIAL(debug) << "FTPA post transpose size: " << _ftpa_post_transpose.size();
+
     _dispenser->hoard(_ftpa_post_transpose);
 
     for(unsigned int dm_idx = 0; dm_idx < _config.coherent_dms().size();
         ++dm_idx) {
         for(unsigned int freq_idx = 0; freq_idx < _config.nchans();
             ++freq_idx) {
-
+            BOOST_LOG_TRIVIAL(debug) << "{{{[[[<<< DM Idx: " << dm_idx << " F Idx: " << freq_idx << " >>>]]]}}}";
+            BOOST_LOG_TRIVIAL(debug) << "Dispensing some voltages";
             auto const& tpa_voltages = _dispenser->dispense(freq_idx);
-
+            BOOST_LOG_TRIVIAL(debug) << "Attempting to segfault";
+            /*
             _coherent_dedisperser->dedisperse(tpa_voltages,
                                               _ftpa_dedispersed,
-                                              freq_idx * tpa_voltages.size(),
+                                              freq_idx * _ftpa_post_transpose.size() / _config.nchans(),
                                               dm_idx);
-
-            // TODO: Scalings need to be calculated based on the effective 
-            // TODO: number of antennas
-            auto const& ib_scaling = _stats_manager->ib_scaling();
-            auto const& ib_offsets  = _stats_manager->ib_offsets();
-            _incoherent_beamformer->beamform(_ftpa_dedispersed,
-                                             _tf_ib_raw,
-                                             _tf_ib,
-                                             ib_scaling,
-                                             ib_offsets,
-                                             _processing_stream);
-
-            // TODO: Scalings need to be calculated based on the effective 
-            // TODO: number of antennas
-            auto const& cb_scaling = _stats_manager->cb_scaling();
-            auto const& cb_offsets  = _stats_manager->cb_offsets();
-            _coherent_beamformer->beamform(_ftpa_dedispersed,
-                                           weights,
-                                           cb_scaling,
-                                           cb_offsets,
-                                           _tf_ib_raw,
-                                           _btf_cbs,
-                                           _processing_stream);
-            _cb_handler(_btf_cbs);
-            _ib_handler(_tf_ib);
-            _stats_handler(_stats_manager->statistics());
+            */
+            _ftpa_dedispersed.resize(_ftpa_post_transpose.size());
+            BOOST_LOG_TRIVIAL(debug) << "segfault failed";                                            
         }
+        // TODO: Scalings need to be calculated based on the effective 
+        // TODO: number of antennas
+        auto const& ib_scaling = _stats_manager->ib_scaling();
+        auto const& ib_offsets  = _stats_manager->ib_offsets();
+        _incoherent_beamformer->beamform(_ftpa_dedispersed,
+                                        _tf_ib_raw,
+                                        _tf_ib,
+                                        ib_scaling,
+                                        ib_offsets,
+                                        _processing_stream);
+
+        // TODO: Scalings need to be calculated based on the effective 
+        // TODO: number of antennas
+        auto const& cb_scaling = _stats_manager->cb_scaling();
+        auto const& cb_offsets  = _stats_manager->cb_offsets();
+        _coherent_beamformer->beamform(_ftpa_dedispersed,
+                                    weights,
+                                    cb_scaling,
+                                    cb_offsets,
+                                    _tf_ib_raw,
+                                    _btf_cbs,
+                                    _processing_stream);
+        _cb_handler(_btf_cbs);
+        _ib_handler(_tf_ib);
+        _stats_handler(_stats_manager->statistics());
     }
 }
 
@@ -154,6 +156,9 @@ template <typename CBHandler, typename IBHandler, typename StatsHandler>
 bool BeamformerPipeline<CBHandler, IBHandler, StatsHandler>::operator()(
     HostVoltageVectorType const& taftp_on_host)
 {
+    BOOST_LOG_TRIVIAL(debug) << "Pipeline operator() called";
+    BOOST_LOG_TRIVIAL(debug) << "taftp_on_host size: " << taftp_on_host.size();
+
     if(taftp_on_host.size() != _taftp_from_host.size()) {
         throw std::runtime_error(
             std::string("Unexpected buffer size, expected ") +
@@ -167,8 +172,6 @@ bool BeamformerPipeline<CBHandler, IBHandler, StatsHandler>::operator()(
         taftp_on_host.size() * sizeof(char2),
         cudaMemcpyHostToDevice,
         _h2d_copy_stream));
-
-
     CUDA_ERROR_CHECK(cudaStreamSynchronize(_h2d_copy_stream));
 
     // Calculate the unix timestamp for the block that is about to be processed

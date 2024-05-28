@@ -124,6 +124,7 @@ void Transposer::transpose(VoltageType const& taftp_voltages,
                         _config.nchans() * input_nantennas);
 
     // Check sizes
+    BOOST_LOG_TRIVIAL(debug) << "Transpose input size: " << taftp_voltages.size();
     if (taftp_voltages.size() % heap_group_size != 0)
     {
         throw std::runtime_error("Voltages are not a multiple of the heap size");
@@ -150,7 +151,7 @@ void Transposer::transpose(VoltageType const& taftp_voltages,
         << input_nantennas << ", " << _config.nchans() << ", "
         << _config.nsamples_per_heap() << ", " << _config.npol()
         << ") to FTPA (" << _config.nchans() << ", "
-        << _config.nsamples_per_heap() * nheap_groups << ", " << _config.npol()
+        << _config.nsamples_per_heap() * nheap_groups << ", " << _config.npol() << ", "
         << _config.nantennas() << ")";
     BOOST_LOG_TRIVIAL(debug) << "Launching split transpose kernel";
     kernels::transpose_k<<<grid, block, 0, stream>>>(

@@ -55,7 +55,7 @@ class skyweaver::MultiFileReader
     bool eof() const;
     bool good() const;
     bool can_read(std::size_t bytes) const;
-    std::streamsize read(thrust::host_vector<char2>& buffer,
+    std::streamsize read(char* raw_ptr,
                          std::streamsize bytes);
     bool is_open() const;
 

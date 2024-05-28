@@ -66,7 +66,10 @@ TEST_F(MultiFileReaderTester, testMultiFileReader)
     multi_file_reader->seekg(char2s_per_sample * nsamples_gulp, std::ios::beg);
     // BOOST_LOG_TRIVIAL(debug) << "Seek successful";
 
-    multi_file_reader->read(multi_file_voltages, static_cast<std::streamsize>(nantennas * nchans * npols * nsamples_gulp));
+    typedef decltype(multi_file_voltages)::value_type valType;
+
+    multi_file_reader->read(reinterpret_cast<char*>(thrust::raw_pointer_cast(multi_file_voltages.data())), 
+                        static_cast<std::streamsize>(nantennas * nchans * npols * nsamples_gulp * sizeof(valType)));
     BOOST_LOG_TRIVIAL(debug) << "Multifile reader read data";
 
     full_file.seekg(pipeline_config.dada_header_size(), std::ios::beg);
@@ -97,7 +100,10 @@ TEST_F(MultiFileReaderTester, testMultiFileReaderEOF)
 TEST_F(MultiFileReaderTester, testMultiFileReaderZeroSizeRead)
 {
     thrust::host_vector<char2> multi_file_voltages( 0);
-    ASSERT_EQ(multi_file_reader->read(multi_file_voltages, 0), 0);
+    typedef decltype(multi_file_voltages)::value_type valType;
+
+    ASSERT_EQ(multi_file_reader->read(
+        reinterpret_cast<char*>(thrust::raw_pointer_cast(multi_file_voltages.data())),0),0);
 }
 
 TEST_F(MultiFileReaderTester, testMultiFileReaderNonExistentFile)

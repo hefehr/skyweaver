@@ -247,7 +247,7 @@ thrust::sequence(indices.begin(), indices.end());
 thrust::transform(indices.begin(),
     indices.end(),
     response.begin(),
-   kernels:: DMResponse(config.num_coarse_chans,
+   kernels::DMResponse(config.num_coarse_chans,
                config.low_freq,
                config.coarse_chan_bw,
                config.fine_chan_bw,

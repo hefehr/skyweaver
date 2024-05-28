@@ -2,6 +2,10 @@
 #include <thrust/host_vector.h>
 #include <boost/log/trivial.hpp>
 #include <sstream>
+#include <iomanip>
+#include <iostream>
+#include <fstream>
+#include <string>
 using namespace skyweaver;
 
 MultiFileReader::MultiFileReader(PipelineConfig const& config)
@@ -48,6 +52,9 @@ void MultiFileReader::check_contiguity()
         auto header1 = headers[i];
         auto header2 = headers[i+1];
         std::size_t header1_nsamples = get_total_size() / (header1.nantennas * header1.nchans * header1.npol * header1.nbits * 2 / 8);
+        BOOST_LOG_TRIVIAL(debug) << "Header1 mjd_start: " << std::setprecision(15) << header1.mjd_start;
+        BOOST_LOG_TRIVIAL(debug) << "Header2 mjd_start: " << std::setprecision(15) << header2.mjd_start;
+        BOOST_LOG_TRIVIAL(debug) << "Header1 nsamples: " << header1_nsamples;
         float time1 = header1_nsamples * header1.tsamp / 86400.0;
         if(header2.mjd_start != header1.mjd_start + time1) {
             throw std::runtime_error("These are not contiguous:" + files[i] + " and " + files[i+1] 
@@ -188,13 +195,11 @@ void MultiFileReader::close()
     eofFlag = true;
 }
 
-std::streamsize MultiFileReader::read(thrust::host_vector<char2>& buffer,
+std::streamsize MultiFileReader::read(char* raw_ptr,
                                       std::streamsize bytes)
 {
    
     std::streamsize totalRead = 0;
-    // get raw pointer to the data
-    char2* raw_ptr = thrust::raw_pointer_cast(buffer.data());
 
     while(bytes > 0) {
         BOOST_LOG_TRIVIAL(debug) << "Attempting to read " << bytes << " bytes starting from " << _current_stream.tellg()
@@ -206,7 +211,7 @@ std::streamsize MultiFileReader::read(thrust::host_vector<char2>& buffer,
             throw std::runtime_error(ss.str());
         }
 
-        _current_stream.read(reinterpret_cast<char*>(raw_ptr) + totalRead,
+        _current_stream.read(raw_ptr + totalRead,
                              bytes);
 
         std::streamsize bytesRead = _current_stream.gcount();

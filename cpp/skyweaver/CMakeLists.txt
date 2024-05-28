@@ -39,6 +39,7 @@ set(SKYWEAVER_LIBRARIES ${CMAKE_PROJECT_NAME} ${DEPENDENCY_LIBRARIES})
 add_library(${CMAKE_PROJECT_NAME} ${skyweaver_src})
 target_link_libraries(${CMAKE_PROJECT_NAME} ${DEPENDENCY_LIBRARIES})
 target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>: ${CUDA_NVCC_FLAGS}>)
+
 IF (DEFINED SKYWEAVER_NANTENNAS)
     message(STATUS "Compiling for SKYWEAVER_NANTENNAS = " ${SKYWEAVER_NANTENNAS})
     target_compile_definitions(${CMAKE_PROJECT_NAME} PUBLIC SKYWEAVER_NANTENNAS=${SKYWEAVER_NANTENNAS})
@@ -86,7 +87,7 @@ ENDIF (DEFINED SKYWEAVER_IB_FSCRUNCH)
 
 # CLI applications
 cuda_add_executable(skyweavercpp src/skyweaver_cli.cu)
-target_link_libraries(skyweavercpp ${SKYWEAVER_LIBRARIES})
+target_link_libraries(skyweavercpp ${SKYWEAVER_LIBRARIES} ${DEPENDENCY_LIBRARIES} -lcufft)
 install(TARGETS skyweavercpp DESTINATION bin)
 
 #install (TARGETS ... DESTINATION bin)

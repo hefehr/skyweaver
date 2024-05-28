@@ -1,7 +1,10 @@
 #include "boost/program_options.hpp"
 #include "errno.h"
 #include "psrdada_cpp/cli_utils.hpp"
+#include "skyweaver/BeamformerPipeline.cuh"
+#include "skyweaver/MultiFileReader.cuh"
 #include "skyweaver/PipelineConfig.hpp"
+#include "thrust/host_vector.h"
 
 #include <algorithm>
 #include <cerrno>
@@ -20,21 +23,31 @@ namespace
 const size_t ERROR_IN_COMMAND_LINE     = 1;
 const size_t SUCCESS                   = 0;
 const size_t ERROR_UNHANDLED_EXCEPTION = 2;
+
+class NullHandler
+{
+  public:
+    template <typename... Args>
+    void init(Args... args) {};
+
+    template <typename... Args>
+    bool operator()(Args... args)
+    {
+        return false;
+    };
+};
 } // namespace
 
 // This patching of the << operator is required to allow
 // for float vector arguments to boost program options
 namespace std
 {
-  std::ostream& operator<<(std::ostream &os, const std::vector<float> &vec) 
-  {    
-    for (auto item : vec) 
-    { 
-      os << item << " "; 
-    } 
-    return os; 
-  }
-} 
+std::ostream& operator<<(std::ostream& os, const std::vector<float>& vec)
+{
+    for(auto item: vec) { os << item << " "; }
+    return os;
+}
+} // namespace std
 
 int main(int argc, char** argv)
 {
@@ -66,9 +79,9 @@ int main(int argc, char** argv)
             // Input file containing list of DADA files to process
             ("input-file",
              po::value<std::string>()->required()->notifier(
-                 [&config](std::string key) { 
-                        config.read_input_file_list(key);     
-                    }),
+                 [&config](std::string key) {
+                     config.read_input_file_list(key);
+                 }),
              "File containing list of DADA files to process")
 
             // Input file for delay solutions
@@ -92,29 +105,32 @@ int main(int argc, char** argv)
 
             // Output directory where all results will be written
             ("output-dir",
-             po::value<std::string>()->default_value(config.output_dir())->notifier(
-                 [&config](std::string key) { config.output_dir(key); }),
+             po::value<std::string>()
+                 ->default_value(config.output_dir())
+                 ->notifier(
+                     [&config](std::string key) { config.output_dir(key); }),
              "The output directory for all results")
 
             // Output file for block statistics
             ("output-level",
-             po::value<float>()->default_value(config.output_level())->notifier(
-                 [&config](float key) { config.output_level(key); }),
+             po::value<float>()
+                 ->default_value(config.output_level())
+                 ->notifier([&config](float key) { config.output_level(key); }),
              "The desired standard deviation for output data")
 
             /**
              * Dispersion measures for coherent dedispersion
-             * Can be specified on the command line with: 
-             * 
+             * Can be specified on the command line with:
+             *
              * --coherent-dm 1 2 3
-             * or 
+             * or
              * --coherent-dm 1 --coherent-dm 2 --coherent-dm 3
-             * 
+             *
              * In the configuration file it can only be specified with:
-             * 
+             *
              * coherent-dm=1
              * coherent-dm=2
-             * coherent-dm=3 
+             * coherent-dm=3
              */
             ("coherent-dm",
              po::value<std::vector<float>>()
@@ -182,7 +198,8 @@ int main(int argc, char** argv)
         if(config_file != "") {
             BOOST_LOG_TRIVIAL(info) << "Configuration file: " << config_file;
         }
-        BOOST_LOG_TRIVIAL(info) << "Input file count: " << config.input_files().size();
+        BOOST_LOG_TRIVIAL(info)
+            << "Input file count: " << config.input_files().size();
         BOOST_LOG_TRIVIAL(info) << "Delay file: " << config.delay_file();
         BOOST_LOG_TRIVIAL(info) << "Stats file: " << config.statistics_file();
         BOOST_LOG_TRIVIAL(info) << "Output dir: " << config.output_dir();
@@ -190,7 +207,42 @@ int main(int argc, char** argv)
         BOOST_LOG_TRIVIAL(info) << "Coherent DMs: " << config.coherent_dms();
 
         // Here we build and invoke the pipeline
+        NullHandler cb_handler;
+        NullHandler ib_handler;
+        NullHandler stats_handler;
+        skyweaver::MultiFileReader file_reader(config);
+        skyweaver::BeamformerPipeline<decltype(cb_handler),
+                           decltype(ib_handler),
+                           decltype(stats_handler)>
+            pipeline(config, cb_handler, ib_handler, stats_handler);
+        thrust::host_vector<char2> taftp_input_voltage;
 
+        // Calculate input size per gulp
+        std::size_t input_elements = config.nantennas() * config.nchans() *
+                                     config.npol() * config.gulp_length_samps();
+        taftp_input_voltage.resize(input_elements);
+        std::size_t input_bytes =
+            input_elements * sizeof(decltype(taftp_input_voltage)::value_type);
+
+        // Get observation header
+        auto const& header = file_reader.get_header();
+
+        if(config.nchans() != header.nchans) {
+            std::runtime_error("Data has invalid number of channels");
+        }
+        pipeline.init(header);
+        BOOST_LOG_TRIVIAL(info)
+            << "Total input size (bytes): " << file_reader.get_total_size();
+
+        // TODO: Add a parameter to PipelineConfig for start sample? time?
+        // TODO: Add a parameter to PipelineConfig for nsamples? duration?
+        while(!file_reader.eof()) {
+            std::streamsize nbytes_read = file_reader.read(
+                reinterpret_cast<char*>(
+                    thrust::raw_pointer_cast(taftp_input_voltage.data())),
+                input_bytes);
+            pipeline(taftp_input_voltage);
+        }
         /**
          * End of application code
          */

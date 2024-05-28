@@ -176,7 +176,7 @@ bool BeamformerPipeline<CBHandler, IBHandler, StatsHandler>::operator()(
         _header.utc_start +
         static_cast<long double>(_call_count * _sample_clock_tick_per_block) /
             _header.sample_clock;
-    process(_taftp_from_host, _btf_cbs, _tf_ib);
+    process();
     CUDA_ERROR_CHECK(cudaStreamSynchronize(_processing_stream));
     CUDA_ERROR_CHECK(cudaStreamSynchronize(_d2h_copy_stream));
     ++_call_count;

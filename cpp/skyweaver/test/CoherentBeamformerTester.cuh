@@ -46,13 +46,17 @@ protected:
         int nantennas,
         int npol,
         float const* scales,
-        float const* offsets);
+        float const* offsets,
+        float const* antenna_weights, 
+        int const* beamset_mapping);
 
     void compare_against_host(
         DeviceVoltageVectorType const& ftpa_voltages_gpu,
         DeviceWeightsVectorType const& fbpa_weights_gpu,
         DeviceScalingVectorType const& scales_gpu,
         DeviceScalingVectorType const& offsets_gpu,
+        DeviceScalingVectorType const& antenna_weights,
+        DeviceMappingVectorType const& beamset_mapping,
         DevicePowerVectorType& btf_powers_gpu,
         int nsamples);
 

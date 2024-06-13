@@ -68,11 +68,12 @@ void CoherentBeamformerTester::beamformer_c_reference(
     int nantennas,
     int npol,
     float const* scales,
-    float const* offsets)
+    float const* offsets,
+    float const* antenna_weights,
+    int const* beamset_mapping)
 {
     double power_sum    = 0.0;
     double power_sq_sum = 0.0;
-    double ib_power_sum = 0.0;
     std::size_t count   = 0;
     for(int channel_idx = 0; channel_idx < nchannels; channel_idx += fscrunch) {
         BOOST_LOG_TRIVIAL(debug)
@@ -81,6 +82,7 @@ void CoherentBeamformerTester::beamformer_c_reference(
             << "% complete";
         for(int sample_idx = 0; sample_idx < nsamples; sample_idx += tscrunch) {
             for(int beam_idx = 0; beam_idx < nbeams; ++beam_idx) {
+                const int beamset_idx = beamset_mapping[beam_idx];
                 float power    = 0.0f;
                 float ib_power = 0.0f;
                 for(int sub_channel_idx = channel_idx;
@@ -109,7 +111,7 @@ void CoherentBeamformerTester::beamformer_c_reference(
                             cuFloatComplex ant_p1 = make_cuFloatComplex(
                                 static_cast<float>(ant_p1_c2.x),
                                 static_cast<float>(ant_p1_c2.y));
-                            ib_power += calculate_stokes(ant_p0, ant_p1);
+                            ib_power += calculate_stokes(ant_p0, ant_p1) * antenna_weights[beamset_idx * nantennas + antenna_idx];
                             int fbpa_weights_idx =
                                 nantennas * nbeams * sub_channel_idx +
                                 nantennas * beam_idx + antenna_idx;
@@ -133,16 +135,16 @@ void CoherentBeamformerTester::beamformer_c_reference(
                 const int nchans_out        = nchannels / fscrunch;
                 const int tf_size           = nsamps_out * nchans_out;
                 const int output_idx = beam_idx * tf_size + output_sample_idx * nchans_out + output_chan_idx;
+                const int scloff_idx = beamset_idx * nchans_out + output_chan_idx;
                 power_sum += power;
-                ib_power_sum += ib_power;
                 power_sq_sum += power * power;
                 ++count;
 #if SKYWEAVER_IB_SUBTRACTION
                 float powerf32 = ((power - (127.0f * 127.0f * ib_power)) /
-                                  scales[output_chan_idx]);
+                                  scales[scloff_idx]);
 #else
-                float powerf32 = ((power - offsets[output_chan_idx]) /
-                                  scales[output_chan_idx]);
+                float powerf32 = ((power - offsets[scloff_idx]) /
+                                  scales[scloff_idx]);
 #endif // SKYWEAVER_IB_SUBTRACTION
                 btf_powers[output_idx] =
                     (int8_t)fmaxf(-127.0f, fminf(127.0f, powerf32));
@@ -160,6 +162,8 @@ void CoherentBeamformerTester::compare_against_host(
     DeviceWeightsVectorType const& fbpa_weights_gpu,
     DeviceScalingVectorType const& scales_gpu,
     DeviceScalingVectorType const& offsets_gpu,
+    DeviceScalingVectorType const& antenna_weights,
+    DeviceMappingVectorType const& beamset_mapping,
     DevicePowerVectorType& btf_powers_gpu,
     int nsamples)
 {
@@ -168,8 +172,10 @@ void CoherentBeamformerTester::compare_against_host(
     HostPowerVectorType btf_powers_cuda      = btf_powers_gpu;
     HostPowerVectorType btf_powers_host(btf_powers_gpu.size());
 
-    HostScalingVectorType scales  = scales_gpu;
-    HostScalingVectorType offsets = offsets_gpu;
+    HostScalingVectorType scales               = scales_gpu;
+    HostScalingVectorType offsets              = offsets_gpu;
+    HostScalingVectorType antenna_weights_host = antenna_weights;
+    HostMappingVectorType beamset_mapping_host = beamset_mapping;
 
     beamformer_c_reference(ftpa_voltages_host,
                            fbpa_weights_host,
@@ -182,12 +188,22 @@ void CoherentBeamformerTester::compare_against_host(
                            _config.nantennas(),
                            _config.npol(),
                            thrust::raw_pointer_cast(scales.data()),
-                           thrust::raw_pointer_cast(offsets.data()));
+                           thrust::raw_pointer_cast(offsets.data()),
+                           thrust::raw_pointer_cast(antenna_weights_host.data()),
+                           thrust::raw_pointer_cast(beamset_mapping_host.data()));
     for(int ii = 0; ii < btf_powers_host.size(); ++ii) {
         EXPECT_NEAR(btf_powers_host[ii], btf_powers_cuda[ii], 1);
     }
 }
 
+
+/**
+Something fishy with this test.
+When run on a debug build (-DCMAKE_BUILD_TYPE=DEBUG) the powers returned 
+from the GPU kernel are always zero. This seems to be due to the kernel
+not being executed in this mode. 
+//TODO: Work out what is going on here with nsys or ncu
+*/
 TEST_F(CoherentBeamformerTester, representative_noise_test)
 {
 #if SKYWEAVER_IB_SUBTRACTION
@@ -196,10 +212,11 @@ TEST_F(CoherentBeamformerTester, representative_noise_test)
     BOOST_LOG_TRIVIAL(info) << "Running without IB subtraction";
 #endif
     const int nbeamsets = 2;
+
+    // Calculate the CB scaling values.
     const float input_level = 32.0f;
     const double pi         = std::acos(-1);
     _config.output_level(input_level);
-
     float scale =
         std::pow(127.0f * input_level *
                      std::sqrt(static_cast<float>(_config.nantennas())),
@@ -208,12 +225,26 @@ TEST_F(CoherentBeamformerTester, representative_noise_test)
         2 * _config.cb_tscrunch() * _config.cb_fscrunch() * _config.npol();
     float offset_val = (scale * dof);
     float scale_val  = (scale * std::sqrt(2 * dof) / _config.output_level());
+
+    // Set constant scales and offsets for all channels and beamsets
     DeviceScalingVectorType cb_scales(_config.nchans() / _config.cb_fscrunch() * nbeamsets,
                                       scale_val);
     DeviceScalingVectorType cb_offsets(_config.nchans() / _config.cb_fscrunch() * nbeamsets,
                                        offset_val);
+
+    // Map all beams to the first beamset by default
     DeviceMappingVectorType beamset_mapping(_config.nbeams(), 0);
+
+    // Enable all antennas in all beamsets
     DeviceScalingVectorType beamset_weights(_config.nantennas() * nbeamsets, 1.0f);
+
+    /**
+    This currently causes tests to fail even though the weights are the same for 
+    all beamsets. Either the reference or the implementation are using the mapping 
+    incorrectly.
+
+    Issue is that the incoherent beamformer is not populating beamsets > 0
+    */
     beamset_mapping[0] = 1;
 
     BOOST_LOG_TRIVIAL(info) << "CB scaling: " << scale_val;
@@ -297,12 +328,15 @@ TEST_F(CoherentBeamformerTester, representative_noise_test)
                                  beamset_mapping,
                                  tf_powers_raw_gpu,
                                  btf_powers_gpu,
+                                 nbeamsets,
                                  _stream);
     //dump_device_vector(btf_powers_gpu, "btf_powers_gpu.bin");
     compare_against_host(ftpa_voltages_gpu,
                          fbpa_weights_gpu,
                          cb_scales,
                          cb_offsets,
+                         beamset_weights,
+                         beamset_mapping,
                          btf_powers_gpu,
                          nsamples);
 }

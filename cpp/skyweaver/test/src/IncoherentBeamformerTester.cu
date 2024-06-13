@@ -48,6 +48,7 @@ void IncoherentBeamformerTester::beamformer_c_reference(
 {
     static_assert(SKYWEAVER_NPOL == 2, "Tests only work for dual poln data.");
     const int nchans_out = nchannels / fscrunch;
+    const int nsamples_out = ntimestamps / tscrunch;
     const int a          = nantennas;
     const int pa         = SKYWEAVER_NPOL * a;
     const int tpa        = ntimestamps * pa;
@@ -78,8 +79,8 @@ void IncoherentBeamformerTester::beamformer_c_reference(
                 }
                 int subband_idx           = F_idx / fscrunch;
                 int subbint_idx           = T_idx / tscrunch;
-                int output_idx            = subbint_idx * nchans_out + subband_idx;
-                int scloff_idx            = nchannels/fscrunch * beamset_idx + subband_idx;
+                int output_idx            = beamset_idx * nsamples_out * nchans_out + subbint_idx * nchans_out + subband_idx;
+                int scloff_idx            = beamset_idx * nchans_out + subband_idx;
                 tf_powers_raw[output_idx] = power;
                 float scaled_power =
                     ((power - offset[scloff_idx]) / scale[scloff_idx]);
@@ -121,11 +122,8 @@ void IncoherentBeamformerTester::compare_against_host(
                            h_beamset_weights,
                            nbeamsets);
     for(int ii = 0; ii < tf_powers_host.size(); ++ii) {
-        EXPECT_TRUE(std::abs(static_cast<int>(tf_powers_host[ii]) -
-                             tf_powers_cuda[ii]) <= 1);
-        EXPECT_TRUE(
-            std::fabs((tf_powers_raw_host[ii] - tf_powers_raw_cuda[ii]) /
-                      tf_powers_raw_host[ii]) <= 1e-5);
+        EXPECT_NEAR(tf_powers_host[ii], tf_powers_cuda[ii], 1);
+        EXPECT_NEAR(tf_powers_raw_host[ii], tf_powers_raw_cuda[ii], tf_powers_raw_host[ii] * 1e-5);
     }
 }
 

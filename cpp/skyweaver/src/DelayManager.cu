@@ -112,6 +112,7 @@ void DelayManager::safe_read(char* buffer, std::size_t nbytes)
 {
     BOOST_LOG_TRIVIAL(debug)
         << "At byte " << _input_stream.tellg() << " of the input file";
+    BOOST_LOG_TRIVIAL(debug) << "Safe reading " << nbytes << " bytes";
     _input_stream.read(buffer, nbytes);
     if(_input_stream.eof()) {
         // Reached the end of the delay model file
@@ -123,6 +124,7 @@ void DelayManager::safe_read(char* buffer, std::size_t nbytes)
                   << std::strerror(errno);
         throw std::runtime_error(error_msg.str().c_str());
     }
+    BOOST_LOG_TRIVIAL(debug) << "Read complete";
 }
 
 void DelayManager::read_next_model()
@@ -141,6 +143,7 @@ void DelayManager::read_next_model()
     const std::size_t nelements = _header.nantennas * _header.nbeams;
     _delays_h.resize(nelements);
     // Read the weight, offset, rate tuples from the file
+    BOOST_LOG_TRIVIAL(debug) << "buffer size: " << _delays_h.size() * sizeof(decltype(_delays_h)::value_type);
     safe_read(
         reinterpret_cast<char*>(thrust::raw_pointer_cast(_delays_h.data())),
         nelements * sizeof(DelayVectorHType::value_type));
@@ -150,7 +153,8 @@ std::size_t DelayManager::parse_beamsets()
 {
     // Note there is a strong assumption here that
     // all beams in a beamset are contiguous
-    std::vector<std::vector<float>> beamsets_weights;
+    BOOST_LOG_TRIVIAL(debug) << "Parsing beamsets";
+    std::vector<thrust::host_vector<float>> beamsets_weights;
     thrust::host_vector<int> beamset_map(_header.nbeams);
     beamsets_weights.emplace_back(_header.nantennas);
 
@@ -159,7 +163,7 @@ std::size_t DelayManager::parse_beamsets()
     // The first beam always belongs to the first beamset
     beamset_map[0] = 0;
     // Populate the weights for the first beamset
-    for(int ant_idx = 0; ant_idx < _header.nbeams; ++ant_idx) {
+    for(int ant_idx = 0; ant_idx < _header.nantennas; ++ant_idx) {
         beamsets_weights[beamset_idx][ant_idx] = _delays_h[ant_idx].x;
     }
     // Create a space for the next beamset (may not be required)
@@ -170,10 +174,10 @@ std::size_t DelayManager::parse_beamsets()
 
     // Start from the 2nd beam in the set
     for(int beam_idx = 1; beam_idx < _header.nbeams; ++beam_idx) {
-        for(int ant_idx = 0; ant_idx < _header.nbeams; ++ant_idx) {
+        for(int ant_idx = 0; ant_idx < _header.nantennas; ++ant_idx) {
             // Populate the values for the next beamset
             beamsets_weights[beamset_idx][ant_idx] =
-                _delays_h[beam_idx * _header.nantennas + ant_idx].x;
+                    _delays_h[beam_idx * _header.nantennas + ant_idx].x;
 
             // Check if the current weight is different from the previous weight
             // If we already know there is an update this check can be skipped
@@ -200,20 +204,17 @@ std::size_t DelayManager::parse_beamsets()
     // in the beamsets array is needed. It is either
     // emtpy if the last beam belonged to its own beamset
     // or it is a copy of the last valid beamset.
-    // TODO: Check if this is the canonical way to delete the
-    // last entry in an array.
-    beamsets_weights.resize(beamsets_weights.size() - 1);
-
+    beamsets_weights.pop_back();
+    BOOST_LOG_TRIVIAL(debug) << "Found " << beamsets_weights.size() << " beamsets";
     // At this point we can copy the weights
     // and mappings to the GPU
     _beamset_map_d = beamset_map;
     _weights_d.resize(beamsets_weights.size() * _header.nantennas);
-    for(int ii = 0; ii < beamsets_weights.size(); ++ii) {
-        thrust::copy(beamsets_weights[0].begin(),
-                     beamsets_weights[0].end(),
-                     _weights_d.begin() + ii * _header.nantennas);
+    for(int ii = 0; ii < beamsets_weights.size(); ++ii) {  
+        thrust::copy(beamsets_weights[ii].begin(),
+                     beamsets_weights[ii].end(),
+                     _weights_d.begin()) + ii * _header.nantennas;
     }
-
     // Return the number of beamsets
     return beamsets_weights.size();
 }

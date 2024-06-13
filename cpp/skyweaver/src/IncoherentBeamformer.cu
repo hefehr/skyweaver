@@ -76,8 +76,8 @@ __global__ void icbf_ftpa_general_k(char2 const* __restrict__ ftpa_voltages,
         }
         __syncthreads();
         if(threadIdx.x == 0) {
-            const float power_f32     = acc_buffer[threadIdx.x];
-            const int output_idx      = beamset_idx * nsamples * gridDim.y + output_t_idx * gridDim.y + output_f_idx;
+            const float power_f32     = acc_buffer[0];
+            const int output_idx      = beamset_idx * gridDim.x * gridDim.y + output_t_idx * gridDim.y + output_f_idx;
             const float scale         = output_scale[beamset_idx * gridDim.y + output_f_idx];
             const float offset        = output_offset[beamset_idx * gridDim.y + output_f_idx];
             tf_powers_raw[output_idx] = power_f32;
@@ -152,6 +152,7 @@ void IncoherentBeamformer::beamform(VoltageVectorType const& input,
     RawPowerVectorType::value_type* tf_powers_raw_ptr =
         thrust::raw_pointer_cast(output_raw.data());
     BOOST_LOG_TRIVIAL(debug) << "Executing incoherent beamforming kernel";
+    BOOST_LOG_TRIVIAL(debug) << "Nbeamsets = " << nbeamsets;
     kernels::icbf_ftpa_general_k<<<grid, block, 0, stream>>>(
         ftpa_voltages_ptr,
         tf_powers_raw_ptr,

@@ -158,7 +158,6 @@ __global__ void bf_ftpa_general_k(int2 const* __restrict__ ftpa_voltages,
     */
     float power_fp32 = rintf((power - ib_power * 127.0 * 127.0) / scale);
 #else
-    output_offset[scloff_idx];
     float power_fp32 = rintf((power - output_offset[scloff_idx]) / scale);
 #endif // SKYWEAVER_IB_SUBTRACTION
     btf_powers[output_idx] = (int8_t)fmaxf(-127.0f, fminf(127.0f, power_fp32));
@@ -189,15 +188,20 @@ void CoherentBeamformer::beamform(VoltageVectorType const& input,
                                   MappingVectorType const& beamset_mapping,
                                   RawPowerVectorType const& ib_powers,
                                   PowerVectorType& output,
+                                  int nbeamsets,
                                   cudaStream_t stream)
 {
-    if (output_scale.size() != SKYWEAVER_NCHANS / SKYWEAVER_CB_FSCRUNCH)
+    if (output_scale.size() != SKYWEAVER_NCHANS / SKYWEAVER_CB_FSCRUNCH * nbeamsets)
     {
         throw std::runtime_error("Unexpected number of channels in scaling vector");
     }
-    if (output_offset.size() != SKYWEAVER_NCHANS / SKYWEAVER_CB_FSCRUNCH)
+    if (output_offset.size() != SKYWEAVER_NCHANS / SKYWEAVER_CB_FSCRUNCH * nbeamsets)
     {
         throw std::runtime_error("Unexpected number of channels in offset vector ");
+    }
+    if (beamset_mapping.size() != _config.nbeams())
+    {
+        throw std::runtime_error("Unexpected size of beamset_mapping vector");
     }
     // First work out nsamples and resize output if not done already
     BOOST_LOG_TRIVIAL(debug) << "Executing coherent beamforming";

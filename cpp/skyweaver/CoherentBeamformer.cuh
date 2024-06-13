@@ -60,12 +60,13 @@ public:
     /**
      * @brief      Form coherent beams
      *
-     * @param      input    Input array of 8-bit voltages in FTPA order
-     * @param      weights  8-bit beamforming weights in FTA order
-     * @param      scales   Power scalings to be applied when converting data back to 8-bit
-     * @param      offsets  Power offsets to be applied when converting data back to 8-bit
-     * @param      output   Output array of 8-bit powers in TBTF order
-     * @param[in]  stream   The CUDA stream to use for processing
+     * @param      input     Input array of 8-bit voltages in FTPA order
+     * @param      weights   8-bit beamforming weights in FTA order
+     * @param      scales    Power scalings to be applied when converting data back to 8-bit
+     * @param      offsets   Power offsets to be applied when converting data back to 8-bit
+     * @param      output    Output array of 8-bit powers in TBTF order
+     * @param      nbeamsets The number of beamsets being processed
+     * @param[in]  stream    The CUDA stream to use for processing
      */
     void beamform(VoltageVectorType const& input,
         WeightsVectorType const& weights,
@@ -74,6 +75,7 @@ public:
         MappingVectorType const& beamset_mapping,
         RawPowerVectorType const& ib_powers,
         PowerVectorType& output,
+        int nbeamsets,
         cudaStream_t stream);
 
 private:

@@ -144,6 +144,7 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler>::process()
                                        _delay_manager->beamset_mapping(),
                                        _tf_ib_raw,
                                        _btf_cbs,
+                                       _nbeamsets,
                                        _processing_stream);
         _cb_handler(_btf_cbs);
         _ib_handler(_tf_ib);

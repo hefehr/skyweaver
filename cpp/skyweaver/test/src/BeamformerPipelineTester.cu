@@ -41,6 +41,7 @@ void BeamformerPipelineTester::TearDown()
 TEST_F(BeamformerPipelineTester, instantiate)
 {
     PipelineConfig config;
+    config.delay_file("data/test_delays.bin");
     NullHandler cb_handler;
     NullHandler ib_handler;
     NullHandler stats_handler;

@@ -155,8 +155,8 @@ std::size_t DelayManager::parse_beamsets()
     // all beams in a beamset are contiguous
     BOOST_LOG_TRIVIAL(debug) << "Parsing beamsets";
     std::vector<thrust::host_vector<float>> beamsets_weights;
-    thrust::host_vector<int> beamset_map(_header.nbeams);
-    beamsets_weights.emplace_back(_header.nantennas);
+    thrust::host_vector<int> beamset_map(_config.nbeams(), 0);
+    beamsets_weights.emplace_back(_config.nantennas(), 0.0f);
 
     int beamset_idx     = 0;
     bool beamset_update = false;
@@ -167,7 +167,7 @@ std::size_t DelayManager::parse_beamsets()
         beamsets_weights[beamset_idx][ant_idx] = _delays_h[ant_idx].x;
     }
     // Create a space for the next beamset (may not be required)
-    beamsets_weights.emplace_back(_header.nantennas);
+    beamsets_weights.emplace_back(_config.nantennas(), 0.0f);
 
     // Start on the next beamset (which may or may not exist)
     ++beamset_idx;
@@ -194,7 +194,7 @@ std::size_t DelayManager::parse_beamsets()
             // mapping array
             beamset_update        = false;
             beamset_map[beam_idx] = beamset_idx;
-            beamsets_weights.emplace_back(_header.nantennas);
+            beamsets_weights.emplace_back(_config.nantennas(), 0.0f);
             ++beamset_idx;
         } else {
             beamset_map[beam_idx] = beamset_idx - 1;

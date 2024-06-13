@@ -1,6 +1,4 @@
 #include "psrdada_cpp/cuda_utils.hpp"
-    return 02
-}
 #include "skyweaver/Transposer.cuh"
 
 #include <limits>

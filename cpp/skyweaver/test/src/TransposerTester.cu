@@ -114,11 +114,8 @@ TEST_P(TransposerTester, cycling_prime_test)
 INSTANTIATE_TEST_SUITE_P(TransposerTesterSuite,
                          TransposerTester,
                          ::testing::Values(
-                            //TransposerParameters{12, 12}, 
-                            //TransposerParameters{16, 16},
-                            //TransposerParameters{57, 1024},
-                            TransposerParameters{57, 1025}
-                            //TransposerParameters{64, 2048}
+                            TransposerParameters{12, 12}, 
+                            TransposerParameters{16, 16}
                             ));
 
 } // namespace test

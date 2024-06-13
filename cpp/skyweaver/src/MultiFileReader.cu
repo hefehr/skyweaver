@@ -217,15 +217,15 @@ std::streamsize MultiFileReader::read(char* raw_ptr,
         std::streamsize bytesRead = _current_stream.gcount();
         BOOST_LOG_TRIVIAL(debug) << "Read " << bytesRead << " bytes from " << files[_current_file_idx];
 
-        totalRead += bytesRead;
-        bytes -= bytesRead;
-        _current_position += bytesRead;
-
         if(bytesRead < bytes) {
             BOOST_LOG_TRIVIAL(debug) << "This is less than required, opening next file" << files[_current_file_idx];
             open_next();
         }
-      
+
+        bytes -= bytesRead;
+        totalRead += bytesRead;
+        _current_position += bytesRead;
+
         if(eofFlag) break;
                 
     }

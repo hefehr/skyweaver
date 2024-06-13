@@ -7,13 +7,13 @@ namespace skyweaver
 {
 
 PipelineConfig::PipelineConfig()
-    : _delay_file("delays.swd"), _input_files({}),
-      _check_input_contiguity(false), _dada_header_size(4096),
-      _output_dir("./"), _max_output_filesize(10000000000000),
-      _output_file_prefix(""), _statistics_file("./statistics.bin"),
+    : _input_files({}),
+      _check_input_contiguity(false), _dada_header_size(4096), _delay_file("delays.swd"), _statistics_file("./statistics.bin"),
+      _output_dir("./"), _max_output_filesize(10000000000000), 
+      _output_file_prefix(""), 
       _coherent_dms({0.0f}), _dedisp_kernel_length_samps(8192),
       _cfreq(1284000000.0), _bw(13375000.0), _channel_frequencies_stale(true),
-      _gulp_length_samps(0), _total_nchans(4096), _output_level(24.0f),
+      _gulp_length_samps(4096), _total_nchans(4096), _output_level(24.0f),
       _cb_power_scaling(0.0f), _cb_power_offset(0.0f), _ib_power_scaling(0.0f),
       _ib_power_offset(0.0f)
 {
@@ -65,6 +65,7 @@ std::size_t PipelineConfig::dada_header_size() const
 
 void PipelineConfig::read_input_file_list(std::string filename)
 {
+    BOOST_LOG_TRIVIAL(debug) << "Reading input file list from " << filename;
     std::string line;
     std::ifstream ifs(filename.c_str());
     if(!ifs.is_open()) {
@@ -73,14 +74,18 @@ void PipelineConfig::read_input_file_list(std::string filename)
         throw std::runtime_error(std::strerror(errno));
     }
     _input_files.resize(0);
+    // TODO: Check that the files from the input list exist
     while(std::getline(ifs, line)) {
+        BOOST_LOG_TRIVIAL(debug) << line;
         boost::algorithm::trim(line);
-        if(line.rfind("#", 0)) {
+        if(line[0] == '#') {
             // Line is a comment
+            BOOST_LOG_TRIVIAL(debug) << "is a comment";
             continue;
         } else {
             _input_files.push_back(line);
         }
+        BOOST_LOG_TRIVIAL(debug) << "trimmed: " << line;
     }
     ifs.close();
 }

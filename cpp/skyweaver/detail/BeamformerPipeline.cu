@@ -16,7 +16,7 @@ BeamformerPipeline<CBHandler, IBHandler, StatsHandler>::BeamformerPipeline(
     CBHandler& cb_handler,
     IBHandler& ib_handler,
     StatsHandler& stats_handler)
-    : _config(config), _cb_handler(cb_handler), _ib_handler(ib_handler),
+    : _config(config), _nbeamsets(0), _cb_handler(cb_handler), _ib_handler(ib_handler),
       _stats_handler(stats_handler), _unix_timestamp(0.0), _call_count(0)
 {
     BOOST_LOG_TRIVIAL(debug) << "Allocating buffers from config sizes";
@@ -29,15 +29,6 @@ BeamformerPipeline<CBHandler, IBHandler, StatsHandler>::BeamformerPipeline(
     std::size_t input_taftp_size =
         nheap_groups * nsamples / _config.nsamples_per_heap();
     _taftp_from_host.resize(input_taftp_size, {0, 0});
-
-    std::size_t expected_cb_size =
-        (_config.nbeams() * nsamples / _config.cb_tscrunch() *
-         _config.nchans() / _config.cb_fscrunch());
-    _btf_cbs.resize(expected_cb_size, 0);
-
-    std::size_t expected_ib_size = (nsamples / _config.ib_tscrunch() *
-                                    _config.nchans() / _config.ib_fscrunch());
-    _tf_ib.resize(expected_ib_size, 0);
 
     // Calculate the timestamp step per block
     _sample_clock_tick_per_block = 2 * _config.total_nchans() * nsamples;
@@ -59,6 +50,8 @@ BeamformerPipeline<CBHandler, IBHandler, StatsHandler>::BeamformerPipeline(
         new CoherentDedisperser(_config, _dedispeser_config));
     _incoherent_beamformer.reset(new IncoherentBeamformer(_config));
     _dispenser.reset(new BufferedDispenser(_config, _processing_stream));
+    _nbeamsets = _delay_manager->nbeamsets();
+    BOOST_LOG_TRIVIAL(debug) << "Delay model contains " << _nbeamsets << " beamsets";
 }
 
 template <typename CBHandler, typename IBHandler, typename StatsHandler>
@@ -130,6 +123,8 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler>::process()
                                              _tf_ib,
                                              ib_scaling,
                                              ib_offsets,
+                                             _delay_manager->beamset_weights(),
+                                             _nbeamsets,
                                              _processing_stream);
 
             // TODO: Scalings need to be calculated based on the effective 
@@ -140,6 +135,7 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler>::process()
                                            weights,
                                            cb_scaling,
                                            cb_offsets,
+                                           _delay_manager->beamset_mapping(),
                                            _tf_ib_raw,
                                            _btf_cbs,
                                            _processing_stream);

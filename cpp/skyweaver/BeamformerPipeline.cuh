@@ -70,6 +70,7 @@ class BeamformerPipeline
 
     // Data info
     ObservationHeader _header;
+    int _nbeamsets;
 
     // Handlers
     CBHandler& _cb_handler;

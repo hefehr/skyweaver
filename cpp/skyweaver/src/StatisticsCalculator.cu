@@ -47,7 +47,8 @@ __global__ void calculate_statistics(char2 const* __restrict__ ftpa_voltages,
     const int stride = npol * nantennas;
     double M1 = 0.0, M2 = 0.0, M3 = 0.0, M4 = 0.0;
     int n = 0;
-    for(int sample_idx = offset; sample_idx < (tpa_size + offset); sample_idx += stride) {
+    for(int sample_idx = offset; sample_idx < (tpa_size + offset);
+        sample_idx += stride) {
         char2 data = ftpa_voltages[sample_idx];
         double power =
             (double)data.x * (double)data.x + (double)data.y * (double)data.y;
@@ -86,28 +87,10 @@ StatisticsCalculator::StatisticsCalculator(PipelineConfig const& config,
     // Resize all host and device arrays
     std::size_t reduced_nchans_ib = _config.nchans() / _config.ib_fscrunch();
     std::size_t reduced_nchans_cb = _config.nchans() / _config.cb_fscrunch();
-    // Offsets for the coherent beams, unused if CB-IB subtractions
-    // is enabled
-    _cb_offsets_d.resize(reduced_nchans_cb);
-    _cb_offsets_h.resize(reduced_nchans_cb);
-
-    // Scalings for the coherent beams
-    _cb_scaling_d.resize(reduced_nchans_cb);
-    _cb_scaling_h.resize(reduced_nchans_cb);
-
-    // Offsets for the incoherent beam
-    _ib_offsets_d.resize(reduced_nchans_ib);
-    _ib_offsets_h.resize(reduced_nchans_ib);
-
-    // Scalings for the incoherent beam
-    _ib_scaling_d.resize(reduced_nchans_ib);
-    _ib_scaling_h.resize(reduced_nchans_ib);
 
     // Statistics of a data block
     _stats_d.resize(_config.nchans() * _config.nantennas() * _config.npol());
     _stats_h.resize(_config.nchans() * _config.nantennas() * _config.npol());
-
-    
 }
 
 StatisticsCalculator::~StatisticsCalculator()
@@ -163,99 +146,128 @@ void StatisticsCalculator::write_statistics()
                       _stats_h.size() * sizeof(Statistics));
 }
 
-void StatisticsCalculator::update_scalings()
+void StatisticsCalculator::update_scalings(
+    ScalingVectorHType const& beamset_weights,
+    int nbeamsets)
 {
     // At this stage we have the standard deviations of each channel
     // available on the host (h_input_levels) To support post-fact rescaling
     // of the data it is the scales and offsets that must be preserved to
     // disk.
-    const float weights_amp       = 127.0f;
+    const float weights_amp = 127.0f;
+
     std::size_t reduced_nchans_ib = _config.nchans() / _config.ib_fscrunch();
     std::size_t reduced_nchans_cb = _config.nchans() / _config.cb_fscrunch();
 
-    // define function
-    auto get_offset_cb = [&](float x, Statistics const& y) {
-        float scale =
-            std::pow(weights_amp * y.std *
-                         std::sqrt(static_cast<float>(_config.nantennas())),
-                     2);
-        float dof =
-            2 * _config.cb_tscrunch() * _config.cb_fscrunch() * _config.npol();
-        return x + (scale * dof);
-    };
+    // Offsets for the coherent beams
+    _cb_offsets_d.resize(reduced_nchans_cb * nbeamsets);
+    _cb_offsets_h.resize(reduced_nchans_cb * nbeamsets);
 
-    auto get_scale_cb = [&](float x, Statistics const& y) {
-        float scale =
-            std::pow(weights_amp * y.std *
-                         std::sqrt(static_cast<float>(_config.nantennas())),
-                     2);
-        float dof =
-            2 * _config.cb_tscrunch() * _config.cb_fscrunch() * _config.npol();
-        return x + (scale * std::sqrt(2 * dof) / _config.output_level());
-    };
+    // Scalings for the coherent beams
+    _cb_scaling_d.resize(reduced_nchans_cb * nbeamsets);
+    _cb_scaling_h.resize(reduced_nchans_cb * nbeamsets);
 
-    auto get_offset_ib = [&](float x, Statistics const& y) {
-        float scale = std::pow(y.std, 2);
-        float dof   = 2 * _config.ib_tscrunch() * _config.ib_fscrunch() *
-                    _config.nantennas() * _config.npol();
-        return x + (scale * dof);
-    };
+    // Offsets for the incoherent beam
+    _ib_offsets_d.resize(reduced_nchans_ib * nbeamsets);
+    _ib_offsets_h.resize(reduced_nchans_ib * nbeamsets);
 
-    auto get_scale_ib = [&](float x, Statistics const& y) {
-        float scale = std::pow(y.std, 2);
-        float dof   = 2 * _config.ib_tscrunch() * _config.ib_fscrunch() *
-                    _config.nantennas() * _config.npol();
-        return x + (scale * std::sqrt(2 * dof) / _config.output_level());
-    };
+    // Scalings for the incoherent beam
+    _ib_scaling_d.resize(reduced_nchans_ib * nbeamsets);
+    _ib_scaling_h.resize(reduced_nchans_ib * nbeamsets);
 
-    // CB scaling and  offsets
-    for(std::uint32_t ii = 0; ii < reduced_nchans_cb; ++ii) {
-        _cb_offsets_h[ii] =
-            std::accumulate(
-                &_stats_h[_config.cb_fscrunch() * ii],
-                &_stats_h[_config.cb_fscrunch() * ii + _config.cb_fscrunch()],
-                0.0f,
-                get_offset_cb) /
-            _config.cb_fscrunch();
+    for(int beamset_idx = 0; beamset_idx < nbeamsets; ++beamset_idx) {
+        const float effective_nantennas = std::accumulate(
+            &beamset_weights[_config.nantennas() * beamset_idx],
+            &beamset_weights[_config.nantennas() * (beamset_idx + 1)],
+            0.0f);
 
-        _cb_scaling_h[ii] =
-            std::accumulate(
-                &_stats_h[_config.cb_fscrunch() * ii],
-                &_stats_h[_config.cb_fscrunch() * ii + _config.cb_fscrunch()],
-                0.0f,
-                get_scale_cb) /
-            _config.cb_fscrunch();
+        // define function
+        auto get_offset_cb = [&](float x, Statistics const& y) {
+            float scale =
+                std::pow(weights_amp * y.std *
+                             std::sqrt(static_cast<float>(effective_nantennas)),
+                         2);
+            float dof = 2 * _config.cb_tscrunch() * _config.cb_fscrunch() *
+                        _config.npol();
+            return x + (scale * dof);
+        };
 
-        BOOST_LOG_TRIVIAL(debug)
-            << "Coherent beam power offset: " << _cb_offsets_h[ii];
-        BOOST_LOG_TRIVIAL(debug)
-            << "Coherent beam power scaling: " << _cb_scaling_h[ii];
+        auto get_scale_cb = [&](float x, Statistics const& y) {
+            float scale =
+                std::pow(weights_amp * y.std *
+                             std::sqrt(static_cast<float>(effective_nantennas)),
+                         2);
+            float dof = 2 * _config.cb_tscrunch() * _config.cb_fscrunch() *
+                        _config.npol();
+            return x + (scale * std::sqrt(2 * dof) / _config.output_level());
+        };
+
+        auto get_offset_ib = [&](float x, Statistics const& y) {
+            float scale = std::pow(y.std, 2);
+            float dof   = 2 * _config.ib_tscrunch() * _config.ib_fscrunch() *
+                        effective_nantennas * _config.npol();
+            return x + (scale * dof);
+        };
+
+        auto get_scale_ib = [&](float x, Statistics const& y) {
+            float scale = std::pow(y.std, 2);
+            float dof   = 2 * _config.ib_tscrunch() * _config.ib_fscrunch() *
+                        effective_nantennas * _config.npol();
+            return x + (scale * std::sqrt(2 * dof) / _config.output_level());
+        };
+
+        // CB scaling and  offsets
+        for(std::uint32_t ii = 0; ii < reduced_nchans_cb; ++ii) {
+            _cb_offsets_h[beamset_idx * reduced_nchans_cb + ii] =
+                std::accumulate(&_stats_h[_config.cb_fscrunch() * ii],
+                                &_stats_h[_config.cb_fscrunch() * ii +
+                                          _config.cb_fscrunch()],
+                                0.0f,
+                                get_offset_cb) /
+                _config.cb_fscrunch();
+
+            _cb_scaling_h[beamset_idx * reduced_nchans_cb + ii] =
+                std::accumulate(&_stats_h[_config.cb_fscrunch() * ii],
+                                &_stats_h[_config.cb_fscrunch() * ii +
+                                          _config.cb_fscrunch()],
+                                0.0f,
+                                get_scale_cb) /
+                _config.cb_fscrunch();
+
+            BOOST_LOG_TRIVIAL(debug)
+                << "Coherent beam power offset (beamset " << beamset_idx
+                << "): " << _cb_offsets_h[beamset_idx * reduced_nchans_ib + ii];
+            BOOST_LOG_TRIVIAL(debug)
+                << "Coherent beam power scaling (beamset " << beamset_idx
+                << "): " << _cb_scaling_h[beamset_idx * reduced_nchans_ib + ii];
+        }
+
+        // scaling for incoherent beamformer
+        for(std::uint32_t ii = 0; ii < reduced_nchans_ib; ++ii) {
+            _ib_offsets_h[beamset_idx * reduced_nchans_ib + ii] =
+                std::accumulate(&_stats_h[_config.ib_fscrunch() * ii],
+                                &_stats_h[_config.ib_fscrunch() * ii +
+                                          _config.ib_fscrunch()],
+                                0.0f,
+                                get_offset_ib) /
+                _config.ib_fscrunch();
+
+            _ib_scaling_h[beamset_idx * reduced_nchans_ib + ii] =
+                std::accumulate(&_stats_h[_config.ib_fscrunch() * ii],
+                                &_stats_h[_config.ib_fscrunch() * ii +
+                                          _config.ib_fscrunch()],
+                                0.0f,
+                                get_scale_ib) /
+                _config.ib_fscrunch();
+
+            BOOST_LOG_TRIVIAL(debug)
+                << "Incoherent beam power offset (beamset " << beamset_idx
+                << "): " << _ib_offsets_h[beamset_idx * reduced_nchans_ib + ii];
+            BOOST_LOG_TRIVIAL(debug)
+                << "Incoherent beam power scaling (beamset " << beamset_idx
+                << "): " << _ib_scaling_h[beamset_idx * reduced_nchans_ib + ii];
+        }
     }
-
-    // scaling for incoherent beamformer
-    for(std::uint32_t ii = 0; ii < reduced_nchans_ib; ++ii) {
-        _ib_offsets_h[ii] =
-            std::accumulate(
-                &_stats_h[_config.ib_fscrunch() * ii],
-                &_stats_h[_config.ib_fscrunch() * ii + _config.ib_fscrunch()],
-                0.0f,
-                get_offset_ib) /
-            _config.ib_fscrunch();
-
-        _ib_scaling_h[ii] =
-            std::accumulate(
-                &_stats_h[_config.ib_fscrunch() * ii],
-                &_stats_h[_config.ib_fscrunch() * ii + _config.ib_fscrunch()],
-                0.0f,
-                get_scale_ib) /
-            _config.ib_fscrunch();
-
-        BOOST_LOG_TRIVIAL(debug)
-            << "Incoherent beam power offset: " << _ib_offsets_h[ii];
-        BOOST_LOG_TRIVIAL(debug)
-            << "Incoherent beam power scaling: " << _ib_scaling_h[ii];
-    }
-
     // At this stage, all scaling vectors are available on the host and
     // could be written to disk.
 

@@ -15,6 +15,7 @@ __global__ void bf_ftpa_general_k(int2 const* __restrict__ ftpa_voltages,
                                   int8_t* __restrict__ btf_powers,
                                   float const* __restrict__ output_scale,
                                   float const* __restrict__ output_offset,
+                                  int const* __restrict__ beamset_mapping,
                                   float const* __restrict__ ib_powers,
                                   int nsamples)
 {
@@ -140,11 +141,14 @@ __global__ void bf_ftpa_general_k(int2 const* __restrict__ ftpa_voltages,
         }
         __syncthreads();
     }
+    int const beam_idx = (start_beam_idx + lane_idx);
     int const output_sample_idx = sample_offset / SKYWEAVER_CB_TSCRUNCH;
     int const nsamps_out = nsamples / SKYWEAVER_CB_TSCRUNCH;
-    int const output_idx = (start_beam_idx + lane_idx) * nsamps_out * gridDim.y + output_sample_idx * gridDim.y + blockIdx.y;
-    int const ib_power_idx = output_sample_idx * gridDim.y + blockIdx.y;
-    float scale = output_scale[blockIdx.y];
+    int const output_idx = beam_idx * nsamps_out * gridDim.y + output_sample_idx * gridDim.y + blockIdx.y;
+    int const beamset_idx = beamset_mapping[beam_idx];
+    int const ib_power_idx = beamset_idx * nsamps_out * gridDim.y + output_sample_idx * gridDim.y + blockIdx.y;
+    int const scloff_idx = beamset_idx * gridDim.y + blockIdx.y;
+    float scale = output_scale[scloff_idx];
     float ib_power = ib_powers[ib_power_idx];
 #if SKYWEAVER_IB_SUBTRACTION
     /*
@@ -154,9 +158,9 @@ __global__ void bf_ftpa_general_k(int2 const* __restrict__ ftpa_voltages,
     */
     float power_fp32 = rintf((power - ib_power * 127.0 * 127.0) / scale);
 #else
-    float power_fp32 = rintf((power - output_offset[blockIdx.y]) / scale);
+    output_offset[scloff_idx];
+    float power_fp32 = rintf((power - output_offset[scloff_idx]) / scale);
 #endif // SKYWEAVER_IB_SUBTRACTION
-
     btf_powers[output_idx] = (int8_t)fmaxf(-127.0f, fminf(127.0f, power_fp32));
 }
 
@@ -182,6 +186,7 @@ void CoherentBeamformer::beamform(VoltageVectorType const& input,
                                   WeightsVectorType const& weights,
                                   ScalingVectorType const& output_scale,
                                   ScalingVectorType const& output_offset,
+                                  MappingVectorType const& beamset_mapping,
                                   RawPowerVectorType const& ib_powers,
                                   PowerVectorType& output,
                                   cudaStream_t stream)
@@ -215,16 +220,18 @@ void CoherentBeamformer::beamform(VoltageVectorType const& input,
     char2 const* ftpa_voltages_ptr = thrust::raw_pointer_cast(input.data());
     char2 const* fbpa_weights_ptr  = thrust::raw_pointer_cast(weights.data());
     int8_t* btf_powers_ptr        = thrust::raw_pointer_cast(output.data());
-    float const* power_scaling = thrust::raw_pointer_cast(output_scale.data());
-    float const* power_offset  = thrust::raw_pointer_cast(output_offset.data());
+    float const* power_scaling_ptr = thrust::raw_pointer_cast(output_scale.data());
+    float const* power_offset_ptr  = thrust::raw_pointer_cast(output_offset.data());
     float const* ib_powers_ptr = thrust::raw_pointer_cast(ib_powers.data());
+    int const* beamset_mapping_ptr = thrust::raw_pointer_cast(beamset_mapping.data());
     BOOST_LOG_TRIVIAL(debug) << "Executing beamforming kernel";
     kernels::bf_ftpa_general_k<<<grid, SKYWEAVER_CB_NTHREADS, 0, stream>>>(
         (int2 const*)ftpa_voltages_ptr,
         (int2 const*)fbpa_weights_ptr,
         btf_powers_ptr,
-        power_scaling,
-        power_offset,
+        power_scaling_ptr,
+        power_offset_ptr,
+        beamset_mapping_ptr,
         ib_powers_ptr,
         static_cast<int>(nsamples));
     CUDA_ERROR_CHECK(cudaStreamSynchronize(stream));

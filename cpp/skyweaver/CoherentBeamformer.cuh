@@ -12,21 +12,22 @@ namespace kernels {
 /**
  * @brief      The coherent beamforming kernel
  *
- * @param      ftpa_voltages  The ftpa voltages (8 int8 complex values packed into int2)
- * @param      fbpa_weights   The fbpa weights (8 int8 complex values packed into int2)
- * @param      ftb_powers     The ftb powers
- * @param[in]  output_scale   The output scaling
- * @param[in]  output_offset  The output offset
- * @param[in]  nsamples       The number of samples in the ftpa_voltages
+ * @param      ftpa_voltages   The ftpa voltages (8 int8 complex values packed into int2)
+ * @param      fbpa_weights    The fbpa weights (8 int8 complex values packed into int2)
+ * @param      ftb_powers      The ftb powers
+ * @param[in]  output_scale    The output scalings per channel
+ * @param[in]  output_offset   The output offsets per channel
+ * @param[in]  beamset_mapping The mapping of beam to beamset for choosing scalings
+ * @param[in]  nsamples        The number of samples in the ftpa_voltages
  */
-__global__
-void bf_ftpa_general_k(
-    int2 const* __restrict__ ftpa_voltages,
-    int2 const* __restrict__ fbpa_weights,
-    int8_t* __restrict__ ftb_powers,
-    float output_scale,
-    float output_offset,
-    int nsamples);
+__global__ void bf_ftpa_general_k(int2 const* __restrict__ ftpa_voltages,
+                                  int2 const* __restrict__ fbpa_weights,
+                                  int8_t* __restrict__ btf_powers,
+                                  float const* __restrict__ output_scale,
+                                  float const* __restrict__ output_offset,
+                                  int const* __restrict__ beamset_mapping,
+                                  float const* __restrict__ ib_powers,
+                                  int nsamples);
 
 } //namespace kernels
 
@@ -44,6 +45,7 @@ public:
     // FBA order (assuming equal weight per polarisation)
     typedef thrust::device_vector<char2> WeightsVectorType;
     typedef thrust::device_vector<float> ScalingVectorType;
+    typedef thrust::device_vector<int> MappingVectorType;
 
 public:
     /**
@@ -69,6 +71,7 @@ public:
         WeightsVectorType const& weights,
         ScalingVectorType const& scales,
         ScalingVectorType const& offsets,
+        MappingVectorType const& beamset_mapping,
         RawPowerVectorType const& ib_powers,
         PowerVectorType& output,
         cudaStream_t stream);

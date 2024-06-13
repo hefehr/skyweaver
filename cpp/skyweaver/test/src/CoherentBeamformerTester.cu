@@ -195,6 +195,7 @@ TEST_F(CoherentBeamformerTester, representative_noise_test)
 #else
     BOOST_LOG_TRIVIAL(info) << "Running without IB subtraction";
 #endif
+    const int nbeamsets = 2;
     const float input_level = 32.0f;
     const double pi         = std::acos(-1);
     _config.output_level(input_level);
@@ -207,10 +208,14 @@ TEST_F(CoherentBeamformerTester, representative_noise_test)
         2 * _config.cb_tscrunch() * _config.cb_fscrunch() * _config.npol();
     float offset_val = (scale * dof);
     float scale_val  = (scale * std::sqrt(2 * dof) / _config.output_level());
-    DeviceScalingVectorType cb_scales(_config.nchans() / _config.cb_fscrunch(),
+    DeviceScalingVectorType cb_scales(_config.nchans() / _config.cb_fscrunch() * nbeamsets,
                                       scale_val);
-    DeviceScalingVectorType cb_offsets(_config.nchans() / _config.cb_fscrunch(),
+    DeviceScalingVectorType cb_offsets(_config.nchans() / _config.cb_fscrunch() * nbeamsets,
                                        offset_val);
+    DeviceMappingVectorType beamset_mapping(_config.nbeams(), 0);
+    DeviceScalingVectorType beamset_weights(_config.nantennas() * nbeamsets, 1.0f);
+    beamset_mapping[0] = 1;
+
     BOOST_LOG_TRIVIAL(info) << "CB scaling: " << scale_val;
     BOOST_LOG_TRIVIAL(info) << "CB offset: " << offset_val;
 
@@ -267,9 +272,9 @@ TEST_F(CoherentBeamformerTester, representative_noise_test)
     float ib_power_offset = ib_scale * ib_dof;
     float ib_power_scaling =
         ib_scale * std::sqrt(2 * ib_dof) / _config.output_level();
-    DeviceScalingVectorType ib_scales(_config.nchans() / _config.cb_fscrunch(),
+    DeviceScalingVectorType ib_scales(_config.nchans() / _config.cb_fscrunch() * nbeamsets,
                                       ib_power_scaling);
-    DeviceScalingVectorType ib_offset(_config.nchans() / _config.cb_fscrunch(),
+    DeviceScalingVectorType ib_offset(_config.nchans() / _config.cb_fscrunch() * nbeamsets,
                                       ib_power_offset);
     DevicePowerVectorType tf_powers_gpu;
     DeviceRawPowerVectorType tf_powers_raw_gpu;
@@ -280,6 +285,8 @@ TEST_F(CoherentBeamformerTester, representative_noise_test)
                                    tf_powers_gpu,
                                    ib_scales,
                                    ib_offset,
+                                   beamset_weights,
+                                   nbeamsets,
                                    _stream);
     //dump_device_vector(tf_powers_raw_gpu, "tf_powers_raw_gpu.bin");
     //dump_device_vector(fbpa_weights_gpu, "fbpa_weights_gpu.bin");
@@ -287,6 +294,7 @@ TEST_F(CoherentBeamformerTester, representative_noise_test)
                                  fbpa_weights_gpu,
                                  cb_scales,
                                  cb_offsets,
+                                 beamset_mapping,
                                  tf_powers_raw_gpu,
                                  btf_powers_gpu,
                                  _stream);

@@ -86,7 +86,7 @@ class StatisticsCalculator
      * @brief Update the scaling arrays based on the last statistics
      *        calculation.
      */
-    void update_scalings();
+    void update_scalings(ScalingVectorHType const& beamset_weights, int nbeamsets);
 
     // These don't really belong here and should probably 
     // be moved to some other stats outputter class. Leaving

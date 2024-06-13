@@ -16,7 +16,9 @@ __global__ void icbf_ftpa_general_k(char2 const* __restrict__ ftpa_voltages,
                                     int8_t* __restrict__ tf_powers,
                                     float const* __restrict__ output_scale,
                                     float const* __restrict__ output_offset,
-                                    int ntimestamps)
+                                    float const* __restrict__ antenna_weights,
+                                    int nsamples,
+                                    int nbeamsets)
 {
     // FTPA beamformer
     // Each thread loads the two pols of 1 antenna
@@ -29,12 +31,14 @@ __global__ void icbf_ftpa_general_k(char2 const* __restrict__ ftpa_voltages,
 
     const int a   = SKYWEAVER_NANTENNAS;
     const int pa  = SKYWEAVER_NPOL * a;
-    const int tpa = ntimestamps * pa;
+    const int tpa = nsamples * pa;
 
     volatile __shared__ float acc_buffer[ACC_BUFFER_SIZE];
+    volatile __shared__ float sum_buffer[ACC_BUFFER_SIZE];
 
     for(int ii = threadIdx.x; ii < ACC_BUFFER_SIZE; ii += blockDim.x) {
         acc_buffer[ii] = 0.0f;
+        sum_buffer[ii] = 0.0f;
     }
     __syncthreads();
 
@@ -60,25 +64,27 @@ __global__ void icbf_ftpa_general_k(char2 const* __restrict__ ftpa_voltages,
             power += calculate_stokes(p0, p1);
         }
     }
-    acc_buffer[threadIdx.x] = power;
-    for(unsigned int ii = ACC_BUFFER_SIZE / 2; ii > 0; ii >>= 1) {
-        __syncthreads();
-        if(threadIdx.x < ii) {
-            // Changed from += due to warning #3012-D
-            acc_buffer[threadIdx.x] =
-                acc_buffer[threadIdx.x] + acc_buffer[threadIdx.x + ii];
+    for(int beamset_idx = 0; beamset_idx < nbeamsets; ++beamset_idx) {
+        acc_buffer[threadIdx.x] = power * antenna_weights[threadIdx.x];
+        for(unsigned int ii = ACC_BUFFER_SIZE / 2; ii > 0; ii >>= 1) {
+            __syncthreads();
+            if(threadIdx.x < ii) {
+                // Changed from += due to warning #3012-D
+                acc_buffer[threadIdx.x] =
+                    acc_buffer[threadIdx.x] + acc_buffer[threadIdx.x + ii];
+            }
         }
-    }
-    __syncthreads();
-    if(threadIdx.x == 0) {
-        float power_f32           = acc_buffer[threadIdx.x];
-        int output_idx            = output_t_idx * gridDim.y + output_f_idx;
-        tf_powers_raw[output_idx] = power_f32;
-        float scale               = output_scale[output_f_idx];
-        float offset              = output_offset[output_f_idx];
-        tf_powers[output_idx] =
-            (int8_t)fmaxf(-127.0f,
-                          fminf(127.0f, rintf((power_f32 - offset) / scale)));
+        __syncthreads();
+        if(threadIdx.x == 0) {
+            const float power_f32     = acc_buffer[threadIdx.x];
+            const int output_idx      = beamset_idx * nsamples * gridDim.y + output_t_idx * gridDim.y + output_f_idx;
+            const float scale         = output_scale[beamset_idx * gridDim.y + output_f_idx];
+            const float offset        = output_offset[beamset_idx * gridDim.y + output_f_idx];
+            tf_powers_raw[output_idx] = power_f32;
+            tf_powers[output_idx]     = static_cast<int8_t>(__float2int_rn(
+                fmaxf(-127.0f,
+                      fminf(127.0f, rintf((power_f32 - offset) / scale)))));
+        }
     }
 }
 
@@ -99,23 +105,38 @@ void IncoherentBeamformer::beamform(VoltageVectorType const& input,
                                     PowerVectorType& output,
                                     ScalingVectorType const& output_scale,
                                     ScalingVectorType const& output_offset,
+                                    ScalingVectorType const& antenna_weights,
+                                    int nbeamsets,
                                     cudaStream_t stream)
 {
     // First work out nsamples and resize output if not done already
     BOOST_LOG_TRIVIAL(debug) << "Executing incoherent beamforming";
     const std::size_t fpa_size =
         _config.npol() * _config.nantennas() * _config.nchans();
-    assert(input.size() % fpa_size == 0 /* Non integer number of time stamps*/);
+    if (input.size() % fpa_size != 0){
+        throw std::runtime_error("Input is not a whole number of FPA blocks");
+    }
+    if (nbeamsets <= 0)
+    {
+        throw std::runtime_error("Number of beamsets must be greater than zero");
+    }
     std::size_t ntimestamps = input.size() / fpa_size;
     std::size_t output_size =
         (input.size() / _config.nantennas() / _config.npol() /
-         _config.ib_tscrunch() / _config.ib_fscrunch());
+         _config.ib_tscrunch() / _config.ib_fscrunch()) * nbeamsets;
     BOOST_LOG_TRIVIAL(debug) << "Resizing output buffer from " << output.size()
                              << " to " << output_size << " elements";
     output.resize(output_size);
     output_raw.resize(output_size);
-    assert(output_scale.size() == SKYWEAVER_NCHANS / SKYWEAVER_IB_FSCRUNCH /* Unexpected number of channels in scaling vector */);
-    assert(output_offset.size() == SKYWEAVER_NCHANS / SKYWEAVER_IB_FSCRUNCH /* Unexpected number of channels in offset vector */);
+    if(output_scale.size() != (SKYWEAVER_NCHANS / SKYWEAVER_IB_FSCRUNCH) * nbeamsets){ 
+        std::runtime_error("Unexpected number of channels in scaling vector");
+    }
+    if(output_offset.size() != (SKYWEAVER_NCHANS / SKYWEAVER_IB_FSCRUNCH) * nbeamsets){ 
+        std::runtime_error("Unexpected number of channels in offset vector");
+    }
+    if(antenna_weights.size() != _config.nantennas() * nbeamsets){ 
+        std::runtime_error("Antenna weights vector is not nantennas x nbeamsets in size");
+    }
     dim3 block(SKYWEAVER_NANTENNAS);
     dim3 grid(ntimestamps / SKYWEAVER_IB_TSCRUNCH,
               SKYWEAVER_NCHANS / SKYWEAVER_IB_FSCRUNCH);
@@ -124,6 +145,8 @@ void IncoherentBeamformer::beamform(VoltageVectorType const& input,
         thrust::raw_pointer_cast(output_scale.data());
     float const* output_offset_ptr =
         thrust::raw_pointer_cast(output_offset.data());
+    float const* antenna_weights_ptr =
+        thrust::raw_pointer_cast(antenna_weights.data());
     PowerVectorType::value_type* tf_powers_ptr =
         thrust::raw_pointer_cast(output.data());
     RawPowerVectorType::value_type* tf_powers_raw_ptr =
@@ -135,7 +158,9 @@ void IncoherentBeamformer::beamform(VoltageVectorType const& input,
         tf_powers_ptr,
         output_scale_ptr,
         output_offset_ptr,
-        static_cast<int>(ntimestamps));
+        antenna_weights_ptr,
+        static_cast<int>(ntimestamps),
+        nbeamsets);
     CUDA_ERROR_CHECK(cudaStreamSynchronize(stream));
     BOOST_LOG_TRIVIAL(debug) << "Incoherent beamforming kernel complete";
 }

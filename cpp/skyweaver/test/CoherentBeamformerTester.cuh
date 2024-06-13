@@ -22,6 +22,8 @@ public:
     typedef thrust::host_vector<char2> HostWeightsVectorType;
     typedef CoherentBeamformer::ScalingVectorType DeviceScalingVectorType;
     typedef thrust::host_vector<float> HostScalingVectorType;
+    typedef CoherentBeamformer::MappingVectorType DeviceMappingVectorType;
+    typedef thrust::host_vector<int> HostMappingVectorType;
 
 protected:
     void SetUp() override;

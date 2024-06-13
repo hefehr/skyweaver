@@ -9,6 +9,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <vector>
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
 
@@ -63,6 +64,8 @@ class DelayManager
      */
     typedef thrust::device_vector<DelayModel> DelayVectorDType;
     typedef thrust::host_vector<DelayModel> DelayVectorHType;
+    typedef thrust::device_vector<float> BeamsetWeightsVectorType;
+    typedef thrust::device_vector<int> BeamsetMappingVectorType;
 
   public:
     /**
@@ -93,17 +96,52 @@ class DelayManager
      */
     double epoch() const;
 
+    /**
+     * @brief Return the antenna weights for each beamset
+     * 
+     * @details In order to use this array it is necessary to use 
+     *          the beamset_mapping function to determine which
+     *          beam belongs to which beamset.
+     * 
+     * @return A flat array of antenna weights in (beamset, antenna) format
+     */
+    BeamsetWeightsVectorType const& beamset_weights() const;
+
+    /**
+     * @brief Return the mapping of beams to beamsets
+     * 
+     * @return An array of length nbeams where each element is the 
+     *         beamset to which the beam belongs.
+     */
+    BeamsetMappingVectorType const& beamset_mapping() const;
+
+    /**
+     * @brief Return the number of beamsets for the current delay model
+     * 
+     * @return the number of beamsets
+     */
+    int nbeamsets() const;
+
   private:
     bool validate_model(double epoch) const;
     void read_next_model();
     void safe_read(char* buffer, std::size_t nbytes);
+    std::size_t parse_beamsets();
 
     PipelineConfig const& _config;
     cudaStream_t _copy_stream;
+    std::size_t _valid_nbeams;
+    std::size_t _valid_nantennas;
+    std::size_t _valid_nbeamsets;
     DelayModelHeader _header;
     std::ifstream _input_stream;
     DelayVectorHType _delays_h;
     DelayVectorDType _delays_d;
+    // The _weights_d array is stored flat to 
+    // avoid having to use pointer arrays.
+    // The format is (nbeamsets, nantennas)
+    BeamsetWeightsVectorType _weights_d;
+    BeamsetMappingVectorType _beamset_map_d;
 };
 
 } // namespace skyweaver

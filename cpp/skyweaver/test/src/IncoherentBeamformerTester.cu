@@ -42,44 +42,50 @@ void IncoherentBeamformerTester::beamformer_c_reference(
     int ntimestamps,
     int nantennas,
     HostScalingVectorType const& scale,
-    HostScalingVectorType const& offset)
+    HostScalingVectorType const& offset,
+    HostScalingVectorType const& beamset_weights,
+    int nbeamsets)
 {
     static_assert(SKYWEAVER_NPOL == 2, "Tests only work for dual poln data.");
     const int nchans_out = nchannels / fscrunch;
     const int a          = nantennas;
     const int pa         = SKYWEAVER_NPOL * a;
     const int tpa        = ntimestamps * pa;
-
-    for(int F_idx = 0; F_idx < nchannels;
-        F_idx += fscrunch) {
-        for(int T_idx = 0; T_idx < ntimestamps;
-            T_idx += tscrunch) {
-            float power = 0.0f;
-            for(int f_idx = F_idx; f_idx < F_idx + fscrunch;
-                ++f_idx) {
-                for(int t_idx = T_idx; t_idx < T_idx + tscrunch;
-                    ++t_idx) {
-                    for(int a_idx = 0; a_idx < nantennas; ++a_idx) {
-                        int input_p0_idx = f_idx * tpa + t_idx * pa + a_idx;
-                        int input_p1_idx = f_idx * tpa + t_idx * pa + a + a_idx;
-                        char2 p0_v       = ftpa_voltages[input_p0_idx];
-                        char2 p1_v       = ftpa_voltages[input_p1_idx];
-                        cuFloatComplex p0 =
-                            make_cuFloatComplex((float)p0_v.x, (float)p0_v.y);
-                        cuFloatComplex p1 =
-                            make_cuFloatComplex((float)p1_v.x, (float)p1_v.y);
-                        power += calculate_stokes(p0, p1);
+    for (int beamset_idx = 0; beamset_idx < nbeamsets; ++beamset_idx)
+    {
+        for(int F_idx = 0; F_idx < nchannels;
+            F_idx += fscrunch) {
+            for(int T_idx = 0; T_idx < ntimestamps;
+                T_idx += tscrunch) {
+                float power = 0.0f;
+                for(int f_idx = F_idx; f_idx < F_idx + fscrunch;
+                    ++f_idx) {
+                    for(int t_idx = T_idx; t_idx < T_idx + tscrunch;
+                        ++t_idx) {
+                        for(int a_idx = 0; a_idx < nantennas; ++a_idx) {
+                            float weight = beamset_weights[beamset_idx * nantennas + a_idx];
+                            int input_p0_idx = f_idx * tpa + t_idx * pa + a_idx;
+                            int input_p1_idx = f_idx * tpa + t_idx * pa + a + a_idx;
+                            char2 p0_v       = ftpa_voltages[input_p0_idx];
+                            char2 p1_v       = ftpa_voltages[input_p1_idx];
+                            cuFloatComplex p0 =
+                                make_cuFloatComplex((float)p0_v.x, (float)p0_v.y);
+                            cuFloatComplex p1 =
+                                make_cuFloatComplex((float)p1_v.x, (float)p1_v.y);
+                            power += calculate_stokes(p0, p1) * weight;
+                        }
                     }
                 }
+                int subband_idx           = F_idx / fscrunch;
+                int subbint_idx           = T_idx / tscrunch;
+                int output_idx            = subbint_idx * nchans_out + subband_idx;
+                int scloff_idx            = nchannels/fscrunch * beamset_idx + subband_idx;
+                tf_powers_raw[output_idx] = power;
+                float scaled_power =
+                    ((power - offset[scloff_idx]) / scale[scloff_idx]);
+                tf_powers[output_idx] =
+                    (int8_t)fmaxf(-127.0f, fminf(127.0f, scaled_power));
             }
-            int subband_idx           = F_idx / fscrunch;
-            int subbint_idx           = T_idx / tscrunch;
-            int output_idx            = subbint_idx * nchans_out + subband_idx;
-            tf_powers_raw[output_idx] = power;
-            float scaled_power =
-                ((power - offset[subband_idx]) / scale[subband_idx]);
-            tf_powers[output_idx] =
-                (int8_t)fmaxf(-127.0f, fminf(127.0f, scaled_power));
         }
     }
 }
@@ -90,13 +96,16 @@ void IncoherentBeamformerTester::compare_against_host(
     DevicePowerVectorType& tf_powers_gpu,
     DeviceScalingVectorType const& scaling_vector,
     DeviceScalingVectorType const& offset_vector,
-    int ntimestamps)
+    DeviceScalingVectorType const& beamset_weights,
+    int ntimestamps,
+    int nbeamsets)
 {
     HostVoltageVectorType ftpa_voltages_host  = ftpa_voltages_gpu;
     HostPowerVectorType tf_powers_cuda        = tf_powers_gpu;
     HostRawPowerVectorType tf_powers_raw_cuda = tf_powers_raw_gpu;
     HostScalingVectorType h_scaling_vector    = scaling_vector;
     HostScalingVectorType h_offset_vector     = offset_vector;
+    HostScalingVectorType h_beamset_weights   = beamset_weights;
     HostRawPowerVectorType tf_powers_raw_host(tf_powers_raw_gpu.size());
     HostPowerVectorType tf_powers_host(tf_powers_gpu.size());
     beamformer_c_reference(ftpa_voltages_host,
@@ -108,7 +117,9 @@ void IncoherentBeamformerTester::compare_against_host(
                            ntimestamps,
                            _config.nantennas(),
                            h_scaling_vector,
-                           h_offset_vector);
+                           h_offset_vector,
+                           h_beamset_weights,
+                           nbeamsets);
     for(int ii = 0; ii < tf_powers_host.size(); ++ii) {
         EXPECT_TRUE(std::abs(static_cast<int>(tf_powers_host[ii]) -
                              tf_powers_cuda[ii]) <= 1);
@@ -142,10 +153,13 @@ TEST_F(IncoherentBeamformerTester, ib_representative_noise_test)
     float ib_power_offset = ib_scale * ib_dof;
     float ib_power_scaling =
         ib_scale * std::sqrt(2 * ib_dof) / _config.output_level();
-    DeviceScalingVectorType scales(_config.nchans() / _config.ib_fscrunch(),
+    int nbeamsets = 2;
+    DeviceScalingVectorType scales(_config.nchans() / _config.ib_fscrunch() * nbeamsets,
                                    ib_power_scaling);
-    DeviceScalingVectorType offset(_config.nchans() / _config.ib_fscrunch(),
+    DeviceScalingVectorType offset(_config.nchans() / _config.ib_fscrunch() * nbeamsets,
                                    ib_power_offset);
+    DeviceScalingVectorType beamset_weights(_config.nantennas() * nbeamsets, 1.0f);
+
     DeviceVoltageVectorType ftpa_voltages_gpu = ftpa_voltages_host;
     DevicePowerVectorType tf_powers_gpu;
     DeviceRawPowerVectorType tf_powers_raw_gpu;
@@ -154,13 +168,17 @@ TEST_F(IncoherentBeamformerTester, ib_representative_noise_test)
                                    tf_powers_gpu,
                                    scales,
                                    offset,
+                                   beamset_weights,
+                                   nbeamsets,
                                    _stream);
     compare_against_host(ftpa_voltages_gpu,
                          tf_powers_raw_gpu,
                          tf_powers_gpu,
                          scales,
                          offset,
-                         ntimestamps);
+                         beamset_weights,
+                         ntimestamps,
+                         nbeamsets);
 }
 
 } // namespace test

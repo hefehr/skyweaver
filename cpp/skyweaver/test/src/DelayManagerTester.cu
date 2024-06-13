@@ -49,6 +49,8 @@ void DelayManagerTester::TearDown()
  * delay offsets are in the range 1e-7 to 1e-10
  * delay rates are in the range 1e-12 to 1e-14
  * weights are either 1 or 0
+ * 
+ * There are 2 beamsets in the data
  */
 
 TEST_F(DelayManagerTester, test_valid_read_first_block)
@@ -85,6 +87,15 @@ TEST_F(DelayManagerTester, test_too_late_epoch)
         std::runtime_error
     );
 }
+
+TEST_F(DelayManagerTester, test_beamset_count)
+{
+    DelayManager delay_manager(_config, _stream);
+    //Test an epoch that is after the end of the validity window
+    EXPECT_EQ(delay_manager.nbeamsets(), 2);
+    
+}
+
 
 } // namespace test
 } // namespace skyweaver

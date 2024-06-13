@@ -25,8 +25,8 @@ class BeamformerBencher: public benchmark::Fixture
             _config.nantennas() * _config.nchans() * _config.nbeams();
         ftpa_voltages_gpu.resize(input_size);
         fbpa_weights_gpu.resize(weights_size);
-        scales.resize(_config.nchans());
-        offsets.resize(_config.nchans());
+        scales.resize(_config.nchans() / _config.cb_fscrunch());
+        offsets.resize(_config.nchans() / _config.cb_fscrunch());
         CUDA_ERROR_CHECK(cudaStreamCreate(&_stream));
         CUDA_ERROR_CHECK(cudaEventCreate(&start));
         CUDA_ERROR_CHECK(cudaEventCreate(&stop));

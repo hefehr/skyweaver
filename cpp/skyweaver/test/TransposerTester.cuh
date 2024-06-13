@@ -9,7 +9,13 @@
 namespace skyweaver {
 namespace test {
 
-class TransposerTester: public ::testing::TestWithParam<std::size_t>
+struct TransposerParameters
+{
+    std::size_t nantennas;
+    std::size_t ntimestamps;
+};
+
+class TransposerTester: public ::testing::TestWithParam<TransposerParameters>
 {
 public:
     typedef Transposer::VoltageType DeviceVoltageType;

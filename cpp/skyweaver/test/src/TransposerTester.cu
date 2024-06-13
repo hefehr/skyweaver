@@ -2,12 +2,14 @@
 #include "skyweaver/skyweaver_constants.hpp"
 #include "skyweaver/test/TransposerTester.cuh"
 
+#include "cuda.h"
+
 namespace skyweaver
 {
 namespace test
 {
 
-TransposerTester::TransposerTester(): ::testing::TestWithParam<std::size_t>(), _stream(0)
+TransposerTester::TransposerTester(): ::testing::TestWithParam<TransposerParameters>(), _stream(0)
 {
 }
 
@@ -88,14 +90,16 @@ void TransposerTester::compare_against_host(DeviceVoltageType const& gpu_input,
     }
 }
 
+
+
 TEST_P(TransposerTester, cycling_prime_test)
 {
     Transposer transposer(_config);
-    std::size_t ntimestamps     = 12;
-    std::size_t input_nantennas = GetParam();
+    TransposerParameters params = GetParam();
+    std::size_t ntimestamps     = params.ntimestamps;
+    std::size_t input_nantennas = params.nantennas;
     std::size_t input_size = (ntimestamps * input_nantennas * _config.nchans() *
                               _config.nsamples_per_heap() * _config.npol());
-
     HostVoltageType host_gpu_input(input_size);
     for(int ii = 0; ii < input_size; ++ii) {
         host_gpu_input[ii].x = (ii % 113);
@@ -109,7 +113,13 @@ TEST_P(TransposerTester, cycling_prime_test)
 
 INSTANTIATE_TEST_SUITE_P(TransposerTesterSuite,
                          TransposerTester,
-                         ::testing::Range<std::size_t>(1, SKYWEAVER_NANTENNAS, 13));
+                         ::testing::Values(
+                            //TransposerParameters{12, 12}, 
+                            //TransposerParameters{16, 16},
+                            //TransposerParameters{57, 1024},
+                            TransposerParameters{57, 1025}
+                            //TransposerParameters{64, 2048}
+                            ));
 
 } // namespace test
 } // namespace skyweaver

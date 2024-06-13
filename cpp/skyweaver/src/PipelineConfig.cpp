@@ -7,10 +7,10 @@ namespace skyweaver
 {
 
 PipelineConfig::PipelineConfig()
-    : _delay_file("delays.swd"), _input_files({}),
-      _check_input_contiguity(false), _dada_header_size(4096),
-      _output_dir("./"), _max_output_filesize(10000000000000),
-      _output_file_prefix(""), _statistics_file("./statistics.bin"),
+    : _input_files({}),
+      _check_input_contiguity(false), _dada_header_size(4096), _delay_file("delays.swd"), _statistics_file("./statistics.bin"),
+      _output_dir("./"), _max_output_filesize(10000000000000), 
+      _output_file_prefix(""), 
       _coherent_dms({0.0f}), _dedisp_kernel_length_samps(8192),
       _cfreq(1284000000.0), _bw(13375000.0), _channel_frequencies_stale(true),
       _gulp_length_samps(4096), _total_nchans(4096), _output_level(24.0f),

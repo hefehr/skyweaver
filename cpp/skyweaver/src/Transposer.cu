@@ -1,6 +1,8 @@
 #include "psrdada_cpp/cuda_utils.hpp"
 #include "skyweaver/Transposer.cuh"
 
+#include <limits>
+
 #define SKYWEAVER_ST_MAX_ANTENNAS 32
 
 namespace skyweaver
@@ -125,6 +127,18 @@ void Transposer::transpose(VoltageType const& taftp_voltages,
 
     // Check sizes
     BOOST_LOG_TRIVIAL(debug) << "Transpose input size: " << taftp_voltages.size();
+
+    if (taftp_voltages.size() >= std::numeric_limits<int>::max())
+    {   /*
+        This check is needed as we use ints for indexes in the GPU kernel. The int indexes are 
+        intended for performance but it has not been tested to see what effect using uint64_t
+        or ptrdiff_t would have on this. This is a common problem for GPU kernels, see e.g.
+        https://github.com/NVIDIA/cub/issues/212 and 
+        https://stackoverflow.com/questions/14105958/cuda-c-best-practices-unsigned-vs-signed-optimization
+        */
+        throw std::runtime_error("TAFTP array is too large to be indexed with <int> indexes."); 
+    }
+
     if (taftp_voltages.size() % heap_group_size != 0)
     {
         throw std::runtime_error("Voltages are not a multiple of the heap size");
@@ -154,6 +168,11 @@ void Transposer::transpose(VoltageType const& taftp_voltages,
         << _config.nsamples_per_heap() * nheap_groups << ", " << _config.npol() << ", "
         << _config.nantennas() << ")";
     BOOST_LOG_TRIVIAL(debug) << "Launching split transpose kernel";
+    size_t mem_tot;
+    size_t mem_free;
+    cudaMemGetInfo(&mem_free, &mem_tot);
+    BOOST_LOG_TRIVIAL(debug) << "Free memory: " << mem_free << " of " << mem_tot << " bytes\n";
+    BOOST_LOG_TRIVIAL(debug) << input_ptr << ", " << output_ptr << "\n";
     kernels::transpose_k<<<grid, block, 0, stream>>>(
         input_ptr,
         output_ptr,

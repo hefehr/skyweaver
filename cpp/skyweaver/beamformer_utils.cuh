@@ -119,7 +119,7 @@ __host__ __device__ static __inline__ float calculate_stokes(cuFloatComplex p0,
     return cuCmagf(p0) - cuCmagf(p1);
 #elif SKYWEAVER_STOKES_MODE == SKYWEAVER_STOKES_U
     return 2 * cuCrealf(cuCmulf(p0, cuConjf(p1)));
-#elif SKYWEAVER_STOKES_MODE == 3 SKYWEAVER_STOKES_V
+#elif SKYWEAVER_STOKES_MODE == SKYWEAVER_STOKES_V
     return 2 * cuCimagf(cuCmulf(p0, cuConjf(p1)));
 #else
     static_assert(false,

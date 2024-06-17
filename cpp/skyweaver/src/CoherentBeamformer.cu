@@ -156,7 +156,7 @@ __global__ void bf_ftpa_general_k(int2 const* __restrict__ ftpa_voltages,
     that they can still represent many phases, we also need to account for
     this scaling factor in the incoherent beam.
     */
-    float power_fp32 = rintf((power - ib_power * 127.0 * 127.0) / scale);
+    float power_fp32 = rintf((power - ib_power * 127.0f * 127.0f) / scale);
 #else
     float power_fp32 = rintf((power - output_offset[scloff_idx]) / scale);
 #endif // SKYWEAVER_IB_SUBTRACTION

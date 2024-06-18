@@ -12,17 +12,22 @@ namespace skyweaver
 namespace test
 {
 
+
+template <typename BfTraits>
 class IncoherentBeamformerTester: public ::testing::Test
 {
   public:
+
+    using BfTraitsType = BfTraits;
+    typedef IncoherentBeamformer<BfTraits> IncoherentBeamformer;
     typedef IncoherentBeamformer::VoltageVectorType DeviceVoltageVectorType;
-    typedef thrust::host_vector<char2> HostVoltageVectorType;
+    typedef thrust::host_vector<typename DeviceVoltageVectorType::value_type> HostVoltageVectorType;
     typedef IncoherentBeamformer::PowerVectorType DevicePowerVectorType;
-    typedef thrust::host_vector<int8_t> HostPowerVectorType;
+    typedef thrust::host_vector<typename DevicePowerVectorType::value_type> HostPowerVectorType;
     typedef IncoherentBeamformer::RawPowerVectorType DeviceRawPowerVectorType;
-    typedef thrust::host_vector<float> HostRawPowerVectorType;
+    typedef thrust::host_vector<typename DeviceRawPowerVectorType::value_type> HostRawPowerVectorType;
     typedef IncoherentBeamformer::ScalingVectorType DeviceScalingVectorType;
-    typedef thrust::host_vector<float> HostScalingVectorType;
+    typedef thrust::host_vector<typename DeviceScalingVectorType::value_type> HostScalingVectorType;
 
   protected:
     void SetUp() override;

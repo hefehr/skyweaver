@@ -13,7 +13,7 @@ PipelineConfig::PipelineConfig()
       _output_file_prefix(""), 
       _coherent_dms({0.0f}), _dedisp_kernel_length_samps(8192),
       _cfreq(1284000000.0), _bw(13375000.0), _channel_frequencies_stale(true),
-      _gulp_length_samps(4096), _total_nchans(4096), _output_level(24.0f),
+      _gulp_length_samps(4096), _total_nchans(4096), _stokes_mode("I"), _output_level(24.0f),
       _cb_power_scaling(0.0f), _cb_power_offset(0.0f), _ib_power_scaling(0.0f),
       _ib_power_offset(0.0f)
 {

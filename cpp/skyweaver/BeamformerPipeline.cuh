@@ -19,15 +19,18 @@
 namespace skyweaver
 {
 
-template <typename CBHandler, typename IBHandler, typename StatsHandler>
+template <typename CBHandler, typename IBHandler, typename StatsHandler, typename BeamformerTraits>
 class BeamformerPipeline
 {
   public:
-    typedef thrust::host_vector<char2> HostVoltageVectorType;
-    typedef thrust::device_vector<char2> VoltageVectorType;
-    typedef thrust::device_vector<int8_t> PowerVectorType;
-    typedef thrust::device_vector<float> ChannelScaleVectorType;
+    typedef thrust::host_vector< char2 > HostVoltageVectorType;
+    typedef thrust::device_vector< char2 > VoltageVectorType;
+    typedef thrust::device_vector< typename BeamformerTraits::QuantisedPowerType > PowerVectorType;
+    typedef thrust::device_vector< typename BeamformerTraits::RawPowerType > RawPowerVectorType;
+    typedef thrust::device_vector< float > ChannelScaleVectorType;
     typedef long double TimeType;
+    typedef CoherentBeamformer<BeamformerTraits> CoherentBeamformer;
+    typedef IncoherentBeamformer<BeamformerTraits> IncoherentBeamformer;
 
   public:
     /**
@@ -88,8 +91,8 @@ class BeamformerPipeline
     std::unique_ptr<StatisticsCalculator> _stats_manager;
     std::unique_ptr<Transposer> _transposer;
     std::unique_ptr<CoherentBeamformer> _coherent_beamformer;
-    std::unique_ptr<CoherentDedisperser> _coherent_dedisperser;
     std::unique_ptr<IncoherentBeamformer> _incoherent_beamformer;
+    std::unique_ptr<CoherentDedisperser> _coherent_dedisperser;
     std::unique_ptr<BufferedDispenser> _dispenser;
 
     // Buffers
@@ -97,7 +100,7 @@ class BeamformerPipeline
     VoltageVectorType _ftpa_post_transpose;
     VoltageVectorType _ftpa_dedispersed;
     PowerVectorType _btf_cbs;
-    IncoherentBeamformer::RawPowerVectorType _tf_ib_raw;
+    RawPowerVectorType _tf_ib_raw;
     PowerVectorType _tf_ib;
 
     // Variable

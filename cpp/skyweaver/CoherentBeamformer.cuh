@@ -2,6 +2,7 @@
 #define SKYWEAVER_COHERENTBEAMFORMER_CUH
 
 #include "skyweaver/PipelineConfig.hpp"
+#include "skyweaver/beamformer_utils.cuh"
 #include "thrust/device_vector.h"
 #include "cuda.h"
 
@@ -20,13 +21,14 @@ namespace kernels {
  * @param[in]  beamset_mapping The mapping of beam to beamset for choosing scalings
  * @param[in]  nsamples        The number of samples in the ftpa_voltages
  */
+ template <typename BfTraits>
 __global__ void bf_ftpa_general_k(int2 const* __restrict__ ftpa_voltages,
                                   int2 const* __restrict__ fbpa_weights,
-                                  int8_t* __restrict__ btf_powers,
+                                  typename BfTraits::QuantisedPowerType* __restrict__ btf_powers,
                                   float const* __restrict__ output_scale,
                                   float const* __restrict__ output_offset,
                                   int const* __restrict__ beamset_mapping,
-                                  float const* __restrict__ ib_powers,
+                                  typename BfTraits::RawPowerType const* __restrict__ ib_powers,
                                   int nsamples);
 
 } //namespace kernels
@@ -34,14 +36,15 @@ __global__ void bf_ftpa_general_k(int2 const* __restrict__ ftpa_voltages,
 /**
  * @brief      Class for coherent beamformer.
  */
+template <typename BfTraits>
 class CoherentBeamformer
 {
 public:
     // FTPA order
     typedef thrust::device_vector<char2> VoltageVectorType;
     // TBTF order
-    typedef thrust::device_vector<int8_t> PowerVectorType;
-    typedef thrust::device_vector<float> RawPowerVectorType;
+    typedef thrust::device_vector<typename BfTraits::QuantisedPowerType> PowerVectorType;
+    typedef thrust::device_vector<typename BfTraits::RawPowerType> RawPowerVectorType;
     // FBA order (assuming equal weight per polarisation)
     typedef thrust::device_vector<char2> WeightsVectorType;
     typedef thrust::device_vector<float> ScalingVectorType;
@@ -83,6 +86,12 @@ private:
     std::size_t _size_per_sample;
     std::size_t _expected_weights_size;
 };
+
+extern template class CoherentBeamformer<SingleStokesBeamformerTraits<StokesParameter::I>>;
+extern template class CoherentBeamformer<SingleStokesBeamformerTraits<StokesParameter::Q>>;
+extern template class CoherentBeamformer<SingleStokesBeamformerTraits<StokesParameter::U>>;
+extern template class CoherentBeamformer<SingleStokesBeamformerTraits<StokesParameter::V>>;
+extern template class CoherentBeamformer<FullStokesBeamformerTraits>;
 
 } //namespace skyweaver
 

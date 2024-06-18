@@ -11,9 +11,10 @@ namespace skyweaver
 namespace kernels
 {
 
+template <typename BfTraits>
 __global__ void icbf_ftpa_general_k(char2 const* __restrict__ ftpa_voltages,
-                                    float* __restrict__ tf_powers_raw,
-                                    int8_t* __restrict__ tf_powers,
+                                    typename BfTraits::RawPowerType* __restrict__ tf_powers_raw,
+                                    typename BfTraits::QuantisedPowerType* __restrict__ tf_powers,
                                     float const* __restrict__ output_scale,
                                     float const* __restrict__ output_offset,
                                     float const* __restrict__ antenna_weights,
@@ -33,12 +34,11 @@ __global__ void icbf_ftpa_general_k(char2 const* __restrict__ ftpa_voltages,
     const int pa  = SKYWEAVER_NPOL * a;
     const int tpa = nsamples * pa;
 
-    volatile __shared__ float acc_buffer[ACC_BUFFER_SIZE];
-    volatile __shared__ float sum_buffer[ACC_BUFFER_SIZE];
+    // REMOVED volatile
+    __shared__ typename BfTraits::RawPowerType acc_buffer[ACC_BUFFER_SIZE];
 
     for(int ii = threadIdx.x; ii < ACC_BUFFER_SIZE; ii += blockDim.x) {
-        acc_buffer[ii] = 0.0f;
-        sum_buffer[ii] = 0.0f;
+        acc_buffer[ii] = BfTraits::zero_power;
     }
     __syncthreads();
 
@@ -47,7 +47,7 @@ __global__ void icbf_ftpa_general_k(char2 const* __restrict__ ftpa_voltages,
     const int input_t_idx  = output_t_idx * SKYWEAVER_IB_TSCRUNCH;
     const int input_f_idx  = output_f_idx * SKYWEAVER_IB_FSCRUNCH;
     const int a_idx        = threadIdx.x;
-    float power            = 0.0f;
+    typename BfTraits::RawPowerType power            = BfTraits::zero_power;
     for(int f_idx = input_f_idx; f_idx < input_f_idx + SKYWEAVER_CB_FSCRUNCH;
         ++f_idx) {
         for(int t_idx = input_t_idx;
@@ -61,46 +61,45 @@ __global__ void icbf_ftpa_general_k(char2 const* __restrict__ ftpa_voltages,
                 make_cuFloatComplex((float)p0_v.x, (float)p0_v.y);
             cuFloatComplex p1 =
                 make_cuFloatComplex((float)p1_v.x, (float)p1_v.y);
-            power += calculate_stokes(p0, p1);
+            BfTraits::integrate_stokes(p0, p1, power);
         }
     }
     for(int beamset_idx = 0; beamset_idx < nbeamsets; ++beamset_idx) {
-        acc_buffer[threadIdx.x] = power * antenna_weights[threadIdx.x];
+        acc_buffer[threadIdx.x] = BfTraits::multiply(power, antenna_weights[threadIdx.x]);
         for(unsigned int ii = ACC_BUFFER_SIZE / 2; ii > 0; ii >>= 1) {
             __syncthreads();
             if(threadIdx.x < ii) {
-                // Changed from += due to warning #3012-D
-                acc_buffer[threadIdx.x] =
-                    acc_buffer[threadIdx.x] + acc_buffer[threadIdx.x + ii];
+                acc_buffer[threadIdx.x] = BfTraits::add(acc_buffer[threadIdx.x], acc_buffer[threadIdx.x + ii]);
             }
         }
         __syncthreads();
         if(threadIdx.x == 0) {
-            const float power_f32     = acc_buffer[0];
+            const typename BfTraits::RawPowerType power_f32     = acc_buffer[0];
             const int output_idx      = beamset_idx * gridDim.x * gridDim.y + output_t_idx * gridDim.y + output_f_idx;
             const float scale         = output_scale[beamset_idx * gridDim.y + output_f_idx];
             const float offset        = output_offset[beamset_idx * gridDim.y + output_f_idx];
             tf_powers_raw[output_idx] = power_f32;
-            tf_powers[output_idx]     = static_cast<int8_t>(__float2int_rn(
-                fmaxf(-127.0f,
-                      fminf(127.0f, rintf((power_f32 - offset) / scale)))));
+            tf_powers[output_idx]     = BfTraits::clamp(BfTraits::rescale(power_f32, offset, scale));
         }
     }
 }
 
 } // namespace kernels
 
-IncoherentBeamformer::IncoherentBeamformer(PipelineConfig const& config)
+template <typename BfTraits>
+IncoherentBeamformer<BfTraits>::IncoherentBeamformer(PipelineConfig const& config)
     : _config(config)
 {
     BOOST_LOG_TRIVIAL(debug) << "Constructing IncoherentBeamformer instance";
 }
 
-IncoherentBeamformer::~IncoherentBeamformer()
+template <typename BfTraits>
+IncoherentBeamformer<BfTraits>::~IncoherentBeamformer()
 {
 }
 
-void IncoherentBeamformer::beamform(VoltageVectorType const& input,
+template <typename BfTraits>
+void IncoherentBeamformer<BfTraits>::beamform(VoltageVectorType const& input,
                                     RawPowerVectorType& output_raw,
                                     PowerVectorType& output,
                                     ScalingVectorType const& output_scale,
@@ -147,13 +146,13 @@ void IncoherentBeamformer::beamform(VoltageVectorType const& input,
         thrust::raw_pointer_cast(output_offset.data());
     float const* antenna_weights_ptr =
         thrust::raw_pointer_cast(antenna_weights.data());
-    PowerVectorType::value_type* tf_powers_ptr =
+    typename PowerVectorType::value_type* tf_powers_ptr =
         thrust::raw_pointer_cast(output.data());
-    RawPowerVectorType::value_type* tf_powers_raw_ptr =
+    typename RawPowerVectorType::value_type* tf_powers_raw_ptr =
         thrust::raw_pointer_cast(output_raw.data());
     BOOST_LOG_TRIVIAL(debug) << "Executing incoherent beamforming kernel";
     BOOST_LOG_TRIVIAL(debug) << "Nbeamsets = " << nbeamsets;
-    kernels::icbf_ftpa_general_k<<<grid, block, 0, stream>>>(
+    kernels::icbf_ftpa_general_k< BfTraits ><<< grid, block, 0, stream >>>(
         ftpa_voltages_ptr,
         tf_powers_raw_ptr,
         tf_powers_ptr,
@@ -165,5 +164,11 @@ void IncoherentBeamformer::beamform(VoltageVectorType const& input,
     CUDA_ERROR_CHECK(cudaStreamSynchronize(stream));
     BOOST_LOG_TRIVIAL(debug) << "Incoherent beamforming kernel complete";
 }
+
+template class IncoherentBeamformer<SingleStokesBeamformerTraits<StokesParameter::I>>;
+template class IncoherentBeamformer<SingleStokesBeamformerTraits<StokesParameter::Q>>;
+template class IncoherentBeamformer<SingleStokesBeamformerTraits<StokesParameter::U>>;
+template class IncoherentBeamformer<SingleStokesBeamformerTraits<StokesParameter::V>>;
+template class IncoherentBeamformer<FullStokesBeamformerTraits>;
 
 } // namespace skyweaver

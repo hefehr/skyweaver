@@ -10,8 +10,8 @@
 namespace skyweaver
 {
 
-template <typename CBHandler, typename IBHandler, typename StatsHandler>
-BeamformerPipeline<CBHandler, IBHandler, StatsHandler>::BeamformerPipeline(
+template <typename CBHandler, typename IBHandler, typename StatsHandler, typename BeamformerTraits>
+BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::BeamformerPipeline(
     PipelineConfig const& config,
     CBHandler& cb_handler,
     IBHandler& ib_handler,
@@ -55,16 +55,16 @@ BeamformerPipeline<CBHandler, IBHandler, StatsHandler>::BeamformerPipeline(
         << "Delay model contains " << _nbeamsets << " beamsets";
 }
 
-template <typename CBHandler, typename IBHandler, typename StatsHandler>
-BeamformerPipeline<CBHandler, IBHandler, StatsHandler>::~BeamformerPipeline()
+template <typename CBHandler, typename IBHandler, typename StatsHandler, typename BeamformerTraits>
+BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::~BeamformerPipeline()
 {
     CUDA_ERROR_CHECK(cudaStreamDestroy(_h2d_copy_stream));
     CUDA_ERROR_CHECK(cudaStreamDestroy(_processing_stream));
     CUDA_ERROR_CHECK(cudaStreamDestroy(_d2h_copy_stream));
 }
 
-template <typename CBHandler, typename IBHandler, typename StatsHandler>
-void BeamformerPipeline<CBHandler, IBHandler, StatsHandler>::init(
+template <typename CBHandler, typename IBHandler, typename StatsHandler, typename BeamformerTraits>
+void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::init(
     ObservationHeader const& header)
 {
     BOOST_LOG_TRIVIAL(debug) << "Initialising beamformer pipeline";
@@ -79,8 +79,8 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler>::init(
                              << _taftp_from_host.size() << " elements";
 }
 
-template <typename CBHandler, typename IBHandler, typename StatsHandler>
-void BeamformerPipeline<CBHandler, IBHandler, StatsHandler>::process()
+template <typename CBHandler, typename IBHandler, typename StatsHandler, typename BeamformerTraits>
+void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::process()
 {
     BOOST_LOG_TRIVIAL(debug) << "Executing beamforming pipeline";
 
@@ -152,8 +152,8 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler>::process()
     _stats_handler(_stats_manager->statistics());
 }
 
-template <typename CBHandler, typename IBHandler, typename StatsHandler>
-bool BeamformerPipeline<CBHandler, IBHandler, StatsHandler>::operator()(
+template <typename CBHandler, typename IBHandler, typename StatsHandler, typename BeamformerTraits>
+bool BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::operator()(
     HostVoltageVectorType const& taftp_on_host)
 {
     BOOST_LOG_TRIVIAL(debug) << "Pipeline operator() called";

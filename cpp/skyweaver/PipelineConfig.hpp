@@ -315,6 +315,16 @@ class PipelineConfig
     std::size_t npol() const { return SKYWEAVER_NPOL; }
 
     /**
+     * @brief      Return the Stokes mode
+     */
+    std::string stokes_mode() const { return _stokes_mode; }
+
+    /**
+     * @brief      Set the Stokes mode
+     */
+    void stokes_mode(std::string const& stokes_mode_) { _stokes_mode = stokes_mode_; }
+
+    /**
      * @brief      Return the number of time samples per F-engine SPEAD heap.
      *
      * @note       This corresponds to the inner "T" dimension in the input
@@ -349,6 +359,7 @@ class PipelineConfig
     mutable bool _channel_frequencies_stale;
     std::size_t _gulp_length_samps;
     std::size_t _total_nchans;
+    std::string _stokes_mode;
     float _output_level;
     float _cb_power_scaling;
     float _cb_power_offset;

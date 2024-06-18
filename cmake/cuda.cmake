@@ -4,7 +4,7 @@ include_directories(${CUDA_TOOLKIT_INCLUDE})
 set(CUDA_HOST_COMPILER ${CMAKE_CXX_COMPILER})
 set(CUDA_PROPAGATE_HOST_FLAGS OFF)
 
-list(APPEND CUDA_NVCC_FLAGS --std=c++${CMAKE_CXX_STANDARD} --expt-extended-lambda -Wno-deprecated-gpu-targets  )
+list(APPEND CUDA_NVCC_FLAGS --std=c++${CMAKE_CXX_STANDARD} --expt-extended-lambda --expt-relaxed-constexpr -Wno-deprecated-gpu-targets )
 #list(APPEND CUDA_NVCC_FLAGS_DEBUG -g -G -O2 -Xcompiler "-Wextra" --Werror all-warnings -Xcudafe "--diag_suppress=20012")
 list(APPEND CUDA_NVCC_FLAGS_DEBUG -g -G -O2 -Xcudafe "--diag_suppress=20012")
 list(APPEND CUDA_NVCC_FLAGS_PROFILE --generate-line-info)

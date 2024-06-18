@@ -2,6 +2,7 @@
 #include "psrdada_cpp/cuda_utils.hpp"
 #include "skyweaver/IncoherentBeamformer.cuh"
 #include "skyweaver/beamformer_utils.cuh"
+#include "skyweaver/test/test_utils.cuh"
 #include "skyweaver/skyweaver_constants.hpp"
 #include "skyweaver/test/CoherentBeamformerTester.cuh"
 
@@ -15,48 +16,31 @@ namespace skyweaver
 namespace test
 {
 
-/**
-template <typename VectorType>
-void dump_host_vector(VectorType const& vec, std::string filename)
-{
-    std::ofstream infile;
-    infile.open(filename.c_str(), std::ifstream::out | std::ifstream::binary);
-    if(!infile.is_open()) {
-        throw std::runtime_error("Unable to open file");
-    }
-    infile.write(reinterpret_cast<char const*>(thrust::raw_pointer_cast(vec.data())),
-                 vec.size() * sizeof(typename VectorType::value_type));
-    infile.close();
-}
-
-template <typename VectorType>
-static void dump_device_vector(VectorType const& vec, std::string filename)
-{
-    thrust::host_vector<typename VectorType::value_type> host_vec = vec;
-    dump_host_vector(host_vec, filename);
-}
-*/
-
-CoherentBeamformerTester::CoherentBeamformerTester()
+template <typename BfTraits>
+CoherentBeamformerTester<BfTraits>::CoherentBeamformerTester()
     : ::testing::Test(), _stream(0)
 {
 }
 
-CoherentBeamformerTester::~CoherentBeamformerTester()
+template <typename BfTraits>
+CoherentBeamformerTester<BfTraits>::~CoherentBeamformerTester()
 {
 }
 
-void CoherentBeamformerTester::SetUp()
+template <typename BfTraits>
+void CoherentBeamformerTester<BfTraits>::SetUp()
 {
     CUDA_ERROR_CHECK(cudaStreamCreate(&_stream));
 }
 
-void CoherentBeamformerTester::TearDown()
+template <typename BfTraits>
+void CoherentBeamformerTester<BfTraits>::TearDown()
 {
     CUDA_ERROR_CHECK(cudaStreamDestroy(_stream));
 }
 
-void CoherentBeamformerTester::beamformer_c_reference(
+template <typename BfTraits>
+void CoherentBeamformerTester<BfTraits>::beamformer_c_reference(
     HostVoltageVectorType const& ftpa_voltages,
     HostWeightsVectorType const& fbpa_weights,
     HostPowerVectorType& btf_powers,
@@ -72,9 +56,6 @@ void CoherentBeamformerTester::beamformer_c_reference(
     float const* antenna_weights,
     int const* beamset_mapping)
 {
-    double power_sum    = 0.0;
-    double power_sq_sum = 0.0;
-    std::size_t count   = 0;
     for(int channel_idx = 0; channel_idx < nchannels; channel_idx += fscrunch) {
         BOOST_LOG_TRIVIAL(debug)
             << "Beamformer C reference: "
@@ -83,8 +64,8 @@ void CoherentBeamformerTester::beamformer_c_reference(
         for(int sample_idx = 0; sample_idx < nsamples; sample_idx += tscrunch) {
             for(int beam_idx = 0; beam_idx < nbeams; ++beam_idx) {
                 const int beamset_idx = beamset_mapping[beam_idx];
-                float power    = 0.0f;
-                float ib_power = 0.0f;
+                typename BfTraits::RawPowerType power    = BfTraits::zero_power;
+                typename BfTraits::RawPowerType ib_power = BfTraits::zero_power;
                 for(int sub_channel_idx = channel_idx;
                     sub_channel_idx < channel_idx + fscrunch;
                     ++sub_channel_idx) {
@@ -111,7 +92,8 @@ void CoherentBeamformerTester::beamformer_c_reference(
                             cuFloatComplex ant_p1 = make_cuFloatComplex(
                                 static_cast<float>(ant_p1_c2.x),
                                 static_cast<float>(ant_p1_c2.y));
-                            ib_power += calculate_stokes(ant_p0, ant_p1) * antenna_weights[beamset_idx * nantennas + antenna_idx];
+                            BfTraits::integrate_weighted_stokes(ant_p0, ant_p1, ib_power, 
+                                antenna_weights[beamset_idx * nantennas + antenna_idx]);
                             int fbpa_weights_idx =
                                 nantennas * nbeams * sub_channel_idx +
                                 nantennas * beam_idx + antenna_idx;
@@ -124,8 +106,7 @@ void CoherentBeamformerTester::beamformer_c_reference(
                             p0_accumulator    = cuCaddf(p0_accumulator, p0);
                             p1_accumulator    = cuCaddf(p1_accumulator, p1);
                         }
-                        power +=
-                            calculate_stokes(p0_accumulator, p1_accumulator);
+                        BfTraits::integrate_stokes(p0_accumulator, p1_accumulator, power); 
                         // end new loop
                     }
                 }
@@ -136,28 +117,19 @@ void CoherentBeamformerTester::beamformer_c_reference(
                 const int tf_size           = nsamps_out * nchans_out;
                 const int output_idx = beam_idx * tf_size + output_sample_idx * nchans_out + output_chan_idx;
                 const int scloff_idx = beamset_idx * nchans_out + output_chan_idx;
-                power_sum += power;
-                power_sq_sum += power * power;
-                ++count;
 #if SKYWEAVER_IB_SUBTRACTION
-                float powerf32 = ((power - (127.0f * 127.0f * ib_power)) /
-                                  scales[scloff_idx]);
+                typename BfTraits::RawPowerType powerf32 = BfTraits::ib_subtract(power, ib_power, 16129.0f, scales[scloff_idx]);
 #else
-                float powerf32 = ((power - offsets[scloff_idx]) /
-                                  scales[scloff_idx]);
+                typename BfTraits::RawPowerType powerf32 = BfTraits::rescale(power,  offsets[scloff_idx], scales[scloff_idx]);
 #endif // SKYWEAVER_IB_SUBTRACTION
-                btf_powers[output_idx] =
-                    (int8_t)fmaxf(-127.0f, fminf(127.0f, powerf32));
+                btf_powers[output_idx] = BfTraits::clamp(powerf32);
             }
         }
     }
-    double power_mean = power_sum / count;
-    BOOST_LOG_TRIVIAL(debug) << "Average power level: " << power_mean;
-    BOOST_LOG_TRIVIAL(debug)
-        << "Power variance: " << power_sq_sum / count - power_mean * power_mean;
 }
 
-void CoherentBeamformerTester::compare_against_host(
+template <typename BfTraits>
+void CoherentBeamformerTester<BfTraits>::compare_against_host(
     DeviceVoltageVectorType const& ftpa_voltages_gpu,
     DeviceWeightsVectorType const& fbpa_weights_gpu,
     DeviceScalingVectorType const& scales_gpu,
@@ -192,10 +164,18 @@ void CoherentBeamformerTester::compare_against_host(
                            thrust::raw_pointer_cast(antenna_weights_host.data()),
                            thrust::raw_pointer_cast(beamset_mapping_host.data()));
     for(int ii = 0; ii < btf_powers_host.size(); ++ii) {
-        EXPECT_NEAR(btf_powers_host[ii], btf_powers_cuda[ii], 1);
+        expect_near(btf_powers_host[ii], btf_powers_cuda[ii], 1);
     }
 }
 
+typedef ::testing::Types<
+    SingleStokesBeamformerTraits<StokesParameter::I>,
+    SingleStokesBeamformerTraits<StokesParameter::Q>,
+    SingleStokesBeamformerTraits<StokesParameter::U>,
+    SingleStokesBeamformerTraits<StokesParameter::V>,
+    FullStokesBeamformerTraits
+> StokesTypes;
+TYPED_TEST_SUITE(CoherentBeamformerTester, StokesTypes);
 
 /**
 Something fishy with this test.
@@ -204,8 +184,12 @@ from the GPU kernel are always zero. This seems to be due to the kernel
 not being executed in this mode. 
 //TODO: Work out what is going on here with nsys or ncu
 */
-TEST_F(CoherentBeamformerTester, representative_noise_test)
+TYPED_TEST(CoherentBeamformerTester, representative_noise_test)
 {
+    using BfTraits = typename TestFixture::BfTraitsType;
+    using CBT = CoherentBeamformerTester<BfTraits>;
+    auto& config = this->_config;
+
 #if SKYWEAVER_IB_SUBTRACTION
     BOOST_LOG_TRIVIAL(info) << "Running with IB subtraction";
 #else
@@ -216,27 +200,27 @@ TEST_F(CoherentBeamformerTester, representative_noise_test)
     // Calculate the CB scaling values.
     const float input_level = 32.0f;
     const double pi         = std::acos(-1);
-    _config.output_level(input_level);
+    config.output_level(input_level);
     float scale =
         std::pow(127.0f * input_level *
-                     std::sqrt(static_cast<float>(_config.nantennas())),
+                     std::sqrt(static_cast<float>(config.nantennas())),
                  2);
     float dof =
-        2 * _config.cb_tscrunch() * _config.cb_fscrunch() * _config.npol();
+        2 * config.cb_tscrunch() * config.cb_fscrunch() * config.npol();
     float offset_val = (scale * dof);
-    float scale_val  = (scale * std::sqrt(2 * dof) / _config.output_level());
+    float scale_val  = (scale * std::sqrt(2 * dof) / config.output_level());
 
     // Set constant scales and offsets for all channels and beamsets
-    DeviceScalingVectorType cb_scales(_config.nchans() / _config.cb_fscrunch() * nbeamsets,
+    typename CBT::DeviceScalingVectorType cb_scales(config.nchans() / config.cb_fscrunch() * nbeamsets,
                                       scale_val);
-    DeviceScalingVectorType cb_offsets(_config.nchans() / _config.cb_fscrunch() * nbeamsets,
+    typename CBT::DeviceScalingVectorType cb_offsets(config.nchans() / config.cb_fscrunch() * nbeamsets,
                                        offset_val);
 
     // Map all beams to the first beamset by default
-    DeviceMappingVectorType beamset_mapping(_config.nbeams(), 0);
+    typename CBT::DeviceMappingVectorType beamset_mapping(config.nbeams(), 0);
 
     // Enable all antennas in all beamsets
-    DeviceScalingVectorType beamset_weights(_config.nantennas() * nbeamsets, 1.0f);
+    typename CBT::DeviceScalingVectorType beamset_weights(config.nantennas() * nbeamsets, 1.0f);
 
     /**
     This currently causes tests to fail even though the weights are the same for 
@@ -254,26 +238,26 @@ TEST_F(CoherentBeamformerTester, representative_noise_test)
     std::normal_distribution<float> normal_dist(0.0, input_level);
     std::uniform_real_distribution<float> uniform_dist(0.0, 2 * pi);
 
-    CoherentBeamformer coherent_beamformer(_config);
-    IncoherentBeamformer incoherent_beamformer(_config);
+    CoherentBeamformer<BfTraits> coherent_beamformer(config);
+    IncoherentBeamformer<BfTraits> incoherent_beamformer(config);
 
     std::size_t ntimestamps = max(
         1L,
-        SKYWEAVER_CB_PACKET_SIZE / (_config.nchans() / _config.cb_fscrunch()) /
-            (_config.nsamples_per_heap() / _config.cb_tscrunch()));
+        SKYWEAVER_CB_PACKET_SIZE / (config.nchans() / config.cb_fscrunch()) /
+            (config.nsamples_per_heap() / config.cb_tscrunch()));
     ntimestamps =
         max(ntimestamps,
-            SKYWEAVER_CB_NSAMPLES_PER_BLOCK / _config.nsamples_per_heap());
+            SKYWEAVER_CB_NSAMPLES_PER_BLOCK / config.nsamples_per_heap());
     std::size_t input_size =
-        (ntimestamps * _config.nantennas() * _config.nchans() *
-         _config.nsamples_per_heap() * _config.npol());
-    BOOST_LOG_TRIVIAL(info) << "FTPA input dims: " << _config.nchans() << ", " << ntimestamps * _config.nsamples_per_heap() << ", " << _config.npol() << ", " << _config.nantennas();
-    int nsamples = _config.nsamples_per_heap() * ntimestamps;
+        (ntimestamps * config.nantennas() * config.nchans() *
+         config.nsamples_per_heap() * config.npol());
+    BOOST_LOG_TRIVIAL(info) << "FTPA input dims: " << config.nchans() << ", " << ntimestamps * config.nsamples_per_heap() << ", " << config.npol() << ", " << config.nantennas();
+    int nsamples = config.nsamples_per_heap() * ntimestamps;
 
     std::size_t weights_size =
-        _config.nantennas() * _config.nchans() * _config.nbeams();
+        config.nantennas() * config.nchans() * config.nbeams();
 
-    HostVoltageVectorType ftpa_voltages_host(input_size);
+    typename CBT::HostVoltageVectorType ftpa_voltages_host(input_size);
     for(int ii = 0; ii < ftpa_voltages_host.size(); ++ii) {
         ftpa_voltages_host[ii].x =
             static_cast<int8_t>(std::lround(normal_dist(generator)));
@@ -281,7 +265,7 @@ TEST_F(CoherentBeamformerTester, representative_noise_test)
             static_cast<int8_t>(std::lround(normal_dist(generator)));
     }
 
-    HostWeightsVectorType fbpa_weights_host(weights_size);
+    typename CBT::HostWeightsVectorType fbpa_weights_host(weights_size);
     for(int ii = 0; ii < fbpa_weights_host.size(); ++ii) {
         // Build complex weight as C * exp(i * theta).
         std::complex<double> val =
@@ -291,24 +275,24 @@ TEST_F(CoherentBeamformerTester, representative_noise_test)
         fbpa_weights_host[ii].y = static_cast<int8_t>(std::lround(val.imag()));
     }
 
-    DeviceVoltageVectorType ftpa_voltages_gpu = ftpa_voltages_host;
-    DeviceWeightsVectorType fbpa_weights_gpu  = fbpa_weights_host;
-    DevicePowerVectorType btf_powers_gpu;
+    typename CBT::DeviceVoltageVectorType ftpa_voltages_gpu = ftpa_voltages_host;
+    typename CBT::DeviceWeightsVectorType fbpa_weights_gpu  = fbpa_weights_host;
+    typename CBT::DevicePowerVectorType btf_powers_gpu;
 
     // Note that below even though this is for the IB we have to use the
     // CB scrunching parameters to make sure we get the right data out.
     float ib_scale = std::pow(input_level, 2);
-    float ib_dof   = 2 * _config.cb_tscrunch() * _config.cb_fscrunch() *
-                   _config.nantennas() * _config.npol();
+    float ib_dof   = 2 * config.cb_tscrunch() * config.cb_fscrunch() *
+                   config.nantennas() * config.npol();
     float ib_power_offset = ib_scale * ib_dof;
     float ib_power_scaling =
-        ib_scale * std::sqrt(2 * ib_dof) / _config.output_level();
-    DeviceScalingVectorType ib_scales(_config.nchans() / _config.cb_fscrunch() * nbeamsets,
+        ib_scale * std::sqrt(2 * ib_dof) / config.output_level();
+    typename CBT::DeviceScalingVectorType ib_scales(config.nchans() / config.cb_fscrunch() * nbeamsets,
                                       ib_power_scaling);
-    DeviceScalingVectorType ib_offset(_config.nchans() / _config.cb_fscrunch() * nbeamsets,
+    typename CBT::DeviceScalingVectorType ib_offset(config.nchans() / config.cb_fscrunch() * nbeamsets,
                                       ib_power_offset);
-    DevicePowerVectorType tf_powers_gpu;
-    DeviceRawPowerVectorType tf_powers_raw_gpu;
+    typename CBT::DevicePowerVectorType tf_powers_gpu;
+    typename CBT::DeviceRawPowerVectorType tf_powers_raw_gpu;
 
     //dump_device_vector(ftpa_voltages_gpu, "ftpa_voltages_gpu.bin");
     incoherent_beamformer.beamform(ftpa_voltages_gpu,
@@ -318,7 +302,7 @@ TEST_F(CoherentBeamformerTester, representative_noise_test)
                                    ib_offset,
                                    beamset_weights,
                                    nbeamsets,
-                                   _stream);
+                                   this->_stream);
     //dump_device_vector(tf_powers_raw_gpu, "tf_powers_raw_gpu.bin");
     //dump_device_vector(fbpa_weights_gpu, "fbpa_weights_gpu.bin");
     coherent_beamformer.beamform(ftpa_voltages_gpu,
@@ -329,9 +313,9 @@ TEST_F(CoherentBeamformerTester, representative_noise_test)
                                  tf_powers_raw_gpu,
                                  btf_powers_gpu,
                                  nbeamsets,
-                                 _stream);
+                                 this->_stream);
     //dump_device_vector(btf_powers_gpu, "btf_powers_gpu.bin");
-    compare_against_host(ftpa_voltages_gpu,
+    this->compare_against_host(ftpa_voltages_gpu,
                          fbpa_weights_gpu,
                          cb_scales,
                          cb_offsets,

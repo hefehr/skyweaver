@@ -49,6 +49,9 @@ std::ostream& operator<<(std::ostream& os, const std::vector<float>& vec)
 }
 } // namespace std
 
+template <typename BfTraits>
+void run_pipeline(skyweaver::PipelineConfig const& config);
+
 int main(int argc, char** argv)
 {
     try {
@@ -156,6 +159,15 @@ int main(int argc, char** argv)
                  }),
              "The number of samples to read in each gulp ")
 
+            // Stokes mode I, Q, U, V or IQUV
+            ("stokes-mode",
+             po::value<std::string>()->default_value("I")->notifier(
+                 [&config](std::string stokes) { 
+                    for (auto & c: stokes) c = (char) toupper(c); 
+                        config.stokes_mode(stokes);
+                    }),
+             "The Stokes mode to use, can be either I, Q, U, V or IQUV")
+
             // Logging options
             ("log-level",
              po::value<std::string>()->default_value("info")->notifier(
@@ -207,9 +219,7 @@ int main(int argc, char** argv)
         /**
          * All the application code goes here
          */
-
-        BOOST_LOG_TRIVIAL(info)
-            << "Initialising the skyweaver beamforming pipeline";
+        BOOST_LOG_TRIVIAL(info) << "Initialising the skyweaver beamforming pipeline";
         if(config_file != "") {
             BOOST_LOG_TRIVIAL(info) << "Configuration file: " << config_file;
         }
@@ -221,55 +231,73 @@ int main(int argc, char** argv)
         BOOST_LOG_TRIVIAL(info) << "Output level: " << config.output_level();
         BOOST_LOG_TRIVIAL(info) << "Coherent DMs: " << config.coherent_dms();
         BOOST_LOG_TRIVIAL(info) << "Gulp size: " << config.gulp_length_samps();
-
-        // Here we build and invoke the pipeline
-        NullHandler cb_handler;
-        NullHandler ib_handler;
-        NullHandler stats_handler;
-        skyweaver::MultiFileReader file_reader(config);
-        skyweaver::BeamformerPipeline<decltype(cb_handler),
-                           decltype(ib_handler),
-                           decltype(stats_handler)>
-            pipeline(config, cb_handler, ib_handler, stats_handler);
-        thrust::host_vector<char2> taftp_input_voltage;
-        auto const& header = file_reader.get_header();
-
-        // Calculate input size per gulp
-        std::size_t input_elements = header.nantennas * config.nchans() *
-                                     config.npol() * config.gulp_length_samps();
-        taftp_input_voltage.resize(input_elements);
-        std::size_t input_bytes =
-            input_elements * sizeof(decltype(taftp_input_voltage)::value_type);
-
-        if(config.nchans() != header.nchans) {
-            std::runtime_error("Data has invalid number of channels");
+        if (config.stokes_mode() == "I"){
+            run_pipeline<skyweaver::SingleStokesBeamformerTraits<skyweaver::StokesParameter::I>>(config);
+        } else if (config.stokes_mode() == "Q") {
+            run_pipeline<skyweaver::SingleStokesBeamformerTraits<skyweaver::StokesParameter::Q>>(config);
+        } else if  (config.stokes_mode() == "U") {
+            run_pipeline<skyweaver::SingleStokesBeamformerTraits<skyweaver::StokesParameter::U>>(config);
+        } else if (config.stokes_mode() == "V") {
+            run_pipeline<skyweaver::SingleStokesBeamformerTraits<skyweaver::StokesParameter::V>>(config);
+        } else if (config.stokes_mode() == "IQUV") {
+            run_pipeline<skyweaver::FullStokesBeamformerTraits>(config);
+        } else {
+            throw std::runtime_error("Invalid Stokes mode passed, must be one of I, Q, U, V or IQUV");
         }
-        pipeline.init(header);
-        BOOST_LOG_TRIVIAL(info)
-            << "Total input size (bytes): " << file_reader.get_total_size();
-
-        // TODO: Add a parameter to PipelineConfig for start sample? time?
-        // TODO: Add a parameter to PipelineConfig for nsamples? duration?
-        int count = 3;
-        while(!file_reader.eof()) {
-            std::streamsize nbytes_read = file_reader.read(
-                reinterpret_cast<char*>(
-                    thrust::raw_pointer_cast(taftp_input_voltage.data())),
-                input_bytes);
-            pipeline(taftp_input_voltage);
-            --count;
-            if (count == 0)
-            {
-                break;
-            }
-        }
-        /**
-         * End of application code
-         */
     } catch(std::exception& e) {
         std::cerr << "Unhandled Exception reached the top of main: " << e.what()
                   << ", application will now exit" << std::endl;
         return ERROR_UNHANDLED_EXCEPTION;
     }
     return SUCCESS;
+}
+
+
+template <typename BfTraits>
+void run_pipeline(skyweaver::PipelineConfig const& config)
+{
+    // Here we build and invoke the pipeline
+    NullHandler cb_handler;
+    NullHandler ib_handler;
+    NullHandler stats_handler;
+    skyweaver::MultiFileReader file_reader(config);
+
+    skyweaver::BeamformerPipeline<
+                        decltype(cb_handler),
+                        decltype(ib_handler),
+                        decltype(stats_handler),
+                        BfTraits>
+        pipeline(config, cb_handler, ib_handler, stats_handler);
+    thrust::host_vector<char2> taftp_input_voltage;
+    auto const& header = file_reader.get_header();
+
+    // Calculate input size per gulp
+    std::size_t input_elements = header.nantennas * config.nchans() *
+                                    config.npol() * config.gulp_length_samps();
+    taftp_input_voltage.resize(input_elements);
+    std::size_t input_bytes =
+        input_elements * sizeof(decltype(taftp_input_voltage)::value_type);
+
+    if(config.nchans() != header.nchans) {
+        std::runtime_error("Data has invalid number of channels");
+    }
+    pipeline.init(header);
+    BOOST_LOG_TRIVIAL(info)
+        << "Total input size (bytes): " << file_reader.get_total_size();
+
+    // TODO: Add a parameter to PipelineConfig for start sample? time?
+    // TODO: Add a parameter to PipelineConfig for nsamples? duration?
+    int count = 3;
+    while(!file_reader.eof()) {
+        std::streamsize nbytes_read = file_reader.read(
+            reinterpret_cast<char*>(
+                thrust::raw_pointer_cast(taftp_input_voltage.data())),
+            input_bytes);
+        pipeline(taftp_input_voltage);
+        --count;
+        if (count == 0)
+        {
+            break;
+        }
+    }
 }

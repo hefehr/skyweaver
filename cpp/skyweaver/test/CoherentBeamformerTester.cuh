@@ -9,21 +9,25 @@
 namespace skyweaver {
 namespace test {
 
+template <typename BfTraits>
 class CoherentBeamformerTester: public ::testing::Test
 {
 public:
+
+    using BfTraitsType = BfTraits;
+    typedef CoherentBeamformer<BfTraits> CoherentBeamformer;
     typedef CoherentBeamformer::VoltageVectorType DeviceVoltageVectorType;
-    typedef thrust::host_vector<char2> HostVoltageVectorType;
+    typedef thrust::host_vector<typename DeviceVoltageVectorType::value_type> HostVoltageVectorType;
     typedef CoherentBeamformer::PowerVectorType DevicePowerVectorType;
-    typedef thrust::host_vector<char> HostPowerVectorType;
+    typedef thrust::host_vector<typename DevicePowerVectorType::value_type> HostPowerVectorType;
     typedef CoherentBeamformer::RawPowerVectorType DeviceRawPowerVectorType;
-    typedef thrust::host_vector<float> HostRawPowerVectorType;
+    typedef thrust::host_vector<typename DeviceRawPowerVectorType::value_type> HostRawPowerVectorType;
     typedef CoherentBeamformer::WeightsVectorType DeviceWeightsVectorType;
-    typedef thrust::host_vector<char2> HostWeightsVectorType;
+    typedef thrust::host_vector<typename DeviceWeightsVectorType::value_type> HostWeightsVectorType;
     typedef CoherentBeamformer::ScalingVectorType DeviceScalingVectorType;
-    typedef thrust::host_vector<float> HostScalingVectorType;
+    typedef thrust::host_vector<typename DeviceScalingVectorType::value_type> HostScalingVectorType;
     typedef CoherentBeamformer::MappingVectorType DeviceMappingVectorType;
-    typedef thrust::host_vector<int> HostMappingVectorType;
+    typedef thrust::host_vector<typename DeviceMappingVectorType::value_type> HostMappingVectorType;
 
 protected:
     void SetUp() override;

@@ -4,6 +4,9 @@
 #include <cmath>
 #include <complex>
 #include <random>
+#include <iostream>
+#include <type_traits>
+#include <gtest/gtest.h>
 
 namespace skyweaver
 {
@@ -65,6 +68,49 @@ void random_normal_complex(VectorType& vec,
                                                                generator);
     }
 }
+
+template <typename T>
+struct is_vector_like : std::false_type {};
+
+template <>
+struct is_vector_like<float4> : std::true_type {};
+
+template <>
+struct is_vector_like<char4> : std::true_type {};
+
+template <typename T>
+inline constexpr bool is_vector_like_v = is_vector_like<T>::value;
+
+template<typename T, typename X>
+typename std::enable_if<std::is_arithmetic_v<T>, void>::type
+expect_near(T const& a, T const& b, X const& c) {
+    EXPECT_NEAR(a, b, c);
+}
+
+template<typename T, typename X>
+typename std::enable_if<is_vector_like_v<T>, void>::type
+expect_near(T const& a, T const& b, X const& c) {
+    EXPECT_NEAR(a.x, b.x, c);
+    EXPECT_NEAR(a.y, b.y, c);
+    EXPECT_NEAR(a.z, b.z, c);
+    EXPECT_NEAR(a.w, b.w, c);
+}
+
+template<typename T, typename X>
+typename std::enable_if<std::is_arithmetic_v<T>, void>::type
+expect_relatively_near(T const& a, T const& b, X const& c) {
+    EXPECT_NEAR(a, b, std::abs(a * c));
+}
+
+template<typename T, typename X>
+typename std::enable_if<is_vector_like_v<T>, void>::type
+expect_relatively_near(T const& a, T const& b, X const& c) {
+    EXPECT_NEAR(a.x, b.x, std::abs(a.x * c));
+    EXPECT_NEAR(a.y, b.y, std::abs(a.y * c));
+    EXPECT_NEAR(a.z, b.z, std::abs(a.z * c));
+    EXPECT_NEAR(a.w, b.w, std::abs(a.w * c));
+}
+
 
 } // namespace test
 } // namespace skyweaver

@@ -4,7 +4,9 @@
 #include "cuda.h"
 #include "psrdada_cpp/common.hpp"
 #include "skyweaver/PipelineConfig.hpp"
+#include "beamformer_utils.cuh"
 #include "thrust/device_vector.h"
+
 
 namespace skyweaver
 {
@@ -23,9 +25,10 @@ namespace kernels
  * @param nsamples Number of timesamples to process
  * @param nbeamsets Number of beamsets to process
  */
+template <typename BfTraits>
 __global__ void icbf_ftpa_general_k(char2 const* __restrict__ ftpa_voltages,
-                                    float* __restrict__ tf_powers_raw,
-                                    int8_t* __restrict__ tf_powers,
+                                    typename BfTraits::RawPowerType* __restrict__ tf_powers_raw,
+                                    typename BfTraits::QuantisedPowerType* __restrict__ tf_powers,
                                     float const* __restrict__ output_scale,
                                     float const* __restrict__ output_offset,
                                     float const* __restrict__ antenna_weights,
@@ -37,15 +40,16 @@ __global__ void icbf_ftpa_general_k(char2 const* __restrict__ ftpa_voltages,
 /**
  * @brief      Class for incoherent beamforming.
  */
+template <typename BfTraits>
 class IncoherentBeamformer
 {
   public:
     // TAFTP order
     typedef thrust::device_vector<char2> VoltageVectorType;
     // TF order
-    typedef thrust::device_vector<int8_t> PowerVectorType;
+    typedef thrust::device_vector<typename BfTraits::QuantisedPowerType> PowerVectorType;
     // TF order
-    typedef thrust::device_vector<float> RawPowerVectorType;
+    typedef thrust::device_vector<typename BfTraits::RawPowerType> RawPowerVectorType;
     // TF order
     typedef thrust::device_vector<float> ScalingVectorType;
 
@@ -83,6 +87,12 @@ class IncoherentBeamformer
   private:
     PipelineConfig const& _config;
 };
+
+extern template class IncoherentBeamformer<SingleStokesBeamformerTraits<StokesParameter::I>>;
+extern template class IncoherentBeamformer<SingleStokesBeamformerTraits<StokesParameter::Q>>;
+extern template class IncoherentBeamformer<SingleStokesBeamformerTraits<StokesParameter::U>>;
+extern template class IncoherentBeamformer<SingleStokesBeamformerTraits<StokesParameter::V>>;
+extern template class IncoherentBeamformer<FullStokesBeamformerTraits>;
 
 } // namespace skyweaver
 

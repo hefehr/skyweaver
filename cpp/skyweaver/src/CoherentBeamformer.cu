@@ -1,6 +1,5 @@
 #include "cuComplex.h"
 #include "psrdada_cpp/cuda_utils.hpp"
-#include "skyweaver/beamformer_utils.cuh"
 #include "skyweaver/CoherentBeamformer.cuh"
 
 #include <cassert>
@@ -10,13 +9,14 @@ namespace skyweaver
 namespace kernels
 {
 
+ template <typename BfTraits>
 __global__ void bf_ftpa_general_k(int2 const* __restrict__ ftpa_voltages,
                                   int2 const* __restrict__ fbpa_weights,
-                                  int8_t* __restrict__ btf_powers,
+                                  typename BfTraits::QuantisedPowerType* __restrict__ btf_powers,
                                   float const* __restrict__ output_scale,
                                   float const* __restrict__ output_offset,
                                   int const* __restrict__ beamset_mapping,
-                                  float const* __restrict__ ib_powers,
+                                  typename BfTraits::RawPowerType const* __restrict__ ib_powers,
                                   int nsamples)
 {
     /**
@@ -52,7 +52,7 @@ __global__ void bf_ftpa_general_k(int2 const* __restrict__ ftpa_voltages,
      * Complex multiply accumulators
      */
     int xx, yy, xy, yx;
-    float power = 0.0f;
+    typename BfTraits::RawPowerType power = BfTraits::zero_power;
     int2 antennas, weights;
     int antenna_group_idx;
     const int sample_offset =
@@ -137,7 +137,7 @@ __global__ void bf_ftpa_general_k(int2 const* __restrict__ ftpa_voltages,
                 pol_voltage[pol_idx].x = (float)xx - (float)yy; // real
                 pol_voltage[pol_idx].y = (float)xy + (float)yx; // imag
             }
-            power += calculate_stokes(pol_voltage[0], pol_voltage[1]);
+            BfTraits::integrate_stokes(pol_voltage[0], pol_voltage[1], power);
         }
         __syncthreads();
     }
@@ -149,23 +149,24 @@ __global__ void bf_ftpa_general_k(int2 const* __restrict__ ftpa_voltages,
     int const ib_power_idx = beamset_idx * nsamps_out * gridDim.y + output_sample_idx * gridDim.y + blockIdx.y;
     int const scloff_idx = beamset_idx * gridDim.y + blockIdx.y;
     float scale = output_scale[scloff_idx];
-    float ib_power = ib_powers[ib_power_idx];
+    typename BfTraits::RawPowerType ib_power = ib_powers[ib_power_idx];
 #if SKYWEAVER_IB_SUBTRACTION
     /*
     Because we inflate the weights to have a magnitude of 127 to make sure
     that they can still represent many phases, we also need to account for
     this scaling factor in the incoherent beam.
     */
-    float power_fp32 = rintf((power - ib_power * 127.0f * 127.0f) / scale);
+    typename BfTraits::RawPowerType power_fp32 = BfTraits::ib_subtract(power, ib_power, 16129.0f, scale);
 #else
-    float power_fp32 = rintf((power - output_offset[scloff_idx]) / scale);
+    typename BfTraits::RawPowerType power_fp32 = BfTraits::rescale(power, output_offset[scloff_idx], scale);
 #endif // SKYWEAVER_IB_SUBTRACTION
-    btf_powers[output_idx] = (int8_t)fmaxf(-127.0f, fminf(127.0f, power_fp32));
+    btf_powers[output_idx] = BfTraits::clamp(power_fp32);
 }
 
 } // namespace kernels
 
-CoherentBeamformer::CoherentBeamformer(PipelineConfig const& config)
+template <typename BfTraits>
+CoherentBeamformer<BfTraits>::CoherentBeamformer(PipelineConfig const& config)
     : _config(config), _size_per_sample(0)
 {
     BOOST_LOG_TRIVIAL(debug) << "Constructing CoherentBeamformer instance";
@@ -177,19 +178,21 @@ CoherentBeamformer::CoherentBeamformer(PipelineConfig const& config)
         << "Expected weights size: " << _expected_weights_size;
 }
 
-CoherentBeamformer::~CoherentBeamformer()
+template <typename BfTraits>
+CoherentBeamformer<BfTraits>::~CoherentBeamformer()
 {
 }
 
-void CoherentBeamformer::beamform(VoltageVectorType const& input,
-                                  WeightsVectorType const& weights,
-                                  ScalingVectorType const& output_scale,
-                                  ScalingVectorType const& output_offset,
-                                  MappingVectorType const& beamset_mapping,
-                                  RawPowerVectorType const& ib_powers,
-                                  PowerVectorType& output,
-                                  int nbeamsets,
-                                  cudaStream_t stream)
+template <typename BfTraits>
+void CoherentBeamformer<BfTraits>::beamform(VoltageVectorType const& input,
+                                            WeightsVectorType const& weights,
+                                            ScalingVectorType const& output_scale,
+                                            ScalingVectorType const& output_offset,
+                                            MappingVectorType const& beamset_mapping,
+                                            RawPowerVectorType const& ib_powers,
+                                            PowerVectorType& output,
+                                            int nbeamsets,
+                                            cudaStream_t stream)
 {
     if (output_scale.size() != SKYWEAVER_NCHANS / SKYWEAVER_CB_FSCRUNCH * nbeamsets)
     {
@@ -223,13 +226,13 @@ void CoherentBeamformer::beamform(VoltageVectorType const& input,
               _config.nbeams() / SKYWEAVER_CB_WARP_SIZE);
     char2 const* ftpa_voltages_ptr = thrust::raw_pointer_cast(input.data());
     char2 const* fbpa_weights_ptr  = thrust::raw_pointer_cast(weights.data());
-    int8_t* btf_powers_ptr        = thrust::raw_pointer_cast(output.data());
+    typename BfTraits::QuantisedPowerType* btf_powers_ptr        = thrust::raw_pointer_cast(output.data());
     float const* power_scaling_ptr = thrust::raw_pointer_cast(output_scale.data());
     float const* power_offset_ptr  = thrust::raw_pointer_cast(output_offset.data());
-    float const* ib_powers_ptr = thrust::raw_pointer_cast(ib_powers.data());
+    typename BfTraits::RawPowerType const* ib_powers_ptr = thrust::raw_pointer_cast(ib_powers.data());
     int const* beamset_mapping_ptr = thrust::raw_pointer_cast(beamset_mapping.data());
     BOOST_LOG_TRIVIAL(debug) << "Executing beamforming kernel";
-    kernels::bf_ftpa_general_k<<<grid, SKYWEAVER_CB_NTHREADS, 0, stream>>>(
+    kernels::bf_ftpa_general_k< BfTraits ><<< grid, SKYWEAVER_CB_NTHREADS, 0, stream >>>(
         (int2 const*)ftpa_voltages_ptr,
         (int2 const*)fbpa_weights_ptr,
         btf_powers_ptr,
@@ -241,5 +244,11 @@ void CoherentBeamformer::beamform(VoltageVectorType const& input,
     CUDA_ERROR_CHECK(cudaStreamSynchronize(stream));
     BOOST_LOG_TRIVIAL(debug) << "Beamforming kernel complete";
 }
+
+template class CoherentBeamformer<SingleStokesBeamformerTraits<StokesParameter::I>>;
+template class CoherentBeamformer<SingleStokesBeamformerTraits<StokesParameter::Q>>;
+template class CoherentBeamformer<SingleStokesBeamformerTraits<StokesParameter::U>>;
+template class CoherentBeamformer<SingleStokesBeamformerTraits<StokesParameter::V>>;
+template class CoherentBeamformer<FullStokesBeamformerTraits>;
 
 } // namespace skyweaver

@@ -61,19 +61,6 @@ static_assert(SKYWEAVER_NBEAMS % 32 == 0,
 #endif // SKYWEAVER_IB_SUBTRACTION
 
 /**
- * Stokes mode to output from coherent beamformer
- *
- * Can have values 0, 1, 2, 3 (I, Q, U, V)
- */
-#define SKYWEAVER_STOKES_I 0
-#define SKYWEAVER_STOKES_Q 1
-#define SKYWEAVER_STOKES_U 2
-#define SKYWEAVER_STOKES_V 3
-#ifndef SKYWEAVER_STOKES_MODE
-    #define SKYWEAVER_STOKES_MODE SKYWEAVER_STOKES_I
-#endif // SKYWEAVER_STOKES_MODE
-
-/**
  * The factor by which to time scrunch the 
  * coherent beam data.
  */

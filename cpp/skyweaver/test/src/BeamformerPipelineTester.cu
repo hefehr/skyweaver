@@ -1,4 +1,5 @@
 #include "skyweaver/PipelineConfig.hpp"
+#include "skyweaver/beamformer_utils.cuh"
 #include "skyweaver/test/BeamformerPipelineTester.cuh"
 
 #include <filesystem>
@@ -45,12 +46,14 @@ TEST_F(BeamformerPipelineTester, instantiate)
     NullHandler cb_handler;
     NullHandler ib_handler;
     NullHandler stats_handler;
+    typedef SingleStokesBeamformerTraits<StokesParameter::I> BfTraits;
     BeamformerPipeline<decltype(cb_handler),
                        decltype(ib_handler),
-                       decltype(stats_handler)>(config,
-                                                cb_handler,
-                                                ib_handler,
-                                                stats_handler);
+                       decltype(stats_handler),
+                       BfTraits>(config,
+                                 cb_handler,
+                                 ib_handler,
+                                 stats_handler);
 }
 
 } // namespace test

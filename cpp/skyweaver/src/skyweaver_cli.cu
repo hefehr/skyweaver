@@ -3,8 +3,10 @@
 #include "psrdada_cpp/cli_utils.hpp"
 #include "skyweaver/BeamformerPipeline.cuh"
 #include "skyweaver/MultiFileReader.cuh"
+#include "skyweaver/MultiFileWriter.hpp"
 #include "skyweaver/PipelineConfig.hpp"
 #include "thrust/host_vector.h"
+#include "thrust/device_vector.h"
 
 #include <algorithm>
 #include <cerrno>
@@ -264,7 +266,7 @@ template <typename BfTraits>
 void run_pipeline(skyweaver::PipelineConfig const& config)
 {
     // Here we build and invoke the pipeline
-    MultiFileWriter cb_handler(config);
+    skyweaver::MultiFileWriter cb_handler(config);
     NullHandler ib_handler;
     NullHandler stats_handler;
     skyweaver::MultiFileReader file_reader(config);

@@ -1,6 +1,7 @@
 #include "skyweaver/test/MultiFileWriterTester.hpp"
 
 #include <cstdio>
+#include <vector>
 #include <filesystem>
 #include <iostream>
 #include <stdlib.h>
@@ -46,7 +47,7 @@ TEST_F(MultiFileWriterTester, simple_updating_write)
     // TODO this needs to include a 4 if running in full Stokes
     std::size_t btf_size =
         _config.nbeams() * _config.nsamples_per_block() * output_nchans;
-    MultiFileWriter::PowerVectorType powers(btf_size);
+    std::vector<int8_t> powers(btf_size);
     ObservationHeader header;
     header.nchans = _config.nchans();
     header.tsamp  = 0.000064;

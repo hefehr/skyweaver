@@ -160,7 +160,11 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
                                        _btf_cbs,
                                        _nbeamsets,
                                        _processing_stream);
-        _cb_handler(_btf_cbs, dm_idx);
+
+        // TODO REMOVE THIS ABOMINATION
+        thrust::host_vector<typename decltype(_btf_cbs)::value_type> _btf_cbs_h = _btf_cbs;
+
+        _cb_handler(_btf_cbs_h, dm_idx);
         _ib_handler(_tf_ib, dm_idx);
     }
     _stats_handler(_stats_manager->statistics());

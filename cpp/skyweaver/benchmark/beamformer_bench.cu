@@ -64,7 +64,8 @@ class BeamformerBencher: public benchmark::Fixture
 
 BENCHMARK_DEFINE_F(BeamformerBencher, simple_bench)(benchmark::State& state)
 {
-    typedef skyweaver::CoherentBeamformer::VoltageVectorType::value_type ValueType;
+    typedef skyweaver::CoherentBeamformer::VoltageVectorType::value_type
+        ValueType;
     float elapsed_time;
     float total_elapsed_time = 0.0f;
     skyweaver::CoherentBeamformer coherent_beamformer(_config);
@@ -94,13 +95,15 @@ BENCHMARK_DEFINE_F(BeamformerBencher, simple_bench)(benchmark::State& state)
         total_elapsed_time += elapsed_time;
     }
     state.counters["Ntimestamps"] = state.range(0);
-    float performance =
-        (ftpa_voltages_gpu.size() * sizeof(ValueType) * state.iterations() * 10) /
-        total_elapsed_time / 1e9;
+    float performance = (ftpa_voltages_gpu.size() * sizeof(ValueType) *
+                         state.iterations() * 10) /
+                        total_elapsed_time / 1e9;
     state.counters["Performance GB/s"] = performance;
 }
 
-BENCHMARK_REGISTER_F(BeamformerBencher, simple_bench)->Args({1, 10, 100})->Iterations(30);
+BENCHMARK_REGISTER_F(BeamformerBencher, simple_bench)
+    ->Args({1, 10, 100})
+    ->Iterations(30);
 
 int main(int argc, char** argv)
 {

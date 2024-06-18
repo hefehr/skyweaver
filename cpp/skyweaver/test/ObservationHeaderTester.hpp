@@ -20,7 +20,6 @@ class ObservationHeaderTester: public ::testing::Test
   public:
     ObservationHeaderTester();
     ~ObservationHeaderTester();
-
 };
 
 } // namespace test

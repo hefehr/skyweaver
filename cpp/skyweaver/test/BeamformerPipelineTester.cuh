@@ -20,7 +20,6 @@ class BeamformerPipelineTester: public ::testing::Test
   public:
     BeamformerPipelineTester();
     ~BeamformerPipelineTester();
-
 };
 
 } // namespace test

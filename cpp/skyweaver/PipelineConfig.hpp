@@ -41,14 +41,14 @@ class PipelineConfig
 
     /**
      * @brief      Check if the input files are contiguous
-    */
+     */
     bool check_input_contiguity() const;
 
     /**
      * @brief      Set whether the input files are contiguous
      */
     void check_input_contiguity(bool);
-    
+
     /**
      * @brief      Get the size of the DADA header in the input files
      */
@@ -57,7 +57,7 @@ class PipelineConfig
     /**
      * @brief      Set the size of the DADA header in the input files
      */
-    void dada_header_size(std::size_t);   
+    void dada_header_size(std::size_t);
 
     /**
      * @brief      Set the list of input files from a text file
@@ -159,12 +159,12 @@ class PipelineConfig
 
     /**
      * @brief      Return the length of the kernel in samples
-    */
+     */
     std::size_t dedisp_kernel_length_samps() const;
 
     /**
      * @brief      Set the length of the kernel in samples
-    */
+     */
     void dedisp_kernel_length_samps(std::size_t);
 
     /**
@@ -213,7 +213,7 @@ class PipelineConfig
 
     /**
      * @brief Return the total number of samples to read from file in each gulp.
-     * 
+     *
      * @details Must be a multiple of nsamps per heap and greater than\
      *          the dedispersion kernel size.
      */
@@ -221,7 +221,7 @@ class PipelineConfig
 
     /**
      * @brief Set the total number of samples to read from file in each gulp.
-     * 
+     *
      * @details Must be a multiple of nsamps per heap and greater than\
      *          the dedispersion kernel size.
      */
@@ -295,17 +295,17 @@ class PipelineConfig
      */
     std::size_t nchans() const { return SKYWEAVER_NCHANS; }
 
-    /** 
+    /**
      * @brief      Return the F-engine channelisation mode
      * data
      */
     std::size_t total_nchans() const;
 
-     /** 
+    /**
      * @brief      Set the F-engine channelisation mode
      * data
      */
-    void total_nchans(std::size_t); 
+    void total_nchans(std::size_t);
 
     /**
      * @brief      Return the number of polarisations in the observation
@@ -322,7 +322,10 @@ class PipelineConfig
     /**
      * @brief      Set the Stokes mode
      */
-    void stokes_mode(std::string const& stokes_mode_) { _stokes_mode = stokes_mode_; }
+    void stokes_mode(std::string const& stokes_mode_)
+    {
+        _stokes_mode = stokes_mode_;
+    }
 
     /**
      * @brief      Return the number of time samples per F-engine SPEAD heap.
@@ -353,7 +356,7 @@ class PipelineConfig
     std::size_t _max_output_filesize;
     std::string _output_file_prefix;
     std::vector<float> _coherent_dms;
-    std::size_t _dedisp_kernel_length_samps; 
+    std::size_t _dedisp_kernel_length_samps;
     double _cfreq;
     double _bw;
     mutable bool _channel_frequencies_stale;

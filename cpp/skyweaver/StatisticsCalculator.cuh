@@ -3,10 +3,9 @@
 
 #include "skyweaver/PipelineConfig.hpp"
 
+#include <fstream>
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
-
-#include <fstream>
 
 namespace skyweaver
 {
@@ -86,11 +85,12 @@ class StatisticsCalculator
      * @brief Update the scaling arrays based on the last statistics
      *        calculation.
      */
-    void update_scalings(ScalingVectorHType const& beamset_weights, int nbeamsets);
+    void update_scalings(ScalingVectorHType const& beamset_weights,
+                         int nbeamsets);
 
-    // These don't really belong here and should probably 
+    // These don't really belong here and should probably
     // be moved to some other stats outputter class. Leaving
-    // them here until there is some plan for how to write 
+    // them here until there is some plan for how to write
     // all the statistics.
     void open_statistics_file();
     void write_statistics();

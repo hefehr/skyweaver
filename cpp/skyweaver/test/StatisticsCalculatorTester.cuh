@@ -3,10 +3,10 @@
 
 #include "skyweaver/PipelineConfig.hpp"
 #include "skyweaver/StatisticsCalculator.cuh"
+#include "thrust/host_vector.h"
 
 #include <gtest/gtest.h>
 #include <string>
-#include "thrust/host_vector.h"
 
 namespace skyweaver
 {
@@ -21,9 +21,12 @@ class StatisticsCalculatorTester: public ::testing::Test
   public:
     StatisticsCalculatorTester();
     ~StatisticsCalculatorTester();
-    void compare_against_host(thrust::host_vector<char2>& data,
-                        thrust::host_vector<Statistics>& gpu_results) const;
-    protected: cudaStream_t _stream;
+    void
+    compare_against_host(thrust::host_vector<char2>& data,
+                         thrust::host_vector<Statistics>& gpu_results) const;
+
+  protected:
+    cudaStream_t _stream;
     PipelineConfig _config;
 };
 

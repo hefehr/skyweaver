@@ -1,13 +1,13 @@
 #ifndef SKYWEAVER_TEST_BUFFERED_DISPENSER_TESTER_HPP
 #define SKYWEAVER_TEST_BUFFERED_DISPENSER_TESTER_HPP
-#include "skyweaver/PipelineConfig.hpp"
 #include "skyweaver/MultiFileReader.cuh"
 #include "skyweaver/ObservationHeader.hpp"
-#include <gtest/gtest.h>
+#include "skyweaver/PipelineConfig.hpp"
+
 #include <fstream>
-#include <thrust/host_vector.h>
 #include <gtest/gtest.h>
 #include <memory>
+#include <thrust/host_vector.h>
 
 namespace skyweaver
 {
@@ -16,7 +16,7 @@ namespace test
 
 class BufferedDispenserTester: public ::testing::Test
 {
-protected:
+  protected:
     PipelineConfig pipeline_config;
     std::unique_ptr<MultiFileReader> multi_file_reader;
     std::size_t nantennas;
@@ -31,7 +31,6 @@ protected:
   public:
     BufferedDispenserTester();
     ~BufferedDispenserTester();
-
 };
 
 } // namespace test

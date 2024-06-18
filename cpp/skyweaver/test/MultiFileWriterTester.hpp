@@ -4,11 +4,11 @@
 #include "skyweaver/ObservationHeader.hpp"
 #include "skyweaver/PipelineConfig.hpp"
 
-#include <thrust/host_vector.h>
-#include <gtest/gtest.h>
-#include <fstream>
 #include <filesystem>
+#include <fstream>
+#include <gtest/gtest.h>
 #include <memory>
+#include <thrust/host_vector.h>
 
 namespace skyweaver
 {

@@ -100,7 +100,9 @@ void FileStream::new_file()
     BOOST_LOG_TRIVIAL(debug) << "Retrieving updated header";
     // The callback needs to guarantee the lifetime of the returned pointer here
     std::shared_ptr<char const> header_ptr =
-        _header_update_callback(header_bytes, _total_bytes_written, _file_count);
+        _header_update_callback(header_bytes,
+                                _total_bytes_written,
+                                _file_count);
     _current_file.reset(
         new File(full_path.str(), _bytes_per_file + header_bytes));
     // Here we are directly invoking the write method on the File object

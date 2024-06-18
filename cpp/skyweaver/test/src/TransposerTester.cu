@@ -1,15 +1,15 @@
+#include "cuda.h"
 #include "psrdada_cpp/cuda_utils.hpp"
 #include "skyweaver/skyweaver_constants.hpp"
 #include "skyweaver/test/TransposerTester.cuh"
-
-#include "cuda.h"
 
 namespace skyweaver
 {
 namespace test
 {
 
-TransposerTester::TransposerTester(): ::testing::TestWithParam<TransposerParameters>(), _stream(0)
+TransposerTester::TransposerTester()
+    : ::testing::TestWithParam<TransposerParameters>(), _stream(0)
 {
 }
 
@@ -90,8 +90,6 @@ void TransposerTester::compare_against_host(DeviceVoltageType const& gpu_input,
     }
 }
 
-
-
 TEST_P(TransposerTester, cycling_prime_test)
 {
     Transposer transposer(_config);
@@ -113,10 +111,8 @@ TEST_P(TransposerTester, cycling_prime_test)
 
 INSTANTIATE_TEST_SUITE_P(TransposerTesterSuite,
                          TransposerTester,
-                         ::testing::Values(
-                            TransposerParameters{12, 12}, 
-                            TransposerParameters{16, 16}
-                            ));
+                         ::testing::Values(TransposerParameters{12, 12},
+                                           TransposerParameters{16, 16}));
 
 } // namespace test
 } // namespace skyweaver

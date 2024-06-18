@@ -1,28 +1,32 @@
 #ifndef SKYWEAVER_FILEOUTPUTSTREAM_HPP
 #define SKYWEAVER_FILEOUTPUTSTREAM_HPP
 
+#include "boost/log/trivial.hpp"
+
 #include <fstream>
 #include <functional>
 #include <memory>
-#include "boost/log/trivial.hpp"
 
-namespace skyweaver {
+namespace skyweaver
+{
 
 class FileStream
 {
-public:
-    typedef std::function<std::shared_ptr<char const>(std::size_t&, std::size_t, std::size_t)> HeaderUpdateCallback;
+  public:
+    typedef std::function<
+        std::shared_ptr<char const>(std::size_t&, std::size_t, std::size_t)>
+        HeaderUpdateCallback;
 
-private:
-
+  private:
     class File
     {
-    public:
+      public:
         /**
          * @brief      Internal class for managing size capped output streams
          *
          * @param      fname  The filename to write to (full path)
-         * @param[in]  bytes  The maximum number of bytes that can be written to the file.
+         * @param[in]  bytes  The maximum number of bytes that can be written to
+         * the file.
          */
         File(std::string const& fname, std::size_t bytes);
         File(File const&) = delete;
@@ -40,14 +44,14 @@ private:
          */
         std::size_t write(char const* ptr, std::size_t bytes);
 
-    private:
+      private:
         std::string _full_path;
         std::size_t _bytes_requested;
         std::size_t _bytes_written;
         std::ofstream _stream;
     };
-public:
 
+  public:
     /**
      * @brief      An object that manages writing a stream of data to
      *             multiple formatted, size-capped files. The formatting of
@@ -56,16 +60,14 @@ public:
      * @param      directory       The directory to write to
      * @param      base_filename   The base filename of the files to write
      * @param      extension       The file extension to use
-     * @param[in]  header_updater  A callback used to get updates to the header so that
-     *                             it can be kept up to date based on the amount of data
-     *                             written.
+     * @param[in]  header_updater  A callback used to get updates to the header
+     * so that it can be kept up to date based on the amount of data written.
      */
-    explicit FileStream(
-        std::string const& directory,
-        std::string const& base_filename,
-        std::string const& extension,
-        std::size_t bytes_per_file,
-        HeaderUpdateCallback header_updater);
+    explicit FileStream(std::string const& directory,
+                        std::string const& base_filename,
+                        std::string const& extension,
+                        std::size_t bytes_per_file,
+                        HeaderUpdateCallback header_updater);
     FileStream(FileStream const&) = delete;
     ~FileStream();
 
@@ -82,10 +84,10 @@ public:
      */
     void write(char const* ptr, std::size_t bytes);
 
-private:
+  private:
     void new_file();
 
-private:
+  private:
     std::string const _directory;
     std::string const _base_filename;
     std::string const _extension;
@@ -96,6 +98,6 @@ private:
     std::size_t _file_count;
 };
 
-}
+} // namespace skyweaver
 
-#endif //SKYWEAVER_FILEOUTPUTSTREAM_HPP
+#endif // SKYWEAVER_FILEOUTPUTSTREAM_HPP

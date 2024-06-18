@@ -9,9 +9,9 @@
 #include <iostream>
 #include <sstream>
 #include <string>
-#include <vector>
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
+#include <vector>
 
 namespace skyweaver
 {
@@ -58,8 +58,8 @@ class DelayManager
 {
   public:
     /**
-     * These vectors are in (nbeam, nantenna) order, i.e. the 
-     * fastest dimension is antenna. This is also how the vectors 
+     * These vectors are in (nbeam, nantenna) order, i.e. the
+     * fastest dimension is antenna. This is also how the vectors
      * are store on file.
      */
     typedef thrust::device_vector<DelayModel> DelayVectorDType;
@@ -91,33 +91,33 @@ class DelayManager
 
     /**
      * @brief Return the UNIX epoch of the current delay model
-     * 
+     *
      * @return double UNIX epoch
      */
     double epoch() const;
 
     /**
      * @brief Return the antenna weights for each beamset
-     * 
-     * @details In order to use this array it is necessary to use 
+     *
+     * @details In order to use this array it is necessary to use
      *          the beamset_mapping function to determine which
      *          beam belongs to which beamset.
-     * 
+     *
      * @return A flat array of antenna weights in (beamset, antenna) format
      */
     BeamsetWeightsVectorType const& beamset_weights() const;
 
     /**
      * @brief Return the mapping of beams to beamsets
-     * 
-     * @return An array of length nbeams where each element is the 
+     *
+     * @return An array of length nbeams where each element is the
      *         beamset to which the beam belongs.
      */
     BeamsetMappingVectorType const& beamset_mapping() const;
 
     /**
      * @brief Return the number of beamsets for the current delay model
-     * 
+     *
      * @return the number of beamsets
      */
     int nbeamsets() const;
@@ -137,7 +137,7 @@ class DelayManager
     std::ifstream _input_stream;
     DelayVectorHType _delays_h;
     DelayVectorDType _delays_d;
-    // The _weights_d array is stored flat to 
+    // The _weights_d array is stored flat to
     // avoid having to use pointer arrays.
     // The format is (nbeamsets, nantennas)
     BeamsetWeightsVectorType _weights_d;

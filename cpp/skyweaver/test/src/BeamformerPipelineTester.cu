@@ -50,10 +50,7 @@ TEST_F(BeamformerPipelineTester, instantiate)
     BeamformerPipeline<decltype(cb_handler),
                        decltype(ib_handler),
                        decltype(stats_handler),
-                       BfTraits>(config,
-                                 cb_handler,
-                                 ib_handler,
-                                 stats_handler);
+                       BfTraits>(config, cb_handler, ib_handler, stats_handler);
 }
 
 } // namespace test

@@ -22,12 +22,10 @@ void DelayManagerTester::SetUp()
 {
     _config.delay_file("data/test_delays.bin");
     CUDA_ERROR_CHECK(cudaStreamCreate(&_stream));
-    if (_config.nantennas() < 57)
-    {
+    if(_config.nantennas() < 57) {
         GTEST_SKIP();
     }
-    if (_config.nbeams() < 67)
-    {
+    if(_config.nbeams() < 67) {
         GTEST_SKIP();
     }
 }
@@ -49,53 +47,50 @@ void DelayManagerTester::TearDown()
  * delay offsets are in the range 1e-7 to 1e-10
  * delay rates are in the range 1e-12 to 1e-14
  * weights are either 1 or 0
- * 
+ *
  * There are 2 beamsets in the data
  */
 
 TEST_F(DelayManagerTester, test_valid_read_first_block)
 {
     DelayManager delay_manager(_config, _stream);
-    DelayManager::DelayVectorDType const& delays = delay_manager.delays(1708082169.0);
+    DelayManager::DelayVectorDType const& delays =
+        delay_manager.delays(1708082169.0);
     ASSERT_EQ(delays.size(), _config.nbeams() * _config.nantennas());
 }
 
 TEST_F(DelayManagerTester, test_valid_read_nth_block)
 {
     DelayManager delay_manager(_config, _stream);
-    DelayManager::DelayVectorDType const& delays = delay_manager.delays(1708082409.957);
+    DelayManager::DelayVectorDType const& delays =
+        delay_manager.delays(1708082409.957);
     ASSERT_EQ(delays.size(), _config.nbeams() * _config.nantennas());
 }
-
 
 TEST_F(DelayManagerTester, test_too_early_epoch)
 {
     DelayManager delay_manager(_config, _stream);
-    //Test an epoch that is before the start of the validity window
-    EXPECT_THROW(
-        DelayManager::DelayVectorDType const& delays = delay_manager.delays(1708082165.0),
-        InvalidDelayEpoch
-    );
+    // Test an epoch that is before the start of the validity window
+    EXPECT_THROW(DelayManager::DelayVectorDType const& delays =
+                     delay_manager.delays(1708082165.0),
+                 InvalidDelayEpoch);
 }
 
 TEST_F(DelayManagerTester, test_too_late_epoch)
 {
     DelayManager delay_manager(_config, _stream);
-    //Test an epoch that is after the end of the validity window
-    EXPECT_THROW(
-        DelayManager::DelayVectorDType const& delays = delay_manager.delays(1708082470.957),
-        std::runtime_error
-    );
+    // Test an epoch that is after the end of the validity window
+    EXPECT_THROW(DelayManager::DelayVectorDType const& delays =
+                     delay_manager.delays(1708082470.957),
+                 std::runtime_error);
 }
 
 TEST_F(DelayManagerTester, test_beamset_count)
 {
     DelayManager delay_manager(_config, _stream);
-    //Test an epoch that is after the end of the validity window
+    // Test an epoch that is after the end of the validity window
     EXPECT_EQ(delay_manager.nbeamsets(), 2);
-    
 }
-
 
 } // namespace test
 } // namespace skyweaver

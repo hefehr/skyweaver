@@ -143,7 +143,9 @@ void DelayManager::read_next_model()
     const std::size_t nelements = _header.nantennas * _header.nbeams;
     _delays_h.resize(nelements);
     // Read the weight, offset, rate tuples from the file
-    BOOST_LOG_TRIVIAL(debug) << "buffer size: " << _delays_h.size() * sizeof(decltype(_delays_h)::value_type);
+    BOOST_LOG_TRIVIAL(debug)
+        << "buffer size: "
+        << _delays_h.size() * sizeof(decltype(_delays_h)::value_type);
     safe_read(
         reinterpret_cast<char*>(thrust::raw_pointer_cast(_delays_h.data())),
         nelements * sizeof(DelayVectorHType::value_type));
@@ -177,7 +179,7 @@ std::size_t DelayManager::parse_beamsets()
         for(int ant_idx = 0; ant_idx < _header.nantennas; ++ant_idx) {
             // Populate the values for the next beamset
             beamsets_weights[beamset_idx][ant_idx] =
-                    _delays_h[beam_idx * _header.nantennas + ant_idx].x;
+                _delays_h[beam_idx * _header.nantennas + ant_idx].x;
 
             // Check if the current weight is different from the previous weight
             // If we already know there is an update this check can be skipped
@@ -205,26 +207,30 @@ std::size_t DelayManager::parse_beamsets()
     // emtpy if the last beam belonged to its own beamset
     // or it is a copy of the last valid beamset.
     beamsets_weights.pop_back();
-    BOOST_LOG_TRIVIAL(debug) << "Found " << beamsets_weights.size() << " beamsets";
+    BOOST_LOG_TRIVIAL(debug)
+        << "Found " << beamsets_weights.size() << " beamsets";
     // At this point we can copy the weights
     // and mappings to the GPU
     _beamset_map_d = beamset_map;
     _weights_d.resize(beamsets_weights.size() * _header.nantennas);
-    for(int ii = 0; ii < beamsets_weights.size(); ++ii) {  
+    for(int ii = 0; ii < beamsets_weights.size(); ++ii) {
         thrust::copy(beamsets_weights[ii].begin(),
                      beamsets_weights[ii].end(),
-                     _weights_d.begin()) + ii * _header.nantennas;
+                     _weights_d.begin()) +
+            ii* _header.nantennas;
     }
     // Return the number of beamsets
     return beamsets_weights.size();
 }
 
-DelayManager::BeamsetWeightsVectorType const& DelayManager::beamset_weights() const
+DelayManager::BeamsetWeightsVectorType const&
+DelayManager::beamset_weights() const
 {
     return _weights_d;
 }
 
-DelayManager::BeamsetMappingVectorType const& DelayManager::beamset_mapping() const
+DelayManager::BeamsetMappingVectorType const&
+DelayManager::beamset_mapping() const
 {
     return _beamset_map_d;
 }

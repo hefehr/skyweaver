@@ -1,9 +1,9 @@
 #ifndef SKYWEAVER_MULTIFILEWRITER_HPP
 #define SKYWEAVER_MULTIFILEWRITER_HPP
 
+#include "skyweaver/FileOutputStream.hpp"
 #include "skyweaver/ObservationHeader.hpp"
 #include "skyweaver/PipelineConfig.hpp"
-#include "skyweaver/FileOutputStream.hpp"
 #include "thrust/host_vector.h"
 
 namespace skyweaver
@@ -12,7 +12,6 @@ namespace skyweaver
 class MultiFileWriter
 {
   public:
-    
     typedef thrust::host_vector<int8_t> PowerVectorType;
 
     MultiFileWriter(PipelineConfig const& config);
@@ -20,7 +19,7 @@ class MultiFileWriter
     ~MultiFileWriter();
 
     void init(ObservationHeader const& header);
-    
+
     bool operator()(PowerVectorType const& btf_powers, std::size_t dm_idx);
 
   private:

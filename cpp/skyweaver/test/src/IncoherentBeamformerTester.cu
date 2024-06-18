@@ -2,8 +2,8 @@
 #include "psrdada_cpp/cuda_utils.hpp"
 #include "skyweaver/beamformer_utils.cuh"
 #include "skyweaver/skyweaver_constants.hpp"
-#include "skyweaver/test/test_utils.cuh"
 #include "skyweaver/test/IncoherentBeamformerTester.cuh"
+#include "skyweaver/test/test_utils.cuh"
 
 #include <cmath>
 #include <complex>
@@ -53,42 +53,49 @@ void IncoherentBeamformerTester<BfTraits>::beamformer_c_reference(
     int nbeamsets)
 {
     static_assert(SKYWEAVER_NPOL == 2, "Tests only work for dual poln data.");
-    const int nchans_out = nchannels / fscrunch;
+    const int nchans_out   = nchannels / fscrunch;
     const int nsamples_out = ntimestamps / tscrunch;
-    const int a          = nantennas;
-    const int pa         = SKYWEAVER_NPOL * a;
-    const int tpa        = ntimestamps * pa;
-    for (int beamset_idx = 0; beamset_idx < nbeamsets; ++beamset_idx)
-    {
-        for(int F_idx = 0; F_idx < nchannels;
-            F_idx += fscrunch) {
-            for(int T_idx = 0; T_idx < ntimestamps;
-                T_idx += tscrunch) {
+    const int a            = nantennas;
+    const int pa           = SKYWEAVER_NPOL * a;
+    const int tpa          = ntimestamps * pa;
+    for(int beamset_idx = 0; beamset_idx < nbeamsets; ++beamset_idx) {
+        for(int F_idx = 0; F_idx < nchannels; F_idx += fscrunch) {
+            for(int T_idx = 0; T_idx < ntimestamps; T_idx += tscrunch) {
                 typename BfTraits::RawPowerType power = BfTraits::zero_power;
-                for(int f_idx = F_idx; f_idx < F_idx + fscrunch;
-                    ++f_idx) {
-                    for(int t_idx = T_idx; t_idx < T_idx + tscrunch;
-                        ++t_idx) {
+                for(int f_idx = F_idx; f_idx < F_idx + fscrunch; ++f_idx) {
+                    for(int t_idx = T_idx; t_idx < T_idx + tscrunch; ++t_idx) {
                         for(int a_idx = 0; a_idx < nantennas; ++a_idx) {
-                            float weight = beamset_weights[beamset_idx * nantennas + a_idx];
+                            float weight =
+                                beamset_weights[beamset_idx * nantennas +
+                                                a_idx];
                             int input_p0_idx = f_idx * tpa + t_idx * pa + a_idx;
-                            int input_p1_idx = f_idx * tpa + t_idx * pa + a + a_idx;
-                            char2 p0_v       = ftpa_voltages[input_p0_idx];
-                            char2 p1_v       = ftpa_voltages[input_p1_idx];
+                            int input_p1_idx =
+                                f_idx * tpa + t_idx * pa + a + a_idx;
+                            char2 p0_v = ftpa_voltages[input_p0_idx];
+                            char2 p1_v = ftpa_voltages[input_p1_idx];
                             cuFloatComplex p0 =
-                                make_cuFloatComplex((float)p0_v.x, (float)p0_v.y);
+                                make_cuFloatComplex((float)p0_v.x,
+                                                    (float)p0_v.y);
                             cuFloatComplex p1 =
-                                make_cuFloatComplex((float)p1_v.x, (float)p1_v.y);
-                            BfTraits::integrate_weighted_stokes(p0, p1, power, weight);
+                                make_cuFloatComplex((float)p1_v.x,
+                                                    (float)p1_v.y);
+                            BfTraits::integrate_weighted_stokes(p0,
+                                                                p1,
+                                                                power,
+                                                                weight);
                         }
                     }
                 }
-                int subband_idx           = F_idx / fscrunch;
-                int subbint_idx           = T_idx / tscrunch;
-                int output_idx            = beamset_idx * nsamples_out * nchans_out + subbint_idx * nchans_out + subband_idx;
-                int scloff_idx            = beamset_idx * nchans_out + subband_idx;
+                int subband_idx = F_idx / fscrunch;
+                int subbint_idx = T_idx / tscrunch;
+                int output_idx  = beamset_idx * nsamples_out * nchans_out +
+                                 subbint_idx * nchans_out + subband_idx;
+                int scloff_idx = beamset_idx * nchans_out + subband_idx;
                 tf_powers_raw[output_idx] = power;
-                typename BfTraits::RawPowerType scaled_power = BfTraits::rescale(power, offset[scloff_idx], scale[scloff_idx]);
+                typename BfTraits::RawPowerType scaled_power =
+                    BfTraits::rescale(power,
+                                      offset[scloff_idx],
+                                      scale[scloff_idx]);
                 tf_powers[output_idx] = BfTraits::clamp(scaled_power);
             }
         }
@@ -128,25 +135,25 @@ void IncoherentBeamformerTester<BfTraits>::compare_against_host(
                            nbeamsets);
     for(int ii = 0; ii < tf_powers_host.size(); ++ii) {
         expect_near(tf_powers_host[ii], tf_powers_cuda[ii], 1);
-        expect_relatively_near(tf_powers_raw_host[ii], tf_powers_raw_cuda[ii], 1e-5);
+        expect_relatively_near(tf_powers_raw_host[ii],
+                               tf_powers_raw_cuda[ii],
+                               1e-5);
     }
 }
 
-typedef ::testing::Types<
-    SingleStokesBeamformerTraits<StokesParameter::I>,
-    SingleStokesBeamformerTraits<StokesParameter::Q>,
-    SingleStokesBeamformerTraits<StokesParameter::U>,
-    SingleStokesBeamformerTraits<StokesParameter::V>,
-    FullStokesBeamformerTraits
-> StokesTypes;
+typedef ::testing::Types<SingleStokesBeamformerTraits<StokesParameter::I>,
+                         SingleStokesBeamformerTraits<StokesParameter::Q>,
+                         SingleStokesBeamformerTraits<StokesParameter::U>,
+                         SingleStokesBeamformerTraits<StokesParameter::V>,
+                         FullStokesBeamformerTraits>
+    StokesTypes;
 TYPED_TEST_SUITE(IncoherentBeamformerTester, StokesTypes);
-
 
 TYPED_TEST(IncoherentBeamformerTester, ib_representative_noise_test)
 {
-    using BfTraits = typename TestFixture::BfTraitsType;
-    using IBT = IncoherentBeamformerTester<BfTraits>;
-    auto& config = this->_config;
+    using BfTraits    = typename TestFixture::BfTraitsType;
+    using IBT         = IncoherentBeamformerTester<BfTraits>;
+    auto& config      = this->_config;
     float input_level = 32.0f;
     config.output_level(32.0f);
     std::default_random_engine generator;
@@ -170,14 +177,19 @@ TYPED_TEST(IncoherentBeamformerTester, ib_representative_noise_test)
     float ib_power_scaling =
         ib_scale * std::sqrt(2 * ib_dof) / config.output_level();
     int nbeamsets = 2;
-    
-    typename IBT::DeviceScalingVectorType scales(config.nchans() / config.ib_fscrunch() * nbeamsets,
-                                   ib_power_scaling);
-    typename IBT::DeviceScalingVectorType offset(config.nchans() / config.ib_fscrunch() * nbeamsets,
-                                   ib_power_offset);
-    typename IBT::DeviceScalingVectorType beamset_weights(config.nantennas() * nbeamsets, 1.0f);
 
-    typename IBT::DeviceVoltageVectorType ftpa_voltages_gpu = ftpa_voltages_host;
+    typename IBT::DeviceScalingVectorType scales(
+        config.nchans() / config.ib_fscrunch() * nbeamsets,
+        ib_power_scaling);
+    typename IBT::DeviceScalingVectorType offset(
+        config.nchans() / config.ib_fscrunch() * nbeamsets,
+        ib_power_offset);
+    typename IBT::DeviceScalingVectorType beamset_weights(config.nantennas() *
+                                                              nbeamsets,
+                                                          1.0f);
+
+    typename IBT::DeviceVoltageVectorType ftpa_voltages_gpu =
+        ftpa_voltages_host;
     typename IBT::DevicePowerVectorType tf_powers_gpu;
     typename IBT::DeviceRawPowerVectorType tf_powers_raw_gpu;
     incoherent_beamformer.beamform(ftpa_voltages_gpu,
@@ -189,13 +201,13 @@ TYPED_TEST(IncoherentBeamformerTester, ib_representative_noise_test)
                                    nbeamsets,
                                    this->_stream);
     this->compare_against_host(ftpa_voltages_gpu,
-                         tf_powers_raw_gpu,
-                         tf_powers_gpu,
-                         scales,
-                         offset,
-                         beamset_weights,
-                         ntimestamps,
-                         nbeamsets);
+                               tf_powers_raw_gpu,
+                               tf_powers_gpu,
+                               scales,
+                               offset,
+                               beamset_weights,
+                               ntimestamps,
+                               nbeamsets);
 }
 
 } // namespace test

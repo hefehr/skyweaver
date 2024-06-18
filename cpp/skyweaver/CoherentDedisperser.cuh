@@ -70,7 +70,7 @@ class CoherentDedisperser
         : pipeline_config(pipeline_config), config(config)
     {
     }
-    ~CoherentDedisperser(){};
+    ~CoherentDedisperser() {};
     void dedisperse(thrust::device_vector<char2> const& d_tpa_voltages_in,
                     thrust::device_vector<char2>& d_ftpa_voltages_out,
                     std::size_t out_offset,

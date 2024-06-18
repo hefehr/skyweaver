@@ -2,32 +2,31 @@
 #define SKYWEAVER_BEAMFORMER_UTILS_CUH
 
 #include "cuComplex.h"
+
 #include <type_traits>
 
-namespace skyweaver {
+namespace skyweaver
+{
 
 /**
  * @brief      Data structure for holding reshaped int8 complex data
- *             for use in the DP4A transform. 
- * 
- * @details    Typically this stores the data from one polarisation for 
+ *             for use in the DP4A transform.
+ *
+ * @details    Typically this stores the data from one polarisation for
  *             4 antennas in r0,r1,r2,r3,i0,i1,i2,i3 order.
  */
-struct char4x2
-{
+struct char4x2 {
     char4 x;
     char4 y;
 };
 
-
 /**
  * @brief      Data structure for holding antenna voltages for transpose.
- * 
- * @details    Typically this stores the data from one polarisation for 
+ *
+ * @details    Typically this stores the data from one polarisation for
  *             4 antennas in r0,i0,r1,i1,r2,i2,r3,i3 order.
  */
-struct char2x4
-{
+struct char2x4 {
     char2 x;
     char2 y;
     char2 z;
@@ -46,8 +45,9 @@ struct char2x4
  *
  *             c = (a.x * b.x) + (a.y * b.y) + (a.z * b.z) + (a.w * b.w)
  *
- * @note       The assembly instruction that underpins this operation (dp4a.s32.s32).
- *             
+ * @note       The assembly instruction that underpins this operation
+ * (dp4a.s32.s32).
+ *
  */
 __forceinline__ __device__ void dp4a(int& c, const int& a, const int& b)
 {
@@ -104,16 +104,17 @@ __host__ __device__ static __inline__ float cuCmagf(cuFloatComplex x)
     return x.x * x.x + x.y * x.y;
 }
 
-enum StokesParameter
-{
-    I, Q, U, V
-};
+enum StokesParameter { I, Q, U, V };
 
-template<bool flag = false> void static_no_match() { static_assert(flag, "no match"); }
+template <bool flag = false>
+void static_no_match()
+{
+    static_assert(flag, "no match");
+}
 
 /**
  * @brief Calculate the define Stokes parameter
- * 
+ *
  * Stokes modes can be considered here:
  * I = P0^2 + P1^2
  * Q = P0^2 - P1^2
@@ -121,85 +122,91 @@ template<bool flag = false> void static_no_match() { static_assert(flag, "no mat
  * V = 2 * Im(P0 * conj(P1))
  */
 template <StokesParameter Stokes>
-static inline __host__ __device__ float calculate_stokes(cuFloatComplex const& p0, cuFloatComplex const& p1)
+static inline __host__ __device__ float
+calculate_stokes(cuFloatComplex const& p0, cuFloatComplex const& p1)
 {
-    if constexpr (Stokes == StokesParameter::I){
-            return cuCmagf(p0) + cuCmagf(p1);
-    } 
-    else if constexpr (Stokes == StokesParameter::Q){
+    if constexpr(Stokes == StokesParameter::I) {
+        return cuCmagf(p0) + cuCmagf(p1);
+    } else if constexpr(Stokes == StokesParameter::Q) {
         return cuCmagf(p0) - cuCmagf(p1);
-    } 
-    else if constexpr (Stokes == StokesParameter::U){
+    } else if constexpr(Stokes == StokesParameter::U) {
         return 2 * cuCrealf(cuCmulf(p0, cuConjf(p1)));
-    } 
-    else if constexpr (Stokes == StokesParameter::V){
+    } else if constexpr(Stokes == StokesParameter::V) {
         return 2 * cuCimagf(cuCmulf(p0, cuConjf(p1)));
     } else {
-        static_no_match(); 
-    } 
+        static_no_match();
+    }
 }
 
-template<StokesParameter Stokes>
-struct SingleStokesBeamformerTraits
-{
+template <StokesParameter Stokes>
+struct SingleStokesBeamformerTraits {
     typedef int8_t QuantisedPowerType;
     typedef float RawPowerType;
     constexpr static const float zero_power = 0.0f;
 
-    static inline __host__ __device__ void integrate_stokes(
-        cuFloatComplex const& p0, cuFloatComplex const& p1, RawPowerType& power)
+    static inline __host__ __device__ void
+    integrate_stokes(cuFloatComplex const& p0,
+                     cuFloatComplex const& p1,
+                     RawPowerType& power)
     {
         power += calculate_stokes<Stokes>(p0, p1);
     }
 
-    static inline __host__ __device__ void integrate_weighted_stokes(
-        cuFloatComplex const& p0, cuFloatComplex const& p1, RawPowerType& power, float const& weight)
+    static inline __host__ __device__ void
+    integrate_weighted_stokes(cuFloatComplex const& p0,
+                              cuFloatComplex const& p1,
+                              RawPowerType& power,
+                              float const& weight)
     {
         power += calculate_stokes<Stokes>(p0, p1) * weight;
     }
 
-    static inline __host__ __device__ RawPowerType ib_subtract(
-        RawPowerType const& power, RawPowerType const& ib_power, float const& ib_mutliplier, float const& scale_factor)
+    static inline __host__ __device__ RawPowerType
+    ib_subtract(RawPowerType const& power,
+                RawPowerType const& ib_power,
+                float const& ib_mutliplier,
+                float const& scale_factor)
     {
         return rintf((power - ib_power * ib_mutliplier) / scale_factor);
     }
 
-    static inline __host__ __device__ RawPowerType rescale(
-        RawPowerType const& power, float const& offset, float const& scale_factor)
+    static inline __host__ __device__ RawPowerType
+    rescale(RawPowerType const& power,
+            float const& offset,
+            float const& scale_factor)
     {
-        if constexpr (Stokes == StokesParameter::I)
-        {
+        if constexpr(Stokes == StokesParameter::I) {
             return rintf((power - offset) / scale_factor);
         } else {
             return rintf(power / scale_factor);
         }
     }
 
-    static inline __host__ __device__ RawPowerType multiply(
-        RawPowerType const& power, float const& rhs)
+    static inline __host__ __device__ RawPowerType
+    multiply(RawPowerType const& power, float const& rhs)
     {
         return power * rhs;
     }
 
-    static inline __host__ __device__ RawPowerType add(
-        RawPowerType const& power, RawPowerType const& rhs)
+    static inline __host__ __device__ RawPowerType
+    add(RawPowerType const& power, RawPowerType const& rhs)
     {
         return power + rhs;
     }
 
-    static inline __host__ __device__ QuantisedPowerType clamp(
-        RawPowerType const& power)
+    static inline __host__ __device__ QuantisedPowerType
+    clamp(RawPowerType const& power)
     {
         return static_cast<QuantisedPowerType>(
-            fmaxf(
-                static_cast<float>(std::numeric_limits<QuantisedPowerType>::lowest()), 
-                fminf(static_cast<float>(std::numeric_limits<QuantisedPowerType>::max()), 
-                power)));
+            fmaxf(static_cast<float>(
+                      std::numeric_limits<QuantisedPowerType>::lowest()),
+                  fminf(static_cast<float>(
+                            std::numeric_limits<QuantisedPowerType>::max()),
+                        power)));
     }
 };
 
-struct FullStokesBeamformerTraits
-{
+struct FullStokesBeamformerTraits {
     typedef char4 QuantisedPowerType;
     typedef float4 RawPowerType;
     typedef StokesParameter Sp;
@@ -207,8 +214,10 @@ struct FullStokesBeamformerTraits
     template <Sp Stokes>
     using SSBfTraits = SingleStokesBeamformerTraits<Stokes>;
 
-    static inline __host__ __device__ void integrate_stokes(
-        cuFloatComplex const& p0, cuFloatComplex const& p1, RawPowerType& power)
+    static inline __host__ __device__ void
+    integrate_stokes(cuFloatComplex const& p0,
+                     cuFloatComplex const& p1,
+                     RawPowerType& power)
     {
         SSBfTraits<Sp::I>::integrate_stokes(p0, p1, power.x);
         SSBfTraits<Sp::Q>::integrate_stokes(p0, p1, power.y);
@@ -216,8 +225,11 @@ struct FullStokesBeamformerTraits
         SSBfTraits<Sp::V>::integrate_stokes(p0, p1, power.w);
     }
 
-    static inline __host__ __device__ void integrate_weighted_stokes(
-        cuFloatComplex const& p0, cuFloatComplex const& p1, RawPowerType& power, float const& weight)
+    static inline __host__ __device__ void
+    integrate_weighted_stokes(cuFloatComplex const& p0,
+                              cuFloatComplex const& p1,
+                              RawPowerType& power,
+                              float const& weight)
     {
         SSBfTraits<Sp::I>::integrate_weighted_stokes(p0, p1, power.x, weight);
         SSBfTraits<Sp::Q>::integrate_weighted_stokes(p0, p1, power.y, weight);
@@ -225,19 +237,36 @@ struct FullStokesBeamformerTraits
         SSBfTraits<Sp::V>::integrate_weighted_stokes(p0, p1, power.w, weight);
     }
 
-    static inline __host__ __device__ RawPowerType ib_subtract(
-        RawPowerType const& power, RawPowerType const& ib_power, float const& ib_mutliplier, float const& scale_factor)
+    static inline __host__ __device__ RawPowerType
+    ib_subtract(RawPowerType const& power,
+                RawPowerType const& ib_power,
+                float const& ib_mutliplier,
+                float const& scale_factor)
     {
         RawPowerType subtracted;
-        subtracted.x = SSBfTraits<Sp::I>::ib_subtract(power.x, ib_power.x, ib_mutliplier, scale_factor);
-        subtracted.y = SSBfTraits<Sp::Q>::ib_subtract(power.y, ib_power.y, ib_mutliplier, scale_factor);
-        subtracted.z = SSBfTraits<Sp::U>::ib_subtract(power.z, ib_power.z, ib_mutliplier, scale_factor);
-        subtracted.w = SSBfTraits<Sp::V>::ib_subtract(power.w, ib_power.w, ib_mutliplier, scale_factor);
+        subtracted.x = SSBfTraits<Sp::I>::ib_subtract(power.x,
+                                                      ib_power.x,
+                                                      ib_mutliplier,
+                                                      scale_factor);
+        subtracted.y = SSBfTraits<Sp::Q>::ib_subtract(power.y,
+                                                      ib_power.y,
+                                                      ib_mutliplier,
+                                                      scale_factor);
+        subtracted.z = SSBfTraits<Sp::U>::ib_subtract(power.z,
+                                                      ib_power.z,
+                                                      ib_mutliplier,
+                                                      scale_factor);
+        subtracted.w = SSBfTraits<Sp::V>::ib_subtract(power.w,
+                                                      ib_power.w,
+                                                      ib_mutliplier,
+                                                      scale_factor);
         return subtracted;
     }
 
-    static inline __host__ __device__ RawPowerType rescale(
-        RawPowerType const& power, float const& offset, float const& scale_factor)
+    static inline __host__ __device__ RawPowerType
+    rescale(RawPowerType const& power,
+            float const& offset,
+            float const& scale_factor)
     {
         RawPowerType rescaled;
         rescaled.x = SSBfTraits<Sp::I>::rescale(power.x, offset, scale_factor);
@@ -247,8 +276,8 @@ struct FullStokesBeamformerTraits
         return rescaled;
     }
 
-    static inline __host__ __device__ RawPowerType multiply(
-        RawPowerType const& power, float const& rhs)
+    static inline __host__ __device__ RawPowerType
+    multiply(RawPowerType const& power, float const& rhs)
     {
         RawPowerType result;
         result.x = SSBfTraits<Sp::I>::multiply(power.x, rhs);
@@ -258,8 +287,8 @@ struct FullStokesBeamformerTraits
         return result;
     }
 
-    static inline __host__ __device__ RawPowerType add(
-        RawPowerType const& power, RawPowerType const& rhs)
+    static inline __host__ __device__ RawPowerType
+    add(RawPowerType const& power, RawPowerType const& rhs)
     {
         RawPowerType result;
         result.x = SSBfTraits<Sp::I>::add(power.x, rhs.x);
@@ -269,8 +298,8 @@ struct FullStokesBeamformerTraits
         return result;
     }
 
-    static inline __host__ __device__ QuantisedPowerType clamp(
-        RawPowerType const& power)
+    static inline __host__ __device__ QuantisedPowerType
+    clamp(RawPowerType const& power)
     {
         QuantisedPowerType clamped;
         clamped.x = SSBfTraits<Sp::I>::clamp(power.x);
@@ -283,4 +312,4 @@ struct FullStokesBeamformerTraits
 
 } // namespace skyweaver
 
-#endif //SKYWEAVER_BEAMFORMER_UTILS_CUH
+#endif // SKYWEAVER_BEAMFORMER_UTILS_CUH

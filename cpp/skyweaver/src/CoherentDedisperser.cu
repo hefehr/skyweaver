@@ -205,7 +205,6 @@ struct DMResponse {
     }
 };
 
-
 __global__ void dedisperse(cufftComplex const* __restrict__ _d_ism_response,
                            cufftComplex const* in,
                            cufftComplex* out,
@@ -236,22 +235,22 @@ __global__ void dedisperse(cufftComplex const* __restrict__ _d_ism_response,
 } // namespace kernels
 
 void get_dm_responses(CoherentDedisperserConfig& config,
-    float dm_prefactor,
-    thrust::device_vector<cufftComplex>& response)
+                      float dm_prefactor,
+                      thrust::device_vector<cufftComplex>& response)
 {
-thrust::device_vector<int> indices(config.num_coarse_chans *
-                     config.num_fine_chans);
-thrust::sequence(indices.begin(), indices.end());
+    thrust::device_vector<int> indices(config.num_coarse_chans *
+                                       config.num_fine_chans);
+    thrust::sequence(indices.begin(), indices.end());
 
-// Apply the DMResponse functor using thrust's transform
-thrust::transform(indices.begin(),
-    indices.end(),
-    response.begin(),
-   kernels::DMResponse(config.num_coarse_chans,
-               config.low_freq,
-               config.coarse_chan_bw,
-               config.fine_chan_bw,
-               dm_prefactor));
+    // Apply the DMResponse functor using thrust's transform
+    thrust::transform(indices.begin(),
+                      indices.end(),
+                      response.begin(),
+                      kernels::DMResponse(config.num_coarse_chans,
+                                          config.low_freq,
+                                          config.coarse_chan_bw,
+                                          config.fine_chan_bw,
+                                          dm_prefactor));
 }
 
 } // namespace skyweaver

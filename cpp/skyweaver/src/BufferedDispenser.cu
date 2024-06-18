@@ -1,13 +1,14 @@
 #include "skyweaver/BufferedDispenser.cuh"
 using namespace skyweaver;
-BufferedDispenser::BufferedDispenser(PipelineConfig const& config, cudaStream_t stream)
+BufferedDispenser::BufferedDispenser(PipelineConfig const& config,
+                                     cudaStream_t stream)
     : _config(config), _stream(stream)
 {
     this->_block_length_tpa =
         _config.nantennas() * _config.npol() * _config.gulp_length_samps();
     this->_kernel_length_tpa = _config.dedisp_kernel_length_samps() *
                                _config.nantennas() * _config.npol();
-    
+
     // this->_d_prev_ftpa_voltages.resize(_nchans * _kernel_length_tpa);
 
     _d_channeled_tpa_voltages.resize(_config.nchans());
@@ -28,8 +29,9 @@ void BufferedDispenser::hoard(DeviceVoltageType const& new_ftpa_voltages_in)
     for(std::size_t i = 0; i < _config.nchans(); i++) {
         if(_d_prev_channeled_tpa_voltages.size() ==
            0) { // if first time set overlaps as zeros
-           BOOST_LOG_TRIVIAL(debug) << "BD -> Filling TPA voltages " << i 
-                                    << " with zeros up to length " << _kernel_length_tpa; 
+            BOOST_LOG_TRIVIAL(debug)
+                << "BD -> Filling TPA voltages " << i
+                << " with zeros up to length " << _kernel_length_tpa;
             thrust::fill(_d_channeled_tpa_voltages[i].begin(),
                          _d_channeled_tpa_voltages[i].begin() +
                              _kernel_length_tpa,

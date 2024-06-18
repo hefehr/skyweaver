@@ -3,7 +3,9 @@
 
 #include "cuda.h"
 #include "psrdada_cpp/raw_bytes.hpp"
+#include "skyweaver/BufferedDispenser.cuh"
 #include "skyweaver/CoherentBeamformer.cuh"
+#include "skyweaver/CoherentDedisperser.cuh"
 #include "skyweaver/DelayManager.cuh"
 #include "skyweaver/IncoherentBeamformer.cuh"
 #include "skyweaver/ObservationHeader.hpp"
@@ -11,23 +13,26 @@
 #include "skyweaver/StatisticsCalculator.cuh"
 #include "skyweaver/Transposer.cuh"
 #include "skyweaver/WeightsManager.cuh"
-#include "skyweaver/BufferedDispenser.cuh"
-#include "skyweaver/CoherentDedisperser.cuh"
 
 #include <memory>
 
 namespace skyweaver
 {
 
-template <typename CBHandler, typename IBHandler, typename StatsHandler, typename BeamformerTraits>
+template <typename CBHandler,
+          typename IBHandler,
+          typename StatsHandler,
+          typename BeamformerTraits>
 class BeamformerPipeline
 {
   public:
-    typedef thrust::host_vector< char2 > HostVoltageVectorType;
-    typedef thrust::device_vector< char2 > VoltageVectorType;
-    typedef thrust::device_vector< typename BeamformerTraits::QuantisedPowerType > PowerVectorType;
-    typedef thrust::device_vector< typename BeamformerTraits::RawPowerType > RawPowerVectorType;
-    typedef thrust::device_vector< float > ChannelScaleVectorType;
+    typedef thrust::host_vector<char2> HostVoltageVectorType;
+    typedef thrust::device_vector<char2> VoltageVectorType;
+    typedef thrust::device_vector<typename BeamformerTraits::QuantisedPowerType>
+        PowerVectorType;
+    typedef thrust::device_vector<typename BeamformerTraits::RawPowerType>
+        RawPowerVectorType;
+    typedef thrust::device_vector<float> ChannelScaleVectorType;
     typedef long double TimeType;
     typedef CoherentBeamformer<BeamformerTraits> CoherentBeamformer;
     typedef IncoherentBeamformer<BeamformerTraits> IncoherentBeamformer;

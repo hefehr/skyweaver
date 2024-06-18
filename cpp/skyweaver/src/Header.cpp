@@ -11,7 +11,6 @@ namespace skyweaver
 
 Header::Header(psrdada_cpp::RawBytes& header): _header(header)
 {
-
 }
 
 Header::~Header()
@@ -40,8 +39,7 @@ long double Header::get<long double>(char const* key) const
 {
     fetch_header_string(key);
     long double value = std::strtold(_buffer, NULL);
-    BOOST_LOG_TRIVIAL(debug)
-        << "Header get: " << key << " = " << value;
+    BOOST_LOG_TRIVIAL(debug) << "Header get: " << key << " = " << value;
     return value;
 }
 
@@ -50,8 +48,7 @@ std::size_t Header::get<std::size_t>(char const* key) const
 {
     fetch_header_string(key);
     std::size_t value = std::strtoul(_buffer, NULL, 0);
-    BOOST_LOG_TRIVIAL(debug)
-        << "Header get: " << key << " = " << value;
+    BOOST_LOG_TRIVIAL(debug) << "Header get: " << key << " = " << value;
     return value;
 }
 
@@ -67,7 +64,8 @@ std::string Header::get<std::string>(char const* key) const
 template <>
 void Header::set<long double>(char const* key, long double value)
 {
-    BOOST_LOG_TRIVIAL(debug) << "Header set: " << key << " = " << std::setprecision(15) << value;
+    BOOST_LOG_TRIVIAL(debug)
+        << "Header set: " << key << " = " << std::setprecision(15) << value;
     ascii_header_set(this->_header.ptr(), key, "%Lf", value);
 }
 

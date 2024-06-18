@@ -49,14 +49,12 @@ class skyweaver::MultiFileReader
     void open_next();
     void open_previous();
     void close();
-    void seekg(long pos,
-               std::ios_base::seekdir dir = std::ios_base::beg);
+    void seekg(long pos, std::ios_base::seekdir dir = std::ios_base::beg);
     std::size_t tellg() const;
     bool eof() const;
     bool good() const;
     bool can_read(std::size_t bytes) const;
-    std::streamsize read(char* raw_ptr,
-                         std::streamsize bytes);
+    std::streamsize read(char* raw_ptr, std::streamsize bytes);
     bool is_open() const;
 
     std::size_t get_total_size() const;

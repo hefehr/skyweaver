@@ -170,13 +170,4 @@ void MultiFileWriter::init(ObservationHeader const& header)
     }
 }
 
-bool MultiFileWriter::operator()(PowerVectorType const& btf_powers,
-                                 std::size_t dm_idx)
-{
-    _file_streams[dm_idx]->write(
-        reinterpret_cast<char const*>(btf_powers.data()),
-        btf_powers.size() * sizeof(typename PowerVectorType::value_type));
-    return false;
-}
-
 } // namespace skyweaver

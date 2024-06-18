@@ -12,15 +12,14 @@ namespace skyweaver
 class MultiFileWriter
 {
   public:
-    typedef thrust::host_vector<int8_t> PowerVectorType;
-
     MultiFileWriter(PipelineConfig const& config);
     MultiFileWriter(MultiFileWriter const&) = delete;
     ~MultiFileWriter();
 
     void init(ObservationHeader const& header);
 
-    bool operator()(PowerVectorType const& btf_powers, std::size_t dm_idx);
+    template <typename VectorType>
+    bool operator()(VectorType const& btf_powers, std::size_t dm_idx);
 
   private:
     void make_dada_header() const;
@@ -30,5 +29,7 @@ class MultiFileWriter
 };
 
 } // namespace skyweaver
+
+#include "skyweaver/detail/MultiFileWriter.cpp"
 
 #endif // SKYWEAVER_MULTIBEAMFILEWRITER_HPP

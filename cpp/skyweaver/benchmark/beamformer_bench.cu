@@ -1,5 +1,6 @@
 #include "psrdada_cpp/cli_utils.hpp"
 #include "psrdada_cpp/cuda_utils.hpp"
+#include "skyweaver/beamformer_utils.cuh"
 #include "skyweaver/CoherentBeamformer.cuh"
 #include "skyweaver/IncoherentBeamformer.cuh"
 #include "skyweaver/PipelineConfig.hpp"
@@ -15,6 +16,10 @@
 class BeamformerBencher: public benchmark::Fixture
 {
   public:
+    typedef skyweaver::SingleStokesBeamformerTraits<skyweaver::StokesParameter::I> BfTraits;
+    typedef skyweaver::CoherentBeamformer<BfTraits> CoherentBeamformer;
+    typedef skyweaver::IncoherentBeamformer<BfTraits> IncoherentBeamformer;
+
     void SetUp(::benchmark::State const& state)
     {
         std::size_t ntimestamps = state.range(0); // ntimestamps
@@ -27,6 +32,8 @@ class BeamformerBencher: public benchmark::Fixture
         fbpa_weights_gpu.resize(weights_size);
         scales.resize(_config.nchans() / _config.cb_fscrunch());
         offsets.resize(_config.nchans() / _config.cb_fscrunch());
+        _beamset_mapping.resize(_config.nbeams());
+        _antenna_weights.resize(_config.nantennas(), 1.0f);
         CUDA_ERROR_CHECK(cudaStreamCreate(&_stream));
         CUDA_ERROR_CHECK(cudaEventCreate(&start));
         CUDA_ERROR_CHECK(cudaEventCreate(&stop));
@@ -53,23 +60,25 @@ class BeamformerBencher: public benchmark::Fixture
     cudaStream_t _stream;
     cudaEvent_t start, stop;
     skyweaver::PipelineConfig _config;
-    skyweaver::CoherentBeamformer::VoltageVectorType ftpa_voltages_gpu;
-    skyweaver::CoherentBeamformer::WeightsVectorType fbpa_weights_gpu;
-    skyweaver::CoherentBeamformer::PowerVectorType btf_powers_gpu;
-    skyweaver::CoherentBeamformer::ScalingVectorType scales;
-    skyweaver::CoherentBeamformer::ScalingVectorType offsets;
-    skyweaver::CoherentBeamformer::PowerVectorType tf_powers_gpu;
-    skyweaver::CoherentBeamformer::RawPowerVectorType tf_powers_raw_gpu;
+    typename CoherentBeamformer::VoltageVectorType ftpa_voltages_gpu;
+    typename CoherentBeamformer::WeightsVectorType fbpa_weights_gpu;
+    typename CoherentBeamformer::PowerVectorType btf_powers_gpu;
+    typename CoherentBeamformer::ScalingVectorType scales;
+    typename CoherentBeamformer::ScalingVectorType offsets;
+    typename CoherentBeamformer::ScalingVectorType _antenna_weights;
+    typename CoherentBeamformer::PowerVectorType tf_powers_gpu;
+    typename CoherentBeamformer::RawPowerVectorType tf_powers_raw_gpu;
+    typename CoherentBeamformer::MappingVectorType _beamset_mapping;
 };
 
 BENCHMARK_DEFINE_F(BeamformerBencher, simple_bench)(benchmark::State& state)
 {
-    typedef skyweaver::CoherentBeamformer::VoltageVectorType::value_type
+    typedef typename CoherentBeamformer::VoltageVectorType::value_type
         ValueType;
     float elapsed_time;
     float total_elapsed_time = 0.0f;
-    skyweaver::CoherentBeamformer coherent_beamformer(_config);
-    skyweaver::IncoherentBeamformer incoherent_beamformer(_config);
+    CoherentBeamformer coherent_beamformer(_config);
+    IncoherentBeamformer incoherent_beamformer(_config);
     for(auto _: state) {
         CUDA_ERROR_CHECK(cudaEventRecord(start, 0));
         for(int ii = 0; ii < 10; ++ii) {
@@ -78,13 +87,17 @@ BENCHMARK_DEFINE_F(BeamformerBencher, simple_bench)(benchmark::State& state)
                                            tf_powers_gpu,
                                            scales,
                                            offsets,
+                                           _antenna_weights,
+                                           1,
                                            _stream);
             coherent_beamformer.beamform(ftpa_voltages_gpu,
                                          fbpa_weights_gpu,
                                          scales,
                                          offsets,
+                                         _beamset_mapping,
                                          tf_powers_raw_gpu,
                                          btf_powers_gpu,
+                                         1,
                                          _stream);
         }
         CUDA_ERROR_CHECK(cudaStreamSynchronize(_stream));

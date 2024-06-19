@@ -1,8 +1,8 @@
 #ifndef SKYWEAVER_BEAMFORMER_UTILS_CUH
 #define SKYWEAVER_BEAMFORMER_UTILS_CUH
 
+#include "skyweaver/types.cuh"
 #include "cuComplex.h"
-
 #include <type_traits>
 
 namespace skyweaver
@@ -182,18 +182,6 @@ struct SingleStokesBeamformerTraits {
         }
     }
 
-    static inline __host__ __device__ RawPowerType
-    multiply(RawPowerType const& power, float const& rhs)
-    {
-        return power * rhs;
-    }
-
-    static inline __host__ __device__ RawPowerType
-    add(RawPowerType const& power, RawPowerType const& rhs)
-    {
-        return power + rhs;
-    }
-
     static inline __host__ __device__ QuantisedPowerType
     clamp(RawPowerType const& power)
     {
@@ -274,28 +262,6 @@ struct FullStokesBeamformerTraits {
         rescaled.z = SSBfTraits<Sp::U>::rescale(power.z, offset, scale_factor);
         rescaled.w = SSBfTraits<Sp::V>::rescale(power.w, offset, scale_factor);
         return rescaled;
-    }
-
-    static inline __host__ __device__ RawPowerType
-    multiply(RawPowerType const& power, float const& rhs)
-    {
-        RawPowerType result;
-        result.x = SSBfTraits<Sp::I>::multiply(power.x, rhs);
-        result.y = SSBfTraits<Sp::Q>::multiply(power.y, rhs);
-        result.z = SSBfTraits<Sp::U>::multiply(power.z, rhs);
-        result.w = SSBfTraits<Sp::V>::multiply(power.w, rhs);
-        return result;
-    }
-
-    static inline __host__ __device__ RawPowerType
-    add(RawPowerType const& power, RawPowerType const& rhs)
-    {
-        RawPowerType result;
-        result.x = SSBfTraits<Sp::I>::add(power.x, rhs.x);
-        result.y = SSBfTraits<Sp::Q>::add(power.y, rhs.y);
-        result.z = SSBfTraits<Sp::U>::add(power.z, rhs.z);
-        result.w = SSBfTraits<Sp::V>::add(power.w, rhs.w);
-        return result;
     }
 
     static inline __host__ __device__ QuantisedPowerType

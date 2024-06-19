@@ -1,4 +1,5 @@
 #include "psrdada_cpp/cuda_utils.hpp"
+#include "skyweaver/types.cuh"
 #include "skyweaver/IncoherentBeamformer.cuh"
 #include "skyweaver/beamformer_utils.cuh"
 
@@ -66,14 +67,11 @@ __global__ void icbf_ftpa_general_k(
         }
     }
     for(int beamset_idx = 0; beamset_idx < nbeamsets; ++beamset_idx) {
-        acc_buffer[threadIdx.x] =
-            BfTraits::multiply(power, antenna_weights[threadIdx.x]);
+        acc_buffer[threadIdx.x] = power * antenna_weights[threadIdx.x];
         for(unsigned int ii = ACC_BUFFER_SIZE / 2; ii > 0; ii >>= 1) {
             __syncthreads();
             if(threadIdx.x < ii) {
-                acc_buffer[threadIdx.x] =
-                    BfTraits::add(acc_buffer[threadIdx.x],
-                                  acc_buffer[threadIdx.x + ii]);
+                acc_buffer[threadIdx.x] = acc_buffer[threadIdx.x] + acc_buffer[threadIdx.x + ii];
             }
         }
         __syncthreads();

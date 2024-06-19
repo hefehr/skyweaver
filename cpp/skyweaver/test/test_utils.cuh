@@ -1,6 +1,7 @@
 #ifndef SKYWEAVER_TEST_TEST_UTILS_CUH
 #define SKYWEAVER_TEST_TEST_UTILS_CUH
 
+#include "skyweaver/types.cuh"
 #include <cmath>
 #include <complex>
 #include <gtest/gtest.h>
@@ -69,21 +70,6 @@ void random_normal_complex(VectorType& vec,
     }
 }
 
-template <typename T>
-struct is_vector_like: std::false_type {
-};
-
-template <>
-struct is_vector_like<float4>: std::true_type {
-};
-
-template <>
-struct is_vector_like<char4>: std::true_type {
-};
-
-template <typename T>
-inline constexpr bool is_vector_like_v = is_vector_like<T>::value;
-
 template <typename T, typename X>
 typename std::enable_if<std::is_arithmetic_v<T>, void>::type
 expect_near(T const& a, T const& b, X const& c)
@@ -92,7 +78,7 @@ expect_near(T const& a, T const& b, X const& c)
 }
 
 template <typename T, typename X>
-typename std::enable_if<is_vector_like_v<T>, void>::type
+typename std::enable_if<is_vec4_v<T>, void>::type
 expect_near(T const& a, T const& b, X const& c)
 {
     EXPECT_NEAR(a.x, b.x, c);
@@ -109,7 +95,7 @@ expect_relatively_near(T const& a, T const& b, X const& c)
 }
 
 template <typename T, typename X>
-typename std::enable_if<is_vector_like_v<T>, void>::type
+typename std::enable_if<is_vec4_v<T>, void>::type
 expect_relatively_near(T const& a, T const& b, X const& c)
 {
     EXPECT_NEAR(a.x, b.x, std::abs(a.x * c));

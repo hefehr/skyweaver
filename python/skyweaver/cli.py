@@ -183,7 +183,7 @@ def parse_default_args(args):
 def add_defaults_args(parser):
     """Inject common arguments onto a parser
     """
-    parser.add_argument("--log-level", help="Set the log level", type=str)
+    parser.add_argument("--log-level", help="Set the log level", type=str, default="info")
     parser.add_argument("--log-file", help="Specify and output logging file", type=str)
 
 def subparser_create_wrapper(parent, *args, **kwargs):

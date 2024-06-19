@@ -12,7 +12,7 @@ namespace skyweaver
 class MultiFileWriter
 {
   public:
-    MultiFileWriter(PipelineConfig const& config);
+    MultiFileWriter(PipelineConfig const& config, std::string tag="");
     MultiFileWriter(MultiFileWriter const&) = delete;
     ~MultiFileWriter();
 
@@ -25,6 +25,7 @@ class MultiFileWriter
     void make_dada_header() const;
 
     PipelineConfig const& _config;
+    std::string _tag;
     std::vector<std::unique_ptr<FileStream>> _file_streams;
 };
 

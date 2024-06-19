@@ -69,7 +69,8 @@ CHAN0_IDX 2688
 
 } // namespace
 
-MultiFileWriter::MultiFileWriter(PipelineConfig const& config): _config(config)
+MultiFileWriter::MultiFileWriter(PipelineConfig const& config, std::string tag)
+: _config(config), _tag(tag)
 {
     _file_streams.resize(_config.coherent_dms().size());
 }
@@ -108,6 +109,10 @@ void MultiFileWriter::init(ObservationHeader const& header)
 
         if(!_config.output_file_prefix().empty()) {
             base_filename << _config.output_file_prefix() << "_";
+            if (!_tag.empty())
+            {
+                base_filename << _tag << "_";
+            }
         }
         base_filename << formatted_time << "_" << std::fixed
                       << std::setprecision(3) << std::setfill('0')

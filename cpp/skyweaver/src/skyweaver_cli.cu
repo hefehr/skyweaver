@@ -266,8 +266,8 @@ template <typename BfTraits>
 void run_pipeline(skyweaver::PipelineConfig const& config)
 {
     // Here we build and invoke the pipeline
-    skyweaver::MultiFileWriter cb_handler(config);
-    NullHandler ib_handler;
+    skyweaver::MultiFileWriter cb_handler(config, "cb");
+    skyweaver::MultiFileWriter ib_handler(config, "ib");
     NullHandler stats_handler;
     skyweaver::MultiFileReader file_reader(config);
 

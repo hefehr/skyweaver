@@ -141,7 +141,6 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
                 freq_idx * _ftpa_post_transpose.size() / _config.nchans(),
                 dm_idx);
         }
-
         _incoherent_beamformer->beamform(_ftpa_dedispersed,
                                          _tf_ib_raw,
                                          _tf_ib,
@@ -163,9 +162,10 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
 
         // TODO REMOVE THIS ABOMINATION
         thrust::host_vector<typename decltype(_btf_cbs)::value_type> _btf_cbs_h = _btf_cbs;
+        thrust::host_vector<typename decltype(_tf_ib)::value_type> _tf_ib_h = _tf_ib;
 
         _cb_handler(_btf_cbs_h, dm_idx);
-        _ib_handler(_tf_ib, dm_idx);
+        _ib_handler(_tf_ib_h, dm_idx);
     }
     _stats_handler(_stats_manager->statistics());
 }

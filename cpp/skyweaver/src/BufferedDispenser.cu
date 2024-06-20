@@ -5,18 +5,18 @@ BufferedDispenser::BufferedDispenser(PipelineConfig const& config, cudaStream_t 
 {
     this->_block_length_tpa =
         _config.nantennas() * _config.npol() * _config.gulp_length_samps();
-    this->_kernel_length_tpa = _config.dedisp_kernel_length_samps() *
+    this->_max_delay_tpa = _config.dedisp_max_delay_samps() *
                                _config.nantennas() * _config.npol();
     
-    // this->_d_prev_ftpa_voltages.resize(_nchans * _kernel_length_tpa);
+    // this->_d_prev_ftpa_voltages.resize(_nchans * _max_delay_tpa);
 
     _d_channeled_tpa_voltages.resize(_config.nchans());
     _d_prev_channeled_tpa_voltages.resize(_config.nchans());
 
     for(std::size_t i = 0; i < _config.nchans(); i++) {
         _d_channeled_tpa_voltages[i].resize(_block_length_tpa +
-                                            _kernel_length_tpa);
-        _d_prev_channeled_tpa_voltages[i].resize(_kernel_length_tpa);
+                                            _max_delay_tpa);
+        _d_prev_channeled_tpa_voltages[i].resize(_max_delay_tpa);
     }
 }
 
@@ -29,10 +29,10 @@ void BufferedDispenser::hoard(DeviceVoltageType const& new_ftpa_voltages_in)
         if(_d_prev_channeled_tpa_voltages.size() ==
            0) { // if first time set overlaps as zeros
            BOOST_LOG_TRIVIAL(debug) << "BD -> Filling TPA voltages " << i 
-                                    << " with zeros up to length " << _kernel_length_tpa; 
+                                    << " with zeros up to length " << _max_delay_tpa; 
             thrust::fill(_d_channeled_tpa_voltages[i].begin(),
                          _d_channeled_tpa_voltages[i].begin() +
-                             _kernel_length_tpa,
+                             _max_delay_tpa,
                          zeros);
 
         } else { // first add corresponding overlap to output
@@ -45,12 +45,12 @@ void BufferedDispenser::hoard(DeviceVoltageType const& new_ftpa_voltages_in)
         BOOST_LOG_TRIVIAL(debug) << "BD -> Copying new voltages";
         thrust::copy(new_ftpa_voltages_in.begin() + i * _block_length_tpa,
                      new_ftpa_voltages_in.begin() + (i + 1) * _block_length_tpa,
-                     _d_channeled_tpa_voltages[i].begin() + _kernel_length_tpa);
+                     _d_channeled_tpa_voltages[i].begin() + _max_delay_tpa);
 
         // update the overlap for the next hoard
         BOOST_LOG_TRIVIAL(debug) << "BD -> Updating overlap";
         thrust::copy(new_ftpa_voltages_in.begin() +
-                         (i + 1) * _block_length_tpa - _kernel_length_tpa,
+                         (i + 1) * _block_length_tpa - _max_delay_tpa,
                      new_ftpa_voltages_in.begin() + (i + 1) * _block_length_tpa,
                      _d_prev_channeled_tpa_voltages[i].begin());
     }
@@ -72,18 +72,18 @@ BufferedDispenser::dispense(std::size_t chan_idx) const
 //     // copy Kernel length size of previous data to the next buffer
 //     thrust::copy(_d_prev_ftpa_voltages.begin() + offset,
 //                     _d_prev_ftpa_voltages.begin() + offset +
-//                     kernel_length_tpa, tpa_voltages_out.begin()); // copy
+//                     max_delay_tpa, tpa_voltages_out.begin()); // copy
 //                     last  Kernel Length size of data to the next buffer
 
 //     // copy current input data to the next buffer
 //     thrust::copy(ftpa_voltages_in.begin(),
 //                     ftpa_voltages_in.end(),
 //                     tpa_voltages_out.begin()
-//                         + kernel_length_tpa); // from offset -> end
+//                         + max_delay_tpa); // from offset -> end
 
 //     // copy the last Kernel length size of data to the previous buffer for
 //     the next iteration thrust::copy(ftpa_voltages_in.end() -
-//     kernel_length_tpa,
+//     max_delay_tpa,
 //                  ftpa_voltages_in.end(),
 //                  _d_prev_ftpa_voltages.begin() + this->_block_length_tpa *
 //                  chan_idx); // copy the data to the previous data buffer.

@@ -4,6 +4,8 @@ nchan = 16
 nsamples = 10000
 npol = 2
 data = np.random.randint(0, 255, size=nsamples*nchan*nant*npol*2, dtype=np.uint8)
+MJD = 60356.47024305579093
+tsamp = 4.7850467290e-6
 
 data_header = '''
 HEADER       DADA
@@ -60,6 +62,13 @@ with open('/bscratch/data.dada', 'wb') as f:
 #split data into 10 chunks
 chunk_size = len(data)//10
 for i in range(10):
+    chunk_start_mjd = MJD + i*1000*tsamp / (24*3600)
+    chunk_data_header = data_header.replace(f'MJD_START    60356.47024305579093', f'MJD_START    {chunk_start_mjd:.15f}')
+    print(chunk_start_mjd)
+    chunk_data_header_size = len(data_header_raw_bytes)
+    data_header_raw_bytes = chunk_data_header.encode()
+    data_header_raw_bytes += b'\0'*(4096 - chunk_data_header_size)
+
     with open(f'/bscratch/data_chunk_{i}.dada', 'wb') as f:
         f.write(data_header_raw_bytes)
         f.write(data[i*chunk_size:(i+1)*chunk_size].tobytes())

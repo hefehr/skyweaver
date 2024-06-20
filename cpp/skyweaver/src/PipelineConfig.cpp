@@ -11,7 +11,7 @@ PipelineConfig::PipelineConfig()
       _check_input_contiguity(false), _dada_header_size(4096),
       _output_dir("./"), _max_output_filesize(10000000000000),
       _output_file_prefix(""), _statistics_file("./statistics.bin"),
-      _coherent_dms({0.0f}), _dedisp_kernel_length_samps(8192),
+      _coherent_dms({0.0f}), _dedisp_max_delay_samps(0),
       _cfreq(1284000000.0), _bw(13375000.0), _channel_frequencies_stale(true),
       _gulp_length_samps(4096), _total_nchans(4096), _output_level(24.0f),
       _cb_power_scaling(0.0f), _cb_power_offset(0.0f), _ib_power_scaling(0.0f),
@@ -162,14 +162,14 @@ void PipelineConfig::coherent_dms(std::vector<float> const& coherent_dms)
     _coherent_dms = coherent_dms;
 }
 
-void PipelineConfig::dedisp_kernel_length_samps(std::size_t kernel_length)
+void PipelineConfig::dedisp_max_delay_samps(std::size_t max_delay)
 {
-    _dedisp_kernel_length_samps = kernel_length;
+    _dedisp_max_delay_samps = max_delay;
 }
 
-std::size_t PipelineConfig::dedisp_kernel_length_samps() const
+std::size_t PipelineConfig::dedisp_max_delay_samps() const
 {
-    return _dedisp_kernel_length_samps;
+    return _dedisp_max_delay_samps;
 }
 
 std::vector<double> const& PipelineConfig::channel_frequencies() const

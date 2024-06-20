@@ -10,6 +10,8 @@
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
 #include <vector>
+#include <boost/log/trivial.hpp>
+
 #define DM_CONST 4.148806423e9 // MHz^2 pc^-1 cm^3 us
 #define PI       acos(-1.0)
 #define TWO_PI   2 * acos(-1.0)
@@ -27,7 +29,8 @@ __global__ void dedisperse(cufftComplex const* __restrict__ _d_ism_response,
 }
 
 struct CoherentDedisperserConfig {
-    std::size_t num_fine_chans; // i.e FFT Length
+    std::size_t fft_length; // i.e gulp length, number of fine channels
+    std::size_t overlap_samps;
     std::size_t num_coarse_chans;
     std::size_t num_pols;
     std::size_t num_antennas;
@@ -36,8 +39,8 @@ struct CoherentDedisperserConfig {
     float low_freq;
     float high_freq;
     float coarse_chan_bw;
-
     float fine_chan_bw;
+  
 
     thrust::host_vector<float> _h_dms;
     thrust::device_vector<float> _d_dms;
@@ -57,7 +60,8 @@ class CoherentDedisperser
 {
   public:
     static void createConfig(CoherentDedisperserConfig& config,
-                             std::size_t num_fine_chans,
+                             std::size_t fft_length,
+                             std::size_t overlap_samps,
                              std::size_t num_coarse_chans,
                              std::size_t num_pols,
                              std::size_t num_antennas,
@@ -65,8 +69,9 @@ class CoherentDedisperser
                              float low_freq,
                              float bw,
                              std::vector<float> dms);
+    static float get_dm_delay(float f1, float f2, float dm); // f1 and f2 in MHz
     CoherentDedisperser(PipelineConfig const& pipeline_config,
-                        CoherentDedisperserConfig& config)
+    CoherentDedisperserConfig& config)
         : pipeline_config(pipeline_config), config(config)
     {
     }

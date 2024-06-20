@@ -5,6 +5,7 @@
 #include <thrust/device_vector.h>
 #include "skyweaver/PipelineConfig.hpp"
 #include <random>
+
 namespace skyweaver
 {
 namespace test
@@ -12,7 +13,7 @@ namespace test
 BufferedDispenserTester::BufferedDispenserTester(): ::testing::Test()
 {
     pipeline_config.dada_header_size(4096);
-    pipeline_config.dedisp_kernel_length_samps(8192);
+    pipeline_config.dedisp_max_delay_samps(8192);
     pipeline_config.gulp_length_samps(65536);
 
     
@@ -55,8 +56,8 @@ TEST_F(BufferedDispenserTester, testBufferedDispenser)
     thrust::copy(voltages_1h.begin(), voltages_1h.end(), voltages_1.begin());
     
     const std::size_t size_TPA =  nantennas * npols * nsamples_gulp;
-    const std::size_t kernel_length_tpa = pipeline_config.dedisp_kernel_length_samps() * nantennas * npols;
-    const std::size_t size_tpa =  size_TPA + kernel_length_tpa;
+    const std::size_t max_delay_tpa = pipeline_config.dedisp_max_delay_samps() * nantennas * npols;
+    const std::size_t size_tpa =  size_TPA + max_delay_tpa;
 
     /* hoard the voltages_1 */
     bufferedDispenser.hoard(voltages_1); //FTPA voltages_1
@@ -68,7 +69,7 @@ TEST_F(BufferedDispenserTester, testBufferedDispenser)
         thrust::host_vector<char2> dispensed_voltages_1h(dispensed_voltages_1.size());
         thrust::copy(dispensed_voltages_1.begin(), dispensed_voltages_1.end(), dispensed_voltages_1h.begin());
                                              
-        std::size_t start_idx = kernel_length_tpa; // start from end of overlap
+        std::size_t start_idx = max_delay_tpa; // start from end of overlap
         int k=0;
         for (std::size_t j= start_idx; j < dispensed_voltages_1.size(); j++)
         {   
@@ -102,7 +103,7 @@ TEST_F(BufferedDispenserTester, testBufferedDispenser)
         thrust::host_vector<char2> dispensed_voltages_2h(dispensed_voltages_2.size());
         thrust::copy(dispensed_voltages_2.begin(), dispensed_voltages_2.end(), dispensed_voltages_2h.begin());
                                              
-        std::size_t start_idx = kernel_length_tpa; // start from end of overlap
+        std::size_t start_idx = max_delay_tpa; // start from end of overlap
         int k=0;
         for (std::size_t j= start_idx; j < dispensed_voltages_2.size(); j++)
         {
@@ -112,8 +113,8 @@ TEST_F(BufferedDispenserTester, testBufferedDispenser)
         }
         for (std::size_t j= 0; j < start_idx; j++)
         {
-            ASSERT_EQ(voltages_1h[(i+1) * size_TPA - kernel_length_tpa + j].x, dispensed_voltages_2h[j].x);
-            ASSERT_EQ(voltages_1h[(i+1) * size_TPA - kernel_length_tpa + j].y, dispensed_voltages_2h[j].y);
+            ASSERT_EQ(voltages_1h[(i+1) * size_TPA - max_delay_tpa + j].x, dispensed_voltages_2h[j].x);
+            ASSERT_EQ(voltages_1h[(i+1) * size_TPA - max_delay_tpa + j].y, dispensed_voltages_2h[j].y);
         }
         
     }

@@ -212,7 +212,7 @@ std::size_t DelayManager::parse_beamsets()
     // At this point we can copy the weights
     // and mappings to the GPU
     _beamset_map_d = beamset_map;
-    _weights_d.resize(beamsets_weights.size() * _header.nantennas);
+    _weights_d.resize(beamsets_weights.size() * _config.nantennas());
     for(int ii = 0; ii < beamsets_weights.size(); ++ii) {
         thrust::copy(beamsets_weights[ii].begin(),
                      beamsets_weights[ii].end(),

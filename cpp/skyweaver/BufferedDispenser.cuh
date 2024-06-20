@@ -29,7 +29,7 @@ class skyweaver::BufferedDispenser
     PipelineConfig const& _config;
     std::size_t _block_length_tpa; // length of nsamples * nantennas * npol  but
                                    // not char2, per block of data
-    std::size_t _kernel_length_tpa; // length of dedispersion kernel in samples
+    std::size_t _max_delay_tpa; // length of dedispersion kernel in samples
                                     // * nantennas * npol  but not char2
     std::vector<DeviceVoltageType>
         _d_prev_channeled_tpa_voltages; // stores it until next iteration. This

@@ -159,13 +159,13 @@ class PipelineConfig
 
     /**
      * @brief      Return the length of the kernel in samples
-     */
-    std::size_t dedisp_kernel_length_samps() const;
+    */
+    std::size_t dedisp_max_delay_samps() const;
 
     /**
      * @brief      Set the length of the kernel in samples
-     */
-    void dedisp_kernel_length_samps(std::size_t);
+    */
+    void dedisp_max_delay_samps(std::size_t);
 
     /**
      * @brief      Return the number of time samples to be integrated
@@ -356,7 +356,7 @@ class PipelineConfig
     std::size_t _max_output_filesize;
     std::string _output_file_prefix;
     std::vector<float> _coherent_dms;
-    std::size_t _dedisp_kernel_length_samps;
+    std::size_t _dedisp_max_delay_samps; 
     double _cfreq;
     double _bw;
     mutable bool _channel_frequencies_stale;

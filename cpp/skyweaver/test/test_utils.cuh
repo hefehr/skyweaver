@@ -104,6 +104,17 @@ expect_relatively_near(T const& a, T const& b, X const& c)
     EXPECT_NEAR(a.w, b.w, std::abs(a.w * c));
 }
 
+template <typename VectorType>
+void sequence(VectorType& vec){
+    typedef typename VectorType::value_type T;
+    T counter{};
+    for (auto& val: vec)
+    {
+        val = counter;
+        counter = counter + value_traits<T>::one;
+    }
+}
+
 } // namespace test
 } // namespace skyweaver
 

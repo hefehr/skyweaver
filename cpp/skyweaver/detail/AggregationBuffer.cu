@@ -1,4 +1,5 @@
 #include "skyweaver/AggregationBuffer.cuh"
+#include "thrust/copy.h"
 #include <iterator>
 #include <algorithm>
 #include <iostream>
@@ -57,16 +58,14 @@ void AggregationBuffer<T>::push_back(typename Container<T, A>::const_iterator be
     {
         std::size_t rslots = remaining_slots();
         if (nslots_to_copy <= rslots){
-            _buffer_iter = std::copy(begin, begin + (nslots_to_copy * _slot_size), _buffer_iter);
+            _buffer_iter = thrust::copy(begin, begin + (nslots_to_copy * _slot_size), _buffer_iter);
             if (nslots_to_copy == rslots){
                 dispatch();
             }
-
-
             return;
         } else {
             std::size_t copy_size = static_cast<std::size_t>(rslots) * _slot_size;
-            _buffer_iter = std::copy(begin, begin + copy_size, _buffer_iter);
+            _buffer_iter = thrust::copy(begin, begin + copy_size, _buffer_iter);
             dispatch();
             begin += copy_size;
             nslots_to_copy -= rslots; 

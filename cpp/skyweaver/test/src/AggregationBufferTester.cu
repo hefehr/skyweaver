@@ -3,6 +3,7 @@
 #include "skyweaver/types.cuh"
 #include "skyweaver/test/test_utils.cuh"
 #include "thrust/host_vector.h"
+#include "thrust/device_vector.h"
 #include <vector>
 #include <list>
 
@@ -11,7 +12,8 @@ namespace test {
 
 typedef ::testing::Types<
     std::vector<char>, std::vector<float>, std::vector<char4>, std::vector<float4>,
-    thrust::host_vector<char>, thrust::host_vector<float>, thrust::host_vector<char4>, thrust::host_vector<float4>
+    thrust::host_vector<char>, thrust::host_vector<float>, thrust::host_vector<char4>, thrust::host_vector<float4>,
+    thrust::device_vector<char>, thrust::device_vector<float>, thrust::device_vector<char4>, thrust::device_vector<float4>
     > TestTypes;
 
 TYPED_TEST_SUITE(AggregationBufferTester, TestTypes);

@@ -2,6 +2,8 @@
 #define SKYWEAVER_TEST_TEST_UTILS_CUH
 
 #include "skyweaver/types.cuh"
+#include <thrust/transform.h>
+#include <thrust/execution_policy.h>
 #include <cmath>
 #include <complex>
 #include <gtest/gtest.h>
@@ -104,15 +106,23 @@ expect_relatively_near(T const& a, T const& b, X const& c)
     EXPECT_NEAR(a.w, b.w, std::abs(a.w * c));
 }
 
+template <typename T>
+struct Sequence {
+    __host__ __device__
+    T operator()(const int& i) const {
+        return value_traits<T>::zero() + value_traits<T>::one() * i;
+    }
+};
+
 template <typename VectorType>
 void sequence(VectorType& vec){
     typedef typename VectorType::value_type T;
-    T counter{};
-    for (auto& val: vec)
-    {
-        val = counter;
-        counter = counter + value_traits<T>::one;
-    }
+    thrust::transform(
+        thrust::counting_iterator<int>(0),
+        thrust::counting_iterator<int>(vec.size()),
+        vec.begin(),
+        Sequence<T>()
+    );
 }
 
 } // namespace test

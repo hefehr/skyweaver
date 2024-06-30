@@ -26,34 +26,33 @@ template <>
 struct value_traits<char>
 {
     typedef char type;
-    static constexpr char zero = 0;
-    static constexpr char one = 1;
+    __host__ __device__ static constexpr char zero() { return 0; }
+    __host__ __device__ static constexpr char one() { return 1; }
 };
 
 template <>
 struct value_traits<float>
 {
     typedef float type;
-    static constexpr float zero = 0.0f;
-    static constexpr float one = 1.0f;
+    __host__ __device__ static constexpr float zero() { return 0.0f; }
+    __host__ __device__ static constexpr float one() { return 1.0f; }
 };
 
 template <>
 struct value_traits<char4>
 {
     typedef char type;
-    static constexpr char4 zero = {0, 0, 0, 0};
-    static constexpr char4 one = {1, 1, 1, 1};
+    __host__ __device__ static constexpr char4 zero() { return {0, 0, 0, 0}; }
+    __host__ __device__ static constexpr char4 one() { return {1, 1, 1, 1}; }
 };
+
 
 template <>
-struct value_traits<float4>
-{
+struct value_traits<float4> {
     typedef float type;
-    static constexpr float4 zero = {0.0f, 0.0f, 0.0f, 0.0f};
-    static constexpr float4 one = {1.0f, 1.0f, 1.0f, 1.0f};
+    __host__ __device__ static constexpr float4 zero() { return {0.0f, 0.0f, 0.0f, 0.0f}; }
+    __host__ __device__ static constexpr float4 one() { return {1.0f, 1.0f, 1.0f, 1.0f}; }
 };
-
 
 inline std::ostream& operator<<(std::ostream& stream, char4 const& val) {
     stream << "(" << static_cast<int>(val.x) 

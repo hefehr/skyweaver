@@ -117,13 +117,21 @@ void CoherentBeamformerTester<BfTraits>::beamformer_c_reference(
                     }
                 }
                 const int output_sample_idx = sample_idx / tscrunch;
-                const int nsamps_out        = nsamples / tscrunch;
                 const int output_chan_idx   = channel_idx / fscrunch;
                 const int nchans_out        = nchannels / fscrunch;
+                
+                /* For BTF outputs
+                const int nsamps_out        = nsamples / tscrunch;
                 const int tf_size           = nsamps_out * nchans_out;
                 const int output_idx        = beam_idx * tf_size +
-                                       output_sample_idx * nchans_out +
-                                       output_chan_idx;
+                                              output_sample_idx * nchans_out +
+                                              output_chan_idx;
+                */
+                // For TFB outputs
+                const int output_idx        = output_sample_idx * nbeams * nchans_out
+                                              + output_chan_idx * nbeams
+                                              + beam_idx;
+
                 const int scloff_idx =
                     beamset_idx * nchans_out + output_chan_idx;
 #if SKYWEAVER_IB_SUBTRACTION

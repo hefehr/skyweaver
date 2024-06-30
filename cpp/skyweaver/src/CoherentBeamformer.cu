@@ -13,7 +13,7 @@ template <typename BfTraits>
 __global__ void bf_ftpa_general_k(
     int2 const* __restrict__ ftpa_voltages,
     int2 const* __restrict__ fbpa_weights,
-    typename BfTraits::QuantisedPowerType* __restrict__ btf_powers,
+    typename BfTraits::QuantisedPowerType* __restrict__ tfb_powers,
     float const* __restrict__ output_scale,
     float const* __restrict__ output_offset,
     int const* __restrict__ beamset_mapping,
@@ -145,8 +145,16 @@ __global__ void bf_ftpa_general_k(
     int const beam_idx          = (start_beam_idx + lane_idx);
     int const output_sample_idx = sample_offset / SKYWEAVER_CB_TSCRUNCH;
     int const nsamps_out        = nsamples / SKYWEAVER_CB_TSCRUNCH;
-    int const output_idx        = beam_idx * nsamps_out * gridDim.y +
-                           output_sample_idx * gridDim.y + blockIdx.y;
+    
+    // Specify BTF order outputs
+    // int const output_idx        = beam_idx * nsamps_out * gridDim.y +
+    //                              output_sample_idx * gridDim.y + blockIdx.y;
+
+    // Specify TFB order outputs
+    int const output_idx        = output_sample_idx * gridDim.y * SKYWEAVER_NBEAMS // T
+                                  + blockIdx.y * SKYWEAVER_NBEAMS                  // F
+                                  + beam_idx;                                       // B
+
     int const beamset_idx  = beamset_mapping[beam_idx];
     int const ib_power_idx = beamset_idx * nsamps_out * gridDim.y +
                              output_sample_idx * gridDim.y + blockIdx.y;
@@ -165,7 +173,7 @@ __global__ void bf_ftpa_general_k(
     typename BfTraits::RawPowerType power_fp32 =
         BfTraits::rescale(power, output_offset[scloff_idx], scale);
 #endif // SKYWEAVER_IB_SUBTRACTION
-    btf_powers[output_idx] = BfTraits::clamp(power_fp32);
+    tfb_powers[output_idx] = BfTraits::clamp(power_fp32);
 }
 
 } // namespace kernels
@@ -233,7 +241,7 @@ void CoherentBeamformer<BfTraits>::beamform(
               _config.nbeams() / SKYWEAVER_CB_WARP_SIZE);
     char2 const* ftpa_voltages_ptr = thrust::raw_pointer_cast(input.data());
     char2 const* fbpa_weights_ptr  = thrust::raw_pointer_cast(weights.data());
-    typename BfTraits::QuantisedPowerType* btf_powers_ptr =
+    typename BfTraits::QuantisedPowerType* tfb_powers_ptr =
         thrust::raw_pointer_cast(output.data());
     float const* power_scaling_ptr =
         thrust::raw_pointer_cast(output_scale.data());
@@ -248,7 +256,7 @@ void CoherentBeamformer<BfTraits>::beamform(
         <<<grid, SKYWEAVER_CB_NTHREADS, 0, stream>>>(
             (int2 const*)ftpa_voltages_ptr,
             (int2 const*)fbpa_weights_ptr,
-            btf_powers_ptr,
+            tfb_powers_ptr,
             power_scaling_ptr,
             power_offset_ptr,
             beamset_mapping_ptr,

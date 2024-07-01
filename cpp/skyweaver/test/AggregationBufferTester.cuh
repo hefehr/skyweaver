@@ -2,6 +2,7 @@
 #define SKYWEAVER_TEST_AGGREGATIONBUFFERTESTER_CUH
 
 #include "skyweaver/AggregationBuffer.cuh"
+#include "thrust/host_vector.h"
 
 #include <gtest/gtest.h>
 
@@ -24,10 +25,10 @@ protected:
     }
 
     int callback_count;
-    std::vector<T> callback_arg;
+    thrust::host_vector<T> callback_arg;
 
 public:
-    void MockCallback(std::vector<T> const& arg) {
+    void MockCallback(thrust::host_vector<T> const& arg) {
         ++callback_count;
         callback_arg = arg;
     }

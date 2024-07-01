@@ -1,6 +1,7 @@
 #ifndef SKYWEAVER_AGGREGATIONBUFFER_CUH
 #define SKYWEAVER_AGGREGATIONBUFFER_CUH
 
+#include "thrust/host_vector.h"
 #include <functional>
 #include <algorithm>
 
@@ -18,6 +19,37 @@ namespace skyweaver {
     agg.push_back(z);
     agg.push_back(z);
 
+    BTF --> TBF
+
+
+    For each coherent DM we have one agg buffer and one dedisperser
+
+    IncoherentDedisperser<Handler> idedisperser([](std::vector<T>& tb_buffer){
+        ??? --> write to file maybe?
+    }); 
+    
+    AggregationBuffer<T> agg_buffer(
+        [&](std::vector<float>& tfb_buffer)
+        {
+            idedisperser.dedisperse(tfb_buffer); --> will call the handler with t - max_delay output samples;
+        }
+    )
+
+    Usage is:
+
+    agg_buffer.push_back(tfb_data);
+    agg_buffer.push_back(tfb_data);
+    ...
+    agg_buffer.push_back(tfb_data);
+    --> output handler called, buffer reset
+
+    // Where is threading done?
+    - Each dedisperser owns its own thread maybe?
+    - Subsequent calls must join the previous thread if active an block until ready
+    - Or just use OpenMP to parallelise the individual calls
+
+    
+
 */
 
 
@@ -26,7 +58,8 @@ class AggregationBuffer
 {
 
 public:
-    typedef std::function<void(std::vector<T> const&)> DispatchCallback;
+    typedef thrust::host_vector<T> BufferType;
+    typedef std::function<void(BufferType const&)> DispatchCallback;
 
 public:
     AggregationBuffer(DispatchCallback callback, std::size_t dispatch_size, 
@@ -50,8 +83,8 @@ private:
     std::size_t _dispatch_size;
     std::size_t _overlap_size;
     std::size_t _slot_size;
-    std::vector<T> _buffer;
-    typename std::vector<T>::iterator _buffer_iter;
+    BufferType _buffer;
+    typename BufferType::iterator _buffer_iter;
 };
 
 }

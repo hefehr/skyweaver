@@ -73,40 +73,49 @@ inline std::ostream& operator<<(std::ostream& stream, float4 const& val) {
  * explicit static_casts used to avoid Wnarrowing errors for char types due to integral promotion 
  * (over/underflow is the expected behaviour here).
  */
-template <typename T>
-__host__ __device__ inline typename std::enable_if<is_vec4_v<T>, T>::type operator+(const T& lhs, const T& rhs) {
+template <typename T, typename X>
+__host__ __device__ inline typename std::enable_if<is_vec4_v<T> && is_vec4_v<X>, T>::type operator+(const T& lhs, const X& rhs) {
     return {static_cast<typename value_traits<T>::type>(lhs.x + rhs.x), 
             static_cast<typename value_traits<T>::type>(lhs.y + rhs.y),
             static_cast<typename value_traits<T>::type>(lhs.z + rhs.z),
             static_cast<typename value_traits<T>::type>(lhs.w + rhs.w)};
 }
 
-template <typename T>
-__host__ __device__ inline typename std::enable_if<is_vec4_v<T>, T>::type operator-(const T& lhs, const T& rhs) {
+template <typename T, typename X>
+__host__ __device__ inline typename std::enable_if<is_vec4_v<T> && is_vec4_v<X>, T>::type operator+=(T& lhs, const X& rhs) {
+    lhs.x += rhs.x;
+    lhs.y += rhs.y;
+    lhs.z += rhs.z;
+    lhs.w += rhs.w;
+    return lhs;
+}
+
+template <typename T, typename X>
+__host__ __device__ inline typename std::enable_if<is_vec4_v<T> && is_vec4_v<X>, T>::type operator-(const T& lhs, const X& rhs) {
     return {static_cast<typename value_traits<T>::type>(lhs.x - rhs.x), 
             static_cast<typename value_traits<T>::type>(lhs.y - rhs.y),
             static_cast<typename value_traits<T>::type>(lhs.z - rhs.z),
             static_cast<typename value_traits<T>::type>(lhs.w - rhs.w)};
 }
 
-template <typename T>
-__host__ __device__ inline typename std::enable_if<is_vec4_v<T>, T>::type operator*(const T& lhs, const T& rhs) {
+template <typename T, typename X>
+__host__ __device__ inline typename std::enable_if<is_vec4_v<T> && is_vec4_v<X>, T>::type operator*(const T& lhs, const X& rhs) {
     return {static_cast<typename value_traits<T>::type>(lhs.x * rhs.x), 
             static_cast<typename value_traits<T>::type>(lhs.y * rhs.y),
             static_cast<typename value_traits<T>::type>(lhs.z * rhs.z),
             static_cast<typename value_traits<T>::type>(lhs.w * rhs.w)};
 }
 
-template <typename T>
-__host__ __device__ inline typename std::enable_if<is_vec4_v<T>, T>::type operator/(const T& lhs, const T& rhs) {
+template <typename T, typename X>
+__host__ __device__ inline typename std::enable_if<is_vec4_v<T> && is_vec4_v<X>, T>::type operator/(const T& lhs, const X& rhs) {
     return {static_cast<typename value_traits<T>::type>(lhs.x / rhs.x), 
             static_cast<typename value_traits<T>::type>(lhs.y / rhs.y),
             static_cast<typename value_traits<T>::type>(lhs.z / rhs.z),
             static_cast<typename value_traits<T>::type>(lhs.w / rhs.w)};
 }
 
-template <typename T>
-__host__ __device__ inline  typename std::enable_if<is_vec4_v<T>, bool>::type operator==(const T& lhs, const T& rhs) {
+template <typename T, typename X>
+__host__ __device__ inline  typename std::enable_if<is_vec4_v<T> && is_vec4_v<X>, bool>::type operator==(const T& lhs, const X& rhs) {
     return  (lhs.x == rhs.x) && 
             (lhs.y == rhs.y) &&
             (lhs.z == rhs.z) &&
@@ -123,6 +132,15 @@ __host__ __device__ inline typename std::enable_if<is_vec4_v<T> && std::is_arith
             static_cast<typename value_traits<T>::type>(lhs.y * rhs),
             static_cast<typename value_traits<T>::type>(lhs.z * rhs),
             static_cast<typename value_traits<T>::type>(lhs.w * rhs)};
+}
+
+template <typename T, typename X>
+__host__ __device__ inline typename std::enable_if<is_vec4_v<T> && std::is_arithmetic_v<X>, T>::type operator+=(const T& lhs, const X& rhs) {
+    lhs.x += rhs;
+    lhs.y += rhs;
+    lhs.z += rhs;
+    lhs.w += rhs;
+    return lhs;
 }
 
 template <typename T, typename X>

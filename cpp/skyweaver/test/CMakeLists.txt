@@ -12,6 +12,7 @@ set(
     src/DelayManagerTester.cu
     src/ObservationHeaderTester.cpp
     src/IncoherentBeamformerTester.cu
+    src/IncoherentDedisperserTester.cu
     src/MultiFileReaderTester.cu
     src/MultiFileWriterTester.cpp
     src/StatisticsCalculatorTester.cu

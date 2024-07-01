@@ -8,6 +8,7 @@ set(skyweaver_src
    src/FileOutputStream.cpp
    src/Header.cpp
    src/IncoherentBeamformer.cu
+   src/IncoherentDedisperser.cu
    src/MultiFileReader.cu
    src/MultiFileWriter.cpp
    src/ObservationHeader.cpp
@@ -25,6 +26,7 @@ set(skyweaver_inc
     FileOutputStream.hpp
     Header.hpp
     IncoherentBeamformer.cuh
+    IncoherentDedisperser.cuh
     MultiFileReader.cuh
     MultiFileWriter.hpp    
     ObservationHeader.hpp

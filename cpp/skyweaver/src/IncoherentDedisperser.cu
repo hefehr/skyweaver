@@ -78,7 +78,7 @@ int IncoherentDedisperser::max_delay() const
 
 template <typename InputVectorType, typename OutputVectorType>
 void IncoherentDedisperser::dedisperse<InputVectorType, OutputVectorType>(
-    InputVectorType const& tfb_powers, OutputVectorType& dtb_powers)
+    InputVectorType const& tfb_powers, OutputVectorType& tdb_powers)
 {
     const std::size_t nchans   = _config.channel_frequencies().size();
     const std::size_t nbeams   = _config.nbeams();
@@ -89,7 +89,7 @@ void IncoherentDedisperser::dedisperse<InputVectorType, OutputVectorType>(
         throw std::runtime_error("Fewer than max_delay samples passed to dedisperse method");
     }
     const std::size_t bf       = nbeams * nchans;
-    dtb_powers.resize((nsamples - _max_delay) * nbeams * ndms);
+    tdb_powers.resize((nsamples - _max_delay) * nbeams * ndms);
     OutputVectorType powers(nbeams);
     for (int t_idx = 0; t_idx < (nsamples - _max_delay); ++t_idx)
     {
@@ -107,7 +107,7 @@ void IncoherentDedisperser::dedisperse<InputVectorType, OutputVectorType>(
                 }
             }
             int output_offset = t_output_offset + dm_idx * nbeams;
-            std::copy(powers.begin(), powers.end(), dtb_powers.begin() + output_offset);
+            std::copy(powers.begin(), powers.end(), tdb_powers.begin() + output_offset);
         }
     }
 }
@@ -116,12 +116,12 @@ void IncoherentDedisperser::dedisperse<InputVectorType, OutputVectorType>(
 // vec4 --> vec4 (char4 and float4)
 // scalar --> scalar (char and float)
 template void IncoherentDedisperser::dedisperse<thrust::host_vector<char>, thrust::host_vector<float>>(
-    thrust::host_vector<char> const& tfb_powers, thrust::host_vector<float>& dtb_powers);
+    thrust::host_vector<char> const& tfb_powers, thrust::host_vector<float>& tdb_powers);
 template void IncoherentDedisperser::dedisperse<thrust::host_vector<float>, thrust::host_vector<float>>(
-    thrust::host_vector<float> const& tfb_powers, thrust::host_vector<float>& dtb_powers);
+    thrust::host_vector<float> const& tfb_powers, thrust::host_vector<float>& tdb_powers);
 template void IncoherentDedisperser::dedisperse<thrust::host_vector<char4>, thrust::host_vector<float4>>(
-    thrust::host_vector<char4> const& tfb_powers, thrust::host_vector<float4>& dtb_powers);
+    thrust::host_vector<char4> const& tfb_powers, thrust::host_vector<float4>& tdb_powers);
 template void IncoherentDedisperser::dedisperse<thrust::host_vector<float4>, thrust::host_vector<float4>>(
-    thrust::host_vector<float4> const& tfb_powers, thrust::host_vector<float4>& dtb_powers);
+    thrust::host_vector<float4> const& tfb_powers, thrust::host_vector<float4>& tdb_powers);
 
 } // namespace skyweaver

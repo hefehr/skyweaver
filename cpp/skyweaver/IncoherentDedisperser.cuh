@@ -38,7 +38,7 @@ public:
 
     template <typename InputVectorType, typename OutputVectorType>
     void dedisperse(InputVectorType const& tfb_powers,   
-                    OutputVectorType& dtb_powers);
+                    OutputVectorType& tdb_powers);
     std::vector<int> const& delays() const;
     int max_delay() const;
 

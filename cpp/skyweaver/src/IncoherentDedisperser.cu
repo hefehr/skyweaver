@@ -34,6 +34,7 @@ IncoherentDedisperser::IncoherentDedisperser(PipelineConfig const& config,
 , _dms(dms)
 , _delays(dms.size() * config.channel_frequencies().size())
 , _max_delay(0)
+, _scale_factor(1.0f)
 {
     prepare();
 }
@@ -64,6 +65,7 @@ void IncoherentDedisperser::prepare()
     }
     auto it = std::max_element(_delays.begin(), _delays.end());
     _max_delay = *it;
+    _scale_factor = std::sqrt(_config.nchans());
 }
 
 std::vector<int> const& IncoherentDedisperser::delays() const
@@ -76,10 +78,15 @@ int IncoherentDedisperser::max_delay() const
     return _max_delay;
 }
 
+// Incoherent beamformer should have an option to output 8-bit data.
+
 template <typename InputVectorType, typename OutputVectorType>
 void IncoherentDedisperser::dedisperse<InputVectorType, OutputVectorType>(
     InputVectorType const& tfb_powers, OutputVectorType& tdb_powers)
 {
+    typedef typename value_traits<typename OutputVectorType::value_type>::promoted_type AccumulatorType;
+    typedef std::vector<AccumulatorType> AccumulatorVectorType;
+
     const std::size_t nchans   = _config.channel_frequencies().size();
     const std::size_t nbeams   = _config.nbeams();
     const std::size_t ndms     = _dms.size();
@@ -90,14 +97,14 @@ void IncoherentDedisperser::dedisperse<InputVectorType, OutputVectorType>(
     }
     const std::size_t bf       = nbeams * nchans;
     tdb_powers.resize((nsamples - _max_delay) * nbeams * ndms);
-    OutputVectorType powers(nbeams);
+    AccumulatorVectorType powers(nbeams);
     for (int t_idx = 0; t_idx < (nsamples - _max_delay); ++t_idx)
     {
         int t_output_offset = t_idx * nbeams * ndms;
         for (int dm_idx = 0; dm_idx < ndms; ++dm_idx)
         {
             int offset = nchans * dm_idx;
-            std::fill(powers.begin(), powers.end(), value_traits<typename OutputVectorType::value_type>::zero());
+            std::fill(powers.begin(), powers.end(), value_traits<typename decltype(powers)::value_type>::zero());
             for (int f_idx = 0; f_idx < nchans; ++f_idx)
             {
                 int idx = (t_idx + _delays[offset + f_idx]) * bf + f_idx * nbeams;
@@ -107,21 +114,18 @@ void IncoherentDedisperser::dedisperse<InputVectorType, OutputVectorType>(
                 }
             }
             int output_offset = t_output_offset + dm_idx * nbeams;
-            std::copy(powers.begin(), powers.end(), tdb_powers.begin() + output_offset);
+            std::transform(powers.begin(), powers.end(), tdb_powers.begin() + output_offset, 
+                           [this](AccumulatorType const& value){
+                               return clamp<typename OutputVectorType::value_type>(value / _scale_factor);
+                           });
         }
     }
 }
 
 // This is the set of explicitly supported template arguments
-// vec4 --> vec4 (char4 and float4)
-// scalar --> scalar (char and float)
-template void IncoherentDedisperser::dedisperse<thrust::host_vector<char>, thrust::host_vector<float>>(
-    thrust::host_vector<char> const& tfb_powers, thrust::host_vector<float>& tdb_powers);
-template void IncoherentDedisperser::dedisperse<thrust::host_vector<float>, thrust::host_vector<float>>(
-    thrust::host_vector<float> const& tfb_powers, thrust::host_vector<float>& tdb_powers);
-template void IncoherentDedisperser::dedisperse<thrust::host_vector<char4>, thrust::host_vector<float4>>(
-    thrust::host_vector<char4> const& tfb_powers, thrust::host_vector<float4>& tdb_powers);
-template void IncoherentDedisperser::dedisperse<thrust::host_vector<float4>, thrust::host_vector<float4>>(
-    thrust::host_vector<float4> const& tfb_powers, thrust::host_vector<float4>& tdb_powers);
+template void IncoherentDedisperser::dedisperse<thrust::host_vector<char>, thrust::host_vector<char>>(
+    thrust::host_vector<char> const& tfb_powers, thrust::host_vector<char>& tdb_powers);
+template void IncoherentDedisperser::dedisperse<thrust::host_vector<char4>, thrust::host_vector<char4>>(
+    thrust::host_vector<char4> const& tfb_powers, thrust::host_vector<char4>& tdb_powers);
 
 } // namespace skyweaver

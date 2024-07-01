@@ -108,6 +108,28 @@ void dedisperse_tfb(std::vector<float> const& tfb,
     }
 }
 
+void dedisperse_tfb_no_vec(std::vector<float> const& tfb, 
+                    std::vector<float>& tb, 
+                    std::vector<int> const& delays,
+                    int nchans,
+                    int nbeams,
+                    int max_delay)
+{
+    const int nsamples = tfb.size() / (nbeams * nchans);
+    const int bf = nbeams * nchans;
+    for (int t_idx = 0; t_idx < (nsamples - max_delay); ++t_idx)
+    {
+        for (int f_idx = 0; f_idx < nchans; ++f_idx)
+        {
+            int idx = (t_idx + delays[f_idx]) * bf + f_idx * nbeams;
+            for (int b_idx = 0; b_idx < nbeams; ++b_idx)
+            {
+                tb[t_idx * nbeams + b_idx] += tfb[idx + b_idx];
+            }
+        }
+    }
+}
+
 #define NBEAMS 800
 #define NCHANS 64
 
@@ -227,6 +249,17 @@ int main()
         auto end = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
         std::cout << "Time taken by dedisperse_tfb: " << duration.count() << " milliseconds" << std::endl;
+        float sum = std::accumulate(tb.begin(), tb.end(), 0);
+        std::cout << sum << "\n";
+    }
+
+        {
+        std::vector<float> tb(nsamples * nbeams, 0.0f);
+        auto start = std::chrono::high_resolution_clock::now();
+        dedisperse_tfb_no_vec(tbf, tb, delays, nchans, nbeams, max_delay);
+        auto end = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+        std::cout << "Time taken by dedisperse_tfb_no_vec: " << duration.count() << " milliseconds" << std::endl;
         float sum = std::accumulate(tb.begin(), tb.end(), 0);
         std::cout << sum << "\n";
     }

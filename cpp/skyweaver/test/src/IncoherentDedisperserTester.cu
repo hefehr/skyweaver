@@ -30,10 +30,8 @@ void IncoherentDedisperserTester<Traits>::TearDown()
 {
 }
 
-typedef ::testing::Types<IDTesterTraits<char, float>,
-                         IDTesterTraits<float, float>,
-                         IDTesterTraits<char4, float4>,
-                         IDTesterTraits<float4, float4>>
+typedef ::testing::Types<IDTesterTraits<char, char>,
+                         IDTesterTraits<char4, char4>>
         TestTypes;
 TYPED_TEST_SUITE(IncoherentDedisperserTester, TestTypes);
 
@@ -68,7 +66,7 @@ TYPED_TEST(IncoherentDedisperserTester, ones_test)
     ASSERT_EQ(output.size(), (nsamples - dedisperser.max_delay()) * dms.size() * this->_config.nbeams());
     for (auto const& val: output)
     {
-        EXPECT_EQ(val, value_traits<typename Traits::OutputType>::one() * this->_config.nchans());
+        EXPECT_EQ(val, value_traits<typename Traits::OutputType>::one() * std::sqrt(this->_config.nchans()));
     }
 }
 

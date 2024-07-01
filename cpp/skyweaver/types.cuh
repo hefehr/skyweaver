@@ -26,6 +26,7 @@ template <>
 struct value_traits<char>
 {
     typedef char type;
+    typedef float promoted_type;
     __host__ __device__ static constexpr char zero() { return 0; }
     __host__ __device__ static constexpr char one() { return 1; }
 };
@@ -34,6 +35,7 @@ template <>
 struct value_traits<float>
 {
     typedef float type;
+    typedef float promoted_type;
     __host__ __device__ static constexpr float zero() { return 0.0f; }
     __host__ __device__ static constexpr float one() { return 1.0f; }
 };
@@ -42,6 +44,7 @@ template <>
 struct value_traits<char4>
 {
     typedef char type;
+    typedef float4 promoted_type;
     __host__ __device__ static constexpr char4 zero() { return {0, 0, 0, 0}; }
     __host__ __device__ static constexpr char4 one() { return {1, 1, 1, 1}; }
 };
@@ -50,6 +53,7 @@ struct value_traits<char4>
 template <>
 struct value_traits<float4> {
     typedef float type;
+    typedef float4 promoted_type;
     __host__ __device__ static constexpr float4 zero() { return {0.0f, 0.0f, 0.0f, 0.0f}; }
     __host__ __device__ static constexpr float4 one() { return {1.0f, 1.0f, 1.0f, 1.0f}; }
 };
@@ -122,7 +126,6 @@ __host__ __device__ inline  typename std::enable_if<is_vec4_v<T> && is_vec4_v<X>
             (lhs.w == rhs.w);
 }
 
-
 /**
  * vector - scalar operations
  */
@@ -166,6 +169,28 @@ __host__ __device__ inline typename std::enable_if<is_vec4_v<T> && std::is_arith
             static_cast<typename value_traits<T>::type>(lhs.z - rhs),
             static_cast<typename value_traits<T>::type>(lhs.w - rhs)};
 
+}
+
+template <typename U, typename T>
+static inline typename std::enable_if<std::is_arithmetic_v<T> && std::is_arithmetic_v<U>, U>::type clamp(T const& value)
+{
+    return static_cast<U>(
+        fmaxf(static_cast<float>(
+                    std::numeric_limits<U>::lowest()),
+                fminf(static_cast<float>(
+                        std::numeric_limits<U>::max()),
+                    static_cast<float>(value))));
+}
+
+template <typename U, typename T>
+static inline typename std::enable_if<is_vec4_v<T> && is_vec4_v<U>, U>::type clamp(T const& value)
+{
+    U clamped;
+    clamped.x = clamp<typename value_traits<U>::type, typename value_traits<T>::type>(value.x);
+    clamped.y = clamp<typename value_traits<U>::type, typename value_traits<T>::type>(value.y);
+    clamped.z = clamp<typename value_traits<U>::type, typename value_traits<T>::type>(value.z);
+    clamped.w = clamp<typename value_traits<U>::type, typename value_traits<T>::type>(value.w);
+    return clamped;
 }
 
 #endif //SKYWEAVER_TYPES_CUH

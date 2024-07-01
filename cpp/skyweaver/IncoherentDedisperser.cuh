@@ -49,6 +49,7 @@ private:
     PipelineConfig const& _config;
     std::vector<float> _dms;
     int _max_delay;
+    float _scale_factor;
     std::vector<int> _delays;
 };
 

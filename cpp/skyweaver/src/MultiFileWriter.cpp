@@ -61,8 +61,7 @@ NDIM         1
 NPOL         1
 NCHAN        64
 NBEAMS       800
-ORDER        TBTF
-INNER_T      256
+ORDER        TFB
 
 CHAN0_IDX 2688
 )";
@@ -77,6 +76,12 @@ MultiFileWriter::MultiFileWriter(PipelineConfig const& config, std::string tag)
 MultiFileWriter::~MultiFileWriter() {};
 
 void MultiFileWriter::init(ObservationHeader const& header)
+{
+    std::vector<long double> dm_delays(_config.coherent_dms().size(), 0.0);
+    init(header, dm_delays);
+}
+
+void MultiFileWriter::init(ObservationHeader const& header, std::vector<long double> const& dm_delays)
 {
     std::size_t output_nchans = header.nchans / _config.cb_fscrunch();
     long double output_tsamp  = header.tsamp * _config.cb_tscrunch();
@@ -116,11 +121,19 @@ void MultiFileWriter::init(ObservationHeader const& header)
         if(!_tag.empty()) {
             base_filename << "_" << _tag;
         }
+
+        std::string extension;
+        if (_config.enable_incoherent_dedispersion()){
+            extension = ".tb";
+        } else {
+            extension = ".tfb";
+        }
+
         _file_streams[dm_idx].reset(new FileStream(
             _config.output_dir(),
             base_filename.str(),
-            ".tbtf",  // TODO: Update after incoherent dedispersion implemented
-            filesize, // This has to be a BTF multiple
+            extension,  
+            filesize, // This has to be a BF multiple
             [&, dm_idx, output_nchans, output_tsamp, filesize](
                 std::size_t& header_size,
                 std::size_t bytes_written,
@@ -138,12 +151,7 @@ void MultiFileWriter::init(ObservationHeader const& header)
                             default_dada_header.c_str(),
                             default_dada_header.size());
                 Header header_writer(bytes);
-                header_writer.set<std::size_t>("INNER_T",
-                                               _config.nsamples_per_block());
                 header_writer.set<std::size_t>("NBEAMS", _config.nbeams());
-                BOOST_LOG_TRIVIAL(debug) << "dereferencing IDX " << dm_idx;
-                BOOST_LOG_TRIVIAL(debug)
-                    << "array size " << _config.coherent_dms().size();
                 header_writer.set<long double>(
                     "DM",
                     static_cast<long double>(_config.coherent_dms()[dm_idx]));
@@ -151,21 +159,26 @@ void MultiFileWriter::init(ObservationHeader const& header)
                 header_writer.set<long double>("BW", header.bandwidth);
                 header_writer.set<long double>("TSAMP", output_tsamp);
                 // TODO change when using full Stokes
-                header_writer.set<std::size_t>("NPOL", 1);
+                if (_config.stokes_mode() == "IQUV"){
+                    header_writer.set<std::size_t>("NPOL", 4);
+                } else {
+                    header_writer.set<std::size_t>("NPOL", 1);
+                }
+                header_writer.set<std::string>("STOKES_MODE", _config.stokes_mode());
+                if (_config.enable_incoherent_dedispersion()){
+                    header_writer.set<std::string>("ORDER", "TB");
+                } else {
+                    header_writer.set<std::string>("ORDER", "TFB");
+                }
                 header_writer.set<std::size_t>("CHAN0_IDX", header.chan0_idx);
                 header_writer.set<std::size_t>("FILE_SIZE", filesize);
                 header_writer.set<std::size_t>("FILE_NUMBER", file_idx);
                 header_writer.set<std::size_t>("OBS_OFFSET", bytes_written);
                 header_writer.set<std::size_t>("OBS_OVERLAP", 0);
-                /** Not needed when keeping the UTC fixed
-                // TODO change when using full Stokes
-                std::size_t nsamples_written = bytes_written / _config.nbeams()
-                / output_nchans; long double delta_t_seconds = nsamples_written
-                * output_tsamp; long double utc_start = header.utc_start() +
-                delta_t_seconds; long double mjd_start = header.mjd_start() +
-                delta_t_seconds / 86400.0; header_writer.set<long
-                double>("UTC_START", header.chan0_idx());
-                */
+                
+                // UTC_START needs to be updated to account for the max delay
+                // for the current DM.
+                header_writer.set<long double>("UTC_START", header.utc_start + dm_delays[dm_idx]);
                 std::shared_ptr<char const> header_ptr(
                     temp_header,
                     std::default_delete<char[]>());

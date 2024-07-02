@@ -29,7 +29,7 @@ void IncoherentDedispersionPipelineTester<Traits>::TearDown(){
 }
 
 template <typename Traits>
-void IncoherentDedispersionPipelineTester<Traits>::init(ObservationHeader const& header)
+void IncoherentDedispersionPipelineTester<Traits>::init(ObservationHeader const& header, std::vector<long double> const& dm_delays)
 {
     _init_called = true;
     _init_arg = header;

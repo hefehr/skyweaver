@@ -32,7 +32,7 @@ class IncoherentDedispersionPipelineTester: public ::testing::Test
     IncoherentDedispersionPipelineTester();
     ~IncoherentDedispersionPipelineTester();
 
-  void init(ObservationHeader const& header);
+  void init(ObservationHeader const& header, std::vector<long double> const& dm_delays);
 
   void operator()(OutputVectorType const&, std::size_t dm_idx);
 

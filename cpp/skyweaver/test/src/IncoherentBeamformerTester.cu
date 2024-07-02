@@ -176,38 +176,40 @@ TYPED_TEST(IncoherentBeamformerTester, ib_representative_noise_test)
     float ib_power_offset = ib_scale * ib_dof;
     float ib_power_scaling =
         ib_scale * std::sqrt(2 * ib_dof) / config.output_level();
-    int nbeamsets = 2;
 
-    typename IBT::DeviceScalingVectorType scales(
-        config.nchans() / config.ib_fscrunch() * nbeamsets,
-        ib_power_scaling);
-    typename IBT::DeviceScalingVectorType offset(
-        config.nchans() / config.ib_fscrunch() * nbeamsets,
-        ib_power_offset);
-    typename IBT::DeviceScalingVectorType beamset_weights(config.nantennas() *
-                                                              nbeamsets,
-                                                          1.0f);
+    for (int nbeamsets = 1; nbeamsets < 5; ++nbeamsets)
+    {
+        typename IBT::DeviceScalingVectorType scales(
+            config.nchans() / config.ib_fscrunch() * nbeamsets,
+            ib_power_scaling);
+        typename IBT::DeviceScalingVectorType offset(
+            config.nchans() / config.ib_fscrunch() * nbeamsets,
+            ib_power_offset);
+        typename IBT::DeviceScalingVectorType beamset_weights(config.nantennas() *
+                                                                nbeamsets,
+                                                            1.0f);
 
-    typename IBT::DeviceVoltageVectorType ftpa_voltages_gpu =
-        ftpa_voltages_host;
-    typename IBT::DevicePowerVectorType tf_powers_gpu;
-    typename IBT::DeviceRawPowerVectorType tf_powers_raw_gpu;
-    incoherent_beamformer.beamform(ftpa_voltages_gpu,
-                                   tf_powers_raw_gpu,
-                                   tf_powers_gpu,
-                                   scales,
-                                   offset,
-                                   beamset_weights,
-                                   nbeamsets,
-                                   this->_stream);
-    this->compare_against_host(ftpa_voltages_gpu,
-                               tf_powers_raw_gpu,
-                               tf_powers_gpu,
-                               scales,
-                               offset,
-                               beamset_weights,
-                               ntimestamps,
-                               nbeamsets);
+        typename IBT::DeviceVoltageVectorType ftpa_voltages_gpu =
+            ftpa_voltages_host;
+        typename IBT::DevicePowerVectorType tf_powers_gpu;
+        typename IBT::DeviceRawPowerVectorType tf_powers_raw_gpu;
+        incoherent_beamformer.beamform(ftpa_voltages_gpu,
+                                    tf_powers_raw_gpu,
+                                    tf_powers_gpu,
+                                    scales,
+                                    offset,
+                                    beamset_weights,
+                                    nbeamsets,
+                                    this->_stream);
+        this->compare_against_host(ftpa_voltages_gpu,
+                                tf_powers_raw_gpu,
+                                tf_powers_gpu,
+                                scales,
+                                offset,
+                                beamset_weights,
+                                ntimestamps,
+                                nbeamsets);
+    }
 }
 
 } // namespace test

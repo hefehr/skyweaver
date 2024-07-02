@@ -51,7 +51,15 @@ void IncoherentDedispersionPipeline<InputType, OutputType, Handler>::agg_buffer_
 template <typename InputType, typename OutputType, typename Handler>
 void IncoherentDedispersionPipeline<InputType, OutputType, Handler>::init(ObservationHeader const& header)
 {
-    _handler.init(header);
+    std::size_t nchans = _config.channel_frequencies().size();
+    long double chbw = _config.bandwidth() / _config.nchans();
+    long double tsamp = _config.cb_tscrunch() / chbw;
+    std::vector<long double> dm_delays(_config.coherent_dms().size());
+    for (std::size_t dm_idx=0; dm_idx < _config.coherent_dms().size(); ++dm_idx)
+    {
+        dm_delays[dm_idx] = _dedispersers[dm_idx]->max_delay() * tsamp;
+    } 
+    _handler.init(header, dm_delays);
 }
 
 template <typename InputType, typename OutputType, typename Handler>

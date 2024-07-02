@@ -17,6 +17,7 @@ class MultiFileWriter
     ~MultiFileWriter();
 
     void init(ObservationHeader const& header);
+    void init(ObservationHeader const& header, std::vector<long double> const& dm_delays);
 
     template <typename VectorType>
     bool operator()(VectorType const& btf_powers, std::size_t dm_idx);

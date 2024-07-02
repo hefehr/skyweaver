@@ -130,7 +130,12 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
     // Stays the same
     BOOST_LOG_TRIVIAL(debug) << "Checking if channel statistics update request";
     _stats_manager->calculate_statistics(_ftpa_post_transpose);
-
+    if (_call_count == 0)
+    {
+        _stats_manager->update_scalings(_delay_manager->beamset_weights(),
+                                        _delay_manager->nbeamsets());
+    }
+    
     BOOST_LOG_TRIVIAL(debug)
         << "FTPA post transpose size: " << _ftpa_post_transpose.size();
 
@@ -152,6 +157,12 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
                 freq_idx * _ftpa_post_transpose.size() / _config.nchans(),
                 dm_idx);
         }
+
+        BOOST_LOG_TRIVIAL(debug) << "_ftpa_dedispersed.size() = " << _ftpa_dedispersed.size();
+        BOOST_LOG_TRIVIAL(debug) << "_stats_manager->ib_scaling() = " << _stats_manager->ib_scaling().size();
+        BOOST_LOG_TRIVIAL(debug) << "_stats_manager->ib_offsets() = " << _stats_manager->ib_offsets().size();
+        BOOST_LOG_TRIVIAL(debug) << "_delay_manager->beamset_weights() = " << _delay_manager->beamset_weights().size();
+
         _incoherent_beamformer->beamform(_ftpa_dedispersed,
                                          _tf_ib_raw,
                                          _tf_ib,

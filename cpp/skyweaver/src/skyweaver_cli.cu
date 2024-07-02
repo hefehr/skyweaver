@@ -2,6 +2,7 @@
 #include "errno.h"
 #include "psrdada_cpp/cli_utils.hpp"
 #include "skyweaver/BeamformerPipeline.cuh"
+#include "skyweaver/IncoherentDedispersionPipeline.cuh"
 #include "skyweaver/MultiFileReader.cuh"
 #include "skyweaver/MultiFileWriter.hpp"
 #include "skyweaver/PipelineConfig.hpp"
@@ -265,17 +266,19 @@ int main(int argc, char** argv)
 template <typename BfTraits>
 void run_pipeline(skyweaver::PipelineConfig const& config)
 {
-    // Here we build and invoke the pipeline
-    skyweaver::MultiFileWriter cb_handler(config, "cb");
-    skyweaver::MultiFileWriter ib_handler(config, "ib");
-    NullHandler stats_handler;
-    skyweaver::MultiFileReader file_reader(config);
+    using OutputType = typename BfTraits::QuantisedPowerType;
 
-    skyweaver::BeamformerPipeline<decltype(cb_handler),
+    // Here we build and invoke the pipeline
+    NullHandler ib_handler;
+    NullHandler stats_handler;
+    skyweaver::MultiFileWriter cb_file_writer(config, "cb");
+    skyweaver::IncoherentDedispersionPipeline<OutputType, OutputType, decltype(cb_file_writer)> dispersion_pipeline(config, cb_file_writer);
+    skyweaver::MultiFileReader file_reader(config);
+    skyweaver::BeamformerPipeline<decltype(dispersion_pipeline),
                                   decltype(ib_handler),
                                   decltype(stats_handler),
                                   BfTraits>
-        pipeline(config, cb_handler, ib_handler, stats_handler);
+        pipeline(config, dispersion_pipeline, ib_handler, stats_handler);
     thrust::host_vector<char2> taftp_input_voltage;
     auto const& header = file_reader.get_header();
 

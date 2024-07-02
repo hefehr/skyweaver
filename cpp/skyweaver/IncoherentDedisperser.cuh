@@ -53,7 +53,6 @@ private:
     std::vector<int> _delays;
 };
 
-
 } // namespace skyweaver
 
 #endif //SKYWEAVER_INCOHERENTDEDISPERSER_CUH

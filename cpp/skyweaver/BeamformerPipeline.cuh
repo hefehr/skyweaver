@@ -14,7 +14,7 @@
 #include "skyweaver/Transposer.cuh"
 #include "skyweaver/WeightsManager.cuh"
 
-#include <memory>
+#include <functional>
 
 namespace skyweaver
 {

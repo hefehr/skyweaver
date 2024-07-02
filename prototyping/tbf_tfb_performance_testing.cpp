@@ -15,8 +15,6 @@ g++ -O3 -march=native -ftree-vectorize -S tbf_tfb_performance_testing.cpp
 
 */
 
-
-
 #include <vector>
 #include <algorithm>
 #include <iostream>
@@ -93,9 +91,7 @@ void dedisperse_tfb(std::vector<float> const& tfb,
 
     for (int t_idx = 0; t_idx < (nsamples - max_delay); ++t_idx)
     {
-        //std::memset(powers.data(), 0.0f, powers.size() * sizeof(float));
         std::fill(powers.begin(), powers.end(), 0.0f);
-
         for (int f_idx = 0; f_idx < nchans; ++f_idx)
         {
             int idx = (t_idx + delays[f_idx]) * bf + f_idx * nbeams;

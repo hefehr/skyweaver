@@ -2,7 +2,6 @@
 #include "skyweaver/AggregationBuffer.cuh"
 #include "skyweaver/types.cuh"
 #include "skyweaver/test/test_utils.cuh"
-#include "thrust/host_vector.h"
 #include "thrust/device_vector.h"
 #include <vector>
 #include <list>

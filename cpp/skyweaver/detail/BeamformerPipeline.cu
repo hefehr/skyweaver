@@ -126,7 +126,7 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
                            _ftpa_post_transpose,
                            _header.nantennas,
                            _processing_stream);
-
+    _ftpa_dedispersed.resize(_ftpa_post_transpose.size());
     // Stays the same
     BOOST_LOG_TRIVIAL(debug) << "Checking if channel statistics update request";
     _stats_manager->calculate_statistics(_ftpa_post_transpose);

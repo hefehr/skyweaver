@@ -172,6 +172,16 @@ std::size_t PipelineConfig::dedisp_max_delay_samps() const
     return _dedisp_max_delay_samps;
 }
 
+void PipelineConfig::enable_incoherent_dedispersion(bool enable)
+{
+    _enable_incoherent_dedispersion = enable;
+}
+
+bool PipelineConfig::enable_incoherent_dedispersion() const
+{
+    return _enable_incoherent_dedispersion;
+}
+
 std::vector<double> const& PipelineConfig::channel_frequencies() const
 {
     if(_channel_frequencies_stale) {

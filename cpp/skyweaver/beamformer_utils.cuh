@@ -140,7 +140,7 @@ calculate_stokes(cuFloatComplex const& p0, cuFloatComplex const& p1)
 
 template <StokesParameter Stokes>
 struct SingleStokesBeamformerTraits {
-    typedef int8_t QuantisedPowerType;
+    typedef char QuantisedPowerType;
     typedef float RawPowerType;
     constexpr static const float zero_power = 0.0f;
 

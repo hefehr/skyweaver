@@ -168,6 +168,16 @@ class PipelineConfig
     void dedisp_max_delay_samps(std::size_t);
 
     /**
+     * @brief      Enable/disable incoherent dedispersion based fscrunch after beamforming
+     */
+    void enable_incoherent_dedispersion(bool enable);
+
+    /**
+     * @brief      Check if incoherent dedispersion based fscrunch after beamforming is enabled
+     */
+    bool enable_incoherent_dedispersion() const;
+
+    /**
      * @brief      Return the number of time samples to be integrated
      *             in the coherent beamformer.
      */
@@ -357,6 +367,7 @@ class PipelineConfig
     std::string _output_file_prefix;
     std::vector<float> _coherent_dms;
     std::size_t _dedisp_max_delay_samps; 
+    bool _enable_incoherent_dedispersion;
     double _cfreq;
     double _bw;
     mutable bool _channel_frequencies_stale;

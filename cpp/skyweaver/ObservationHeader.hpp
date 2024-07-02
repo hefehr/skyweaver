@@ -3,6 +3,7 @@
 
 #include "psrdada_cpp/raw_bytes.hpp"
 #include "skyweaver/Header.hpp"
+#include "skyweaver/PipelineConfig.hpp"
 
 namespace skyweaver
 {
@@ -36,6 +37,8 @@ struct ObservationHeader {
  */
 void read_dada_header(psrdada_cpp::RawBytes& raw_header,
                       ObservationHeader& header);
+
+void validate_header(ObservationHeader const& header, PipelineConfig const& config);
 
 } // namespace skyweaver
 

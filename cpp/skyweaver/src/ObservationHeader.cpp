@@ -29,6 +29,30 @@ void read_dada_header(psrdada_cpp::RawBytes& raw_header,
     header.chan0_idx   = parser.get<decltype(header.chan0_idx)>("CHAN0_IDX");
 }
 
+void validate_header(ObservationHeader const& header, PipelineConfig const& config)
+{
+    if (header.nantennas > config.nantennas())
+    {
+        throw std::runtime_error("Input data contains too many antennas for current build, "
+                                 "-DSKYWEAVER_NANTENNAS should be larger than the data nantennas");
+    }
+    if (header.nchans != config.nchans())
+    {
+        throw std::runtime_error("Input data contains incorrect number of channels for current build, "
+                                 "-DSKYWEAVER_NCHANS should be equal to the data nchans");
+    }
+    if (header.npol != config.npol())
+    {
+        throw std::runtime_error("Input data contains incorrect number of polarisations for current build, "
+                                 "-DSKYWEAVER_NPOL should be equal to the data npol");
+    }
+    if (header.nbits != 8)
+    {
+        throw std::runtime_error("Input data contains incorrect number of bits per sample, "
+                                 "currently only 8-bit input supported");
+    }
+}
+
 std::string ObservationHeader::to_string() const
 {
     std::ostringstream oss;

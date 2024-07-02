@@ -177,8 +177,8 @@ TEST_F(StatisticsCalculatorTester, test_normal_dist)
     thrust::host_vector<char2> ftpa_voltages_h(input_size);
     thrust::generate(ftpa_voltages_h.begin(), ftpa_voltages_h.end(), [&] {
         char2 val;
-        val.x = static_cast<char>(std::clamp(dist(rng), -127.0f, 127.0f));
-        val.y = static_cast<char>(std::clamp(dist(rng), -127.0f, 127.0f));
+        val.x = static_cast<int8_t>(std::clamp(dist(rng), -127.0f, 127.0f));
+        val.y = static_cast<int8_t>(std::clamp(dist(rng), -127.0f, 127.0f));
         return val;
     });
     thrust::device_vector<char2> ftpa_voltages = ftpa_voltages_h;

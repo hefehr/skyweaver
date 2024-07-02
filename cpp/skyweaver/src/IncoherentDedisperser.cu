@@ -123,8 +123,8 @@ void IncoherentDedisperser::dedisperse<InputVectorType, OutputVectorType>(
 }
 
 // This is the set of explicitly supported template arguments
-template void IncoherentDedisperser::dedisperse<thrust::host_vector<char>, thrust::host_vector<char>>(
-    thrust::host_vector<char> const& tfb_powers, thrust::host_vector<char>& tdb_powers);
+template void IncoherentDedisperser::dedisperse<thrust::host_vector<int8_t>, thrust::host_vector<int8_t>>(
+    thrust::host_vector<int8_t> const& tfb_powers, thrust::host_vector<int8_t>& tdb_powers);
 template void IncoherentDedisperser::dedisperse<thrust::host_vector<char4>, thrust::host_vector<char4>>(
     thrust::host_vector<char4> const& tfb_powers, thrust::host_vector<char4>& tdb_powers);
 

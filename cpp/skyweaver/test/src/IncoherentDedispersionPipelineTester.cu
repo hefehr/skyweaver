@@ -44,7 +44,7 @@ void IncoherentDedispersionPipelineTester<Traits>::operator()(OutputVectorType c
 }
 
 typedef ::testing::Types<
-    IDPipelineTraits<char, char>,
+    IDPipelineTraits<int8_t, int8_t>,
     IDPipelineTraits<char4, char4>,
     > TestTypes;
 

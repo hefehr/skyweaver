@@ -23,12 +23,12 @@ template <typename T>
 struct value_traits {};
 
 template <>
-struct value_traits<char>
+struct value_traits<int8_t>
 {
-    typedef char type;
+    typedef int8_t type;
     typedef float promoted_type;
-    __host__ __device__ static constexpr char zero() { return 0; }
-    __host__ __device__ static constexpr char one() { return 1; }
+    __host__ __device__ static constexpr int8_t zero() { return 0; }
+    __host__ __device__ static constexpr int8_t one() { return 1; }
 };
 
 template <>
@@ -43,7 +43,7 @@ struct value_traits<float>
 template <>
 struct value_traits<char4>
 {
-    typedef char type;
+    typedef int8_t type;
     typedef float4 promoted_type;
     __host__ __device__ static constexpr char4 zero() { return {0, 0, 0, 0}; }
     __host__ __device__ static constexpr char4 one() { return {1, 1, 1, 1}; }
@@ -74,7 +74,7 @@ inline std::ostream& operator<<(std::ostream& stream, float4 const& val) {
 
 /**
  * vector - vector operations
- * explicit static_casts used to avoid Wnarrowing errors for char types due to integral promotion 
+ * explicit static_casts used to avoid Wnarrowing errors for int8_t types due to integral promotion 
  * (over/underflow is the expected behaviour here).
  */
 template <typename T, typename X>

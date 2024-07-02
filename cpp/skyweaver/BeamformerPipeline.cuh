@@ -74,7 +74,7 @@ class BeamformerPipeline
 
   private:
     PipelineConfig const& _config;
-    CoherentDedisperserConfig _dedispeser_config;
+    CoherentDedisperserConfig _dedisperser_config;
 
     // Data info
     ObservationHeader _header;

@@ -43,6 +43,17 @@ BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
     CUDA_ERROR_CHECK(cudaStreamCreate(&_processing_stream));
     CUDA_ERROR_CHECK(cudaStreamCreate(&_d2h_copy_stream));
 
+    float f_low = _config.centre_frequency() - _config.bandwidth()/2.0f;
+    float f_high =  _config.centre_frequency() + _config.bandwidth()/2.0f;
+    float tsamp = _config.nchans() / _config.bandwidth();
+    auto it = std::max_element(_config.coherent_dms().begin(), _config.coherent_dms().end());
+    float max_dm = *it;
+    float max_dm_delay = CoherentDedisperser::get_dm_delay(f_low, f_high, max_dm);
+    CoherentDedisperser::createConfig(
+        _dedisperser_config,  _config.gulp_length_samps(), max_dm_delay, 
+        _config.nchans(), _config.npol(), _config.nantennas(), tsamp, 
+        f_low, _config.bandwidth(), _config.coherent_dms());
+
     BOOST_LOG_TRIVIAL(debug) << "Constructing delay and weights managers";
     _delay_manager.reset(new DelayManager(_config, _h2d_copy_stream));
     _weights_manager.reset(new WeightsManager(_config, _processing_stream));
@@ -50,7 +61,7 @@ BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
     _transposer.reset(new Transposer(_config));
     _coherent_beamformer.reset(new CoherentBeamformer(_config));
     _coherent_dedisperser.reset(
-        new CoherentDedisperser(_config, _dedispeser_config));
+        new CoherentDedisperser(_config, _dedisperser_config));
     _incoherent_beamformer.reset(new IncoherentBeamformer(_config));
     _dispenser.reset(new BufferedDispenser(_config, _processing_stream));
     _nbeamsets = _delay_manager->nbeamsets();

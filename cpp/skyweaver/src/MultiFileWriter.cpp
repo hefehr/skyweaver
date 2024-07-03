@@ -77,12 +77,13 @@ MultiFileWriter::~MultiFileWriter() {};
 
 void MultiFileWriter::init(ObservationHeader const& header)
 {
-    std::vector<long double> dm_delays(_config.coherent_dms().size(), 0.0);
-    init(header, dm_delays);
+    _dm_delays.resize(_config.coherent_dms().size(), 0.0);
+    init(header, _dm_delays);
 }
 
 void MultiFileWriter::init(ObservationHeader const& header, std::vector<long double> const& dm_delays)
 {
+    _dm_delays = dm_delays;
     std::size_t output_nchans = header.nchans / _config.cb_fscrunch();
     long double output_tsamp  = header.tsamp * _config.cb_tscrunch();
     BOOST_LOG_TRIVIAL(debug) << "Output Nchans = " << output_nchans;
@@ -178,7 +179,7 @@ void MultiFileWriter::init(ObservationHeader const& header, std::vector<long dou
                 
                 // UTC_START needs to be updated to account for the max delay
                 // for the current DM.
-                header_writer.set<long double>("UTC_START", header.utc_start + dm_delays[dm_idx]);
+                header_writer.set<long double>("UTC_START", header.utc_start + _dm_delays[dm_idx]);
                 std::shared_ptr<char const> header_ptr(
                     temp_header,
                     std::default_delete<char[]>());

@@ -28,6 +28,7 @@ class MultiFileWriter
     PipelineConfig const& _config;
     std::string _tag;
     std::vector<std::unique_ptr<FileStream>> _file_streams;
+    std::vector<long double> _dm_delays;
 };
 
 } // namespace skyweaver

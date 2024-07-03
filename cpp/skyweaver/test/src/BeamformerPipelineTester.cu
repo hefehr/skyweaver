@@ -1,7 +1,9 @@
 #include "skyweaver/PipelineConfig.hpp"
 #include "skyweaver/beamformer_utils.cuh"
 #include "skyweaver/IncoherentDedispersionPipeline.cuh"
+#include "skyweaver/MultiFileWriter.cuh"
 #include "skyweaver/test/BeamformerPipelineTester.cuh"
+
 
 
 #include <filesystem>
@@ -38,8 +40,10 @@ DEC          -45:59:09.6
 TELESCOPE    MeerKAT
 INSTRUMENT   CBF-Feng
 RECEIVER     L-band
-FREQ         1284000000.000000
-BW           856000000.0
+FREQ         1430414062.5
+BW           13515625.0
+OBS_FREQ     1284000000.000000
+OBS_BW       856000000.0
 TSAMP        0.0000047850467290
 
 BYTES_PER_SECOND 3424000000.0
@@ -47,18 +51,18 @@ BYTES_PER_SECOND 3424000000.0
 NBIT         8
 NDIM         2
 NPOL         2
-NCHAN     64
-NANT      57
-ORDER    TAFTP
-INNER_T  256
+NCHAN        64
+OBS_NCHAN    4096
+NANT         57
+ORDER        TAFTP
+INNER_T      256
+
 
 #MeerKAT specifics
 SYNC_TIME    1708039531.000000
 SAMPLE_CLOCK 1712000000.0
 SAMPLE_CLOCK_START 0.0
 CHAN0_IDX 2688
-
-1708082168.957
 )";
 }
 
@@ -110,6 +114,7 @@ TEST_F(BeamformerPipelineTester, full_pipeline_test)
 {
     using BfTraits = SingleStokesBeamformerTraits<StokesParameter::I>;
     PipelineConfig config;
+    config.output_dir("/tmp/");
     config.delay_file("data/test_delays.bin");
     ObservationHeader header;
     std::vector<char> header_bytes(default_dada_header.size()+1);
@@ -117,8 +122,10 @@ TEST_F(BeamformerPipelineTester, full_pipeline_test)
     psrdada_cpp::RawBytes raw_header(header_bytes.data(), default_dada_header.size(), default_dada_header.size(), false);
     read_dada_header(raw_header, header);
     validate_header(header, config);
+    update_config(config, header);
 
-    NullHandler cb_handler;
+    MultiFileWriter cb_handler(config, "cb");
+    //MultiFileWriter ib_handler(config, "ib");
     NullHandler ib_handler;
     NullHandler stats_handler;
     using IDPipelineType = IncoherentDedispersionPipeline<typename BfTraits::QuantisedPowerType, typename BfTraits::QuantisedPowerType, decltype(cb_handler)>;

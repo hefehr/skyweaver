@@ -1,9 +1,10 @@
-#ifndef SKYWEAVER_MULTIFILEWRITER_HPP
-#define SKYWEAVER_MULTIFILEWRITER_HPP
+#ifndef SKYWEAVER_MULTIFILEWRITER_CUH
+#define SKYWEAVER_MULTIFILEWRITER_CUH
 
 #include "skyweaver/FileOutputStream.hpp"
 #include "skyweaver/ObservationHeader.hpp"
 #include "skyweaver/PipelineConfig.hpp"
+#include "skyweaver/types.cuh"
 #include "thrust/host_vector.h"
 
 namespace skyweaver
@@ -20,7 +21,12 @@ class MultiFileWriter
     void init(ObservationHeader const& header, std::vector<long double> const& dm_delays);
 
     template <typename VectorType>
-    bool operator()(VectorType const& btf_powers, std::size_t dm_idx);
+    typename std::enable_if<!is_device_vector<VectorType>::value, bool>::type 
+    operator()(VectorType const& btf_powers, std::size_t dm_idx);
+
+    template <typename VectorType>
+    typename std::enable_if<is_device_vector<VectorType>::value, bool>::type 
+    operator()(VectorType const& btf_powers, std::size_t dm_idx);
 
   private:
     void make_dada_header() const;
@@ -33,6 +39,6 @@ class MultiFileWriter
 
 } // namespace skyweaver
 
-#include "skyweaver/detail/MultiFileWriter.cpp"
+#include "skyweaver/detail/MultiFileWriter.cu"
 
-#endif // SKYWEAVER_MULTIBEAMFILEWRITER_HPP
+#endif // SKYWEAVER_MULTIFILEWRITER_CUH

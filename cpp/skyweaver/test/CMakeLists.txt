@@ -15,7 +15,7 @@ set(
     src/IncoherentDedisperserTester.cu
     src/IncoherentDedispersionPipelineTester.cu
     src/MultiFileReaderTester.cu
-    src/MultiFileWriterTester.cpp
+    src/MultiFileWriterTester.cu
     src/StatisticsCalculatorTester.cu
     src/TransposerTester.cu
     src/WeightsManagerTester.cu

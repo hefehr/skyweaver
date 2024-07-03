@@ -39,6 +39,7 @@ void read_dada_header(psrdada_cpp::RawBytes& raw_header,
                       ObservationHeader& header);
 
 void validate_header(ObservationHeader const& header, PipelineConfig const& config);
+void update_config(PipelineConfig& config, ObservationHeader const& header);
 
 } // namespace skyweaver
 

@@ -1,4 +1,4 @@
-#include "skyweaver/MultiFileWriter.hpp"
+#include "skyweaver/MultiFileWriter.cuh"
 
 #include "skyweaver/Header.hpp"
 

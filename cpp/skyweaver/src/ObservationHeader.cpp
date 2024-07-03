@@ -53,6 +53,12 @@ void validate_header(ObservationHeader const& header, PipelineConfig const& conf
     }
 }
 
+void update_config(PipelineConfig& config, ObservationHeader const& header)
+{
+    config.bandwidth(header.bandwidth);
+    config.centre_frequency(header.frequency);
+}
+
 std::string ObservationHeader::to_string() const
 {
     std::ostringstream oss;

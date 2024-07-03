@@ -1,6 +1,8 @@
 #ifndef SKYWEAVER_TYPES_CUH
 #define SKYWEAVER_TYPES_CUH
 
+#include "thrust/host_vector.h"
+#include "thrust/device_vector.h"
 #include <iostream>
 
 // Operator overloading for CUDA vector types
@@ -71,6 +73,13 @@ inline std::ostream& operator<<(std::ostream& stream, float4 const& val) {
     stream << "(" << val.x << "," << val.y << "," << val.z << "," << val.w << ")";
     return stream;
 }
+
+
+template <typename T>
+struct is_device_vector : std::false_type {};
+
+template <typename T, typename Alloc>
+struct is_device_vector<thrust::device_vector<T, Alloc>> : std::true_type {};
 
 /**
  * vector - vector operations

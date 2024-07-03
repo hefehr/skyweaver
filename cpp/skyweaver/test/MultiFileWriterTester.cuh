@@ -1,6 +1,6 @@
-#ifndef SKYWEAVER_TEST_MULTIFILEWRITER_TESTER_HPP
-#define SKYWEAVER_TEST_MULTIFILEWRITER_TESTER_HPP
-#include "skyweaver/MultiFileWriter.hpp"
+#ifndef SKYWEAVER_TEST_MULTIFILEWRITER_TESTER_CUH
+#define SKYWEAVER_TEST_MULTIFILEWRITER_TESTER_CUH
+#include "skyweaver/MultiFileWriter.cuh"
 #include "skyweaver/ObservationHeader.hpp"
 #include "skyweaver/PipelineConfig.hpp"
 
@@ -31,4 +31,4 @@ class MultiFileWriterTester: public ::testing::Test
 } // namespace test
 } // namespace skyweaver
 
-#endif // SKYWEAVER_TEST_MULTIFILEWRITER_TESTER_HPP
+#endif // SKYWEAVER_TEST_MULTIFILEWRITER_TESTER_CUH

@@ -1,4 +1,4 @@
-#include "skyweaver/test/MultiFileWriterTester.hpp"
+#include "skyweaver/test/MultiFileWriterTester.cuh"
 
 #include <cstdio>
 #include <vector>

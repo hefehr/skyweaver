@@ -4,7 +4,7 @@
 #include "skyweaver/BeamformerPipeline.cuh"
 #include "skyweaver/IncoherentDedispersionPipeline.cuh"
 #include "skyweaver/MultiFileReader.cuh"
-#include "skyweaver/MultiFileWriter.hpp"
+#include "skyweaver/MultiFileWriter.cuh"
 #include "skyweaver/PipelineConfig.hpp"
 #include "thrust/host_vector.h"
 #include "thrust/device_vector.h"

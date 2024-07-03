@@ -8,7 +8,8 @@ namespace skyweaver
 FileStream::File::File(std::string const& fname, std::size_t bytes)
     : _full_path(fname), _bytes_requested(bytes), _bytes_written(0)
 {
-    _stream.open(_full_path, std::ifstream::out | std::ifstream::binary);
+    _stream.exceptions(std::ofstream::failbit | std::ofstream::badbit);
+    _stream.open(_full_path, std::ofstream::out | std::ofstream::binary);
     if(_stream.is_open()) {
         BOOST_LOG_TRIVIAL(info) << "Opened output file " << _full_path;
     } else {
@@ -32,17 +33,23 @@ std::size_t FileStream::File::write(char const* ptr, std::size_t bytes)
     BOOST_LOG_TRIVIAL(debug)
         << "Writing " << bytes << " bytes to " << _full_path;
     std::size_t bytes_remaining = _bytes_requested - _bytes_written;
-    if(bytes > bytes_remaining) {
-        _stream.write(ptr, bytes_remaining);
-        _bytes_written += bytes_remaining;
-        BOOST_LOG_TRIVIAL(debug)
-            << "Partial write of " << bytes_remaining << " bytes";
-        return bytes_remaining;
-    } else {
-        _stream.write(ptr, bytes);
-        _bytes_written += bytes;
-        BOOST_LOG_TRIVIAL(debug) << "Completed write";
-        return bytes;
+    try {
+        if(bytes > bytes_remaining) {
+            _stream.write(ptr, bytes_remaining);
+            _bytes_written += bytes_remaining;
+            BOOST_LOG_TRIVIAL(debug)
+                << "Partial write of " << bytes_remaining << " bytes";
+            return bytes_remaining;
+        } else {
+            _stream.write(ptr, bytes);
+            _bytes_written += bytes;
+            BOOST_LOG_TRIVIAL(debug) << "Completed write";
+            return bytes;
+        }
+    } catch (const std::ofstream::failure& e) {
+        BOOST_LOG_TRIVIAL(error) << "Error while writing to " << _full_path 
+                                 << " (" << e.what() << ")"; 
+        throw;
     }
 }
 

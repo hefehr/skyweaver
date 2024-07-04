@@ -148,7 +148,7 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
         << "FTPA post transpose size: " << _ftpa_post_transpose.size();
 
     _timer.start("dispenser hoarding");
-    _dispenser->hoard(_ftpa_post_transpose.vector());
+    _dispenser->hoard(_ftpa_post_transpose);
     _timer.stop("dispenser hoarding");
 
     for(unsigned int dm_idx = 0; dm_idx < _config.coherent_dms().size();
@@ -164,7 +164,7 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
             BOOST_LOG_TRIVIAL(debug) << "Attempting to segfault";
 
             _coherent_dedisperser->dedisperse(
-                tpa_voltages,
+                tpa_voltages.vector(),
                 _ftpa_dedispersed,
                 freq_idx * _ftpa_post_transpose.size() / _config.nchans(),
                 dm_idx);
@@ -217,7 +217,7 @@ operator()(HostVoltageVectorType const& taftp_on_host)
 {
     BOOST_LOG_TRIVIAL(debug) << "Pipeline operator() called with data: \n" << taftp_on_host.describe();
 
-     _taftp_from_host.resize(taftp_on_host.extents());
+    _taftp_from_host.like(taftp_on_host);
 
     if(taftp_on_host.size() != _taftp_from_host.size()) {
         throw std::runtime_error(

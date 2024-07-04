@@ -142,8 +142,9 @@ TEST_F(BeamformerPipelineTester, full_pipeline_test)
         config.nchans(), // F
         config.nsamples_per_heap(), // T
         config.npol() // P
-        });
-    
+        });        
+    input.frequencies(config.channel_frequencies());
+    input.dms({0.0f});
     pipeline.init(header);
     for (int ii = 0; ii < 100; ++ii)
     {

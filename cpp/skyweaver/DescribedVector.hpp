@@ -4,6 +4,7 @@
 #include "thrust/host_vector.h"
 #include "thrust/device_vector.h"
 #include <iostream>
+#include <iomanip>
 #include <vector>
 #include <numeric>
 #include <sstream>
@@ -11,6 +12,23 @@
 
 namespace skyweaver
 {
+
+template <typename T, typename A>
+inline std::ostream& operator<<(std::ostream& stream, std::vector<T, A> const& vec) {
+    bool first = true;
+    stream << "(";
+    for (T const& val: vec)
+    {
+        if (!first){
+            stream << ", ";
+        } else {
+            first = false;
+        }
+        stream << val;        
+    }
+    stream << ")";
+    return stream;
+}
 
 // Define the Dimension enum
 enum Dimension { TimeDim, FreqDim, BeamDim, AntennaDim, PolnDim, DispersionDim };
@@ -78,6 +96,19 @@ struct DescribedVector {
       _frequencies_stale(other._frequencies_stale) {
     }
 
+    template <typename OtherDescribedVector, 
+              typename = std::enable_if_t<is_dv_copyable<DescribedVector, OtherDescribedVector>::value>>
+    void like(const OtherDescribedVector& other){
+        resize(other._sizes);
+        metalike(other);
+    }
+
+    template <typename OtherDescribedVector>
+    void metalike(const OtherDescribedVector& other){
+        frequencies(other.frequencies());
+        dms(other.dms());
+    }
+
     auto& operator[](std::size_t idx)
     {
         return _vector[idx];
@@ -111,6 +142,26 @@ struct DescribedVector {
     const auto data() const noexcept
     {
         return _vector.data();
+    }
+
+    auto begin() noexcept
+    {
+        return _vector.begin();
+    }
+    
+    const auto begin() const noexcept
+    {
+        return _vector.begin();
+    }
+
+    auto end() noexcept
+    {
+        return _vector.end();
+    }
+    
+    const auto end() const noexcept
+    {
+        return _vector.end();
     }
 
     VectorType const& vector() const{
@@ -158,6 +209,15 @@ struct DescribedVector {
         _frequencies = freqs;
     }
     
+    void frequencies(typename FrequenciesType::value_type const& freq) {
+        if (get_dim_extent<FreqDim>() != 1)
+        {
+            throw std::runtime_error("Invalid number of frequecies passed.");
+        }
+        _frequencies_stale = false;
+        _frequencies.resize(1, freq);
+    }
+
     std::size_t nchannels() const {
          return get_dim_extent<FreqDim>();
     }
@@ -204,13 +264,20 @@ struct DescribedVector {
         _dms = dms;
     }
     
+    void dms(typename DispersionMeasuresType::value_type const& dm) {
+    if (get_dim_extent<DispersionDim>() != 1)
+        {
+            throw std::runtime_error("Invalid number of dispersion measures passed.");
+        }
+        _dms_stale = false;
+        _dms.resize(1, dm);
+    }
+
     std::string describe() const
     {   
         std::stringstream stream;
         stream << "DescribedVector: " << dimensions_to_string(_dims) << " (" << size() << " elements)\n";
-        stream << "  dimensions: ";
-        for (auto const& val: _sizes) { stream << val << " "; }
-        stream << "\n";
+        stream << "  dimensions: " << _sizes << "\n";
         stream << "  nsamples: " << nsamples() << "\n";
         stream << "  nchans: " << nchannels() << "\n";
         stream << "  natntennas: " << nantennas() << "\n";
@@ -218,6 +285,10 @@ struct DescribedVector {
         stream << "  ndms: " << ndms() << "\n";
         stream << "  npol: " << npol() << "\n";
         stream << "  ndms: " << ndms() << "\n";
+        stream << std::setprecision(15);
+        stream << "  frequencies (Hz): " << _frequencies << "\n";
+        stream << "  DMs (pc cm^-3): " << _dms << "\n";
+        stream << std::setprecision(6);
         return stream.str();
     }
 

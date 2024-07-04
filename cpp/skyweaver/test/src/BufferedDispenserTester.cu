@@ -12,11 +12,8 @@ namespace test
 {
 BufferedDispenserTester::BufferedDispenserTester(): ::testing::Test()
 {
-    pipeline_config.dada_header_size(4096);
-    pipeline_config.dedisp_max_delay_samps(8192);
-    pipeline_config.gulp_length_samps(65536);
-
-    
+    pipeline_config.dedisp_max_delay_samps(2);
+    pipeline_config.gulp_length_samps(64);
 }
 
 BufferedDispenserTester::~BufferedDispenserTester()
@@ -25,8 +22,6 @@ BufferedDispenserTester::~BufferedDispenserTester()
 
 void BufferedDispenserTester::SetUp()
 {
-
-    
 
 }
 
@@ -46,14 +41,20 @@ TEST_F(BufferedDispenserTester, testBufferedDispenser)
     int nsamples_gulp = pipeline_config.gulp_length_samps();
 
     /*generate char2 voltages_1 */
-    thrust::host_vector<char2> voltages_1h;
-    random_normal_complex(voltages_1h,
+
+    typename BufferedDispenser::HostFTPAVoltagesType voltages_1h({
+        static_cast<std::size_t>(nchans),
+        static_cast<std::size_t>(nsamples_gulp),
+        static_cast<std::size_t>(npols),
+        static_cast<std::size_t>(nantennas)
+    });
+    voltages_1h.frequencies(pipeline_config.channel_frequencies());
+    random_normal_complex(voltages_1h.vector(),
         nantennas * nchans * npols * nsamples_gulp,
         0.0f,
         17.0f);
     ASSERT_EQ(voltages_1h.size(), nantennas * nchans * npols * nsamples_gulp);
-    thrust::device_vector<char2> voltages_1(voltages_1h.size());
-    thrust::copy(voltages_1h.begin(), voltages_1h.end(), voltages_1.begin());
+    typename BufferedDispenser::DeviceFTPAVoltagesType voltages_1 = voltages_1h;
     
     const std::size_t size_TPA =  nantennas * npols * nsamples_gulp;
     const std::size_t max_delay_tpa = pipeline_config.dedisp_max_delay_samps() * nantennas * npols;
@@ -66,8 +67,7 @@ TEST_F(BufferedDispenserTester, testBufferedDispenser)
         auto const& dispensed_voltages_1 = bufferedDispenser.dispense(i); // tPA voltages_1 = overlap + T*PA voltages_1 
         ASSERT_EQ(dispensed_voltages_1.size(),size_tpa);
 
-        thrust::host_vector<char2> dispensed_voltages_1h(dispensed_voltages_1.size());
-        thrust::copy(dispensed_voltages_1.begin(), dispensed_voltages_1.end(), dispensed_voltages_1h.begin());
+        typename BufferedDispenser::HostTPAVoltagesType dispensed_voltages_1h = dispensed_voltages_1;
                                              
         std::size_t start_idx = max_delay_tpa; // start from end of overlap
         int k=0;
@@ -87,22 +87,24 @@ TEST_F(BufferedDispenserTester, testBufferedDispenser)
 
 
     /*generate char2 voltages_2 */
-    thrust::host_vector<char2> voltages_2h;
-    random_normal_complex( voltages_2h,
+    typename BufferedDispenser::HostFTPAVoltagesType voltages_2h({
+        static_cast<std::size_t>(nchans),
+        static_cast<std::size_t>(nsamples_gulp),
+        static_cast<std::size_t>(npols),
+        static_cast<std::size_t>(nantennas)
+    });
+    voltages_2h.frequencies(pipeline_config.channel_frequencies());
+    random_normal_complex(voltages_2h.vector(),
         nantennas * nchans * npols * nsamples_gulp,
         0.0f,
         17.0f);
-        thrust::device_vector<char2> voltages_2(voltages_2h.size());
-        thrust::copy(voltages_2h.begin(), voltages_2h.end(), voltages_2.begin());
+    typename BufferedDispenser::DeviceFTPAVoltagesType voltages_2 = voltages_2h;
     bufferedDispenser.hoard(voltages_2); //FTPA voltages_1
     for (int i = 0; i < nchans; i++)
     {
         auto const& dispensed_voltages_2 = bufferedDispenser.dispense(i); // tPA voltages_1 = overlap + T*PA voltages_1 
         ASSERT_EQ(dispensed_voltages_2.size(),size_tpa);
-
-        thrust::host_vector<char2> dispensed_voltages_2h(dispensed_voltages_2.size());
-        thrust::copy(dispensed_voltages_2.begin(), dispensed_voltages_2.end(), dispensed_voltages_2h.begin());
-                                             
+        typename BufferedDispenser::HostTPAVoltagesType dispensed_voltages_2h = dispensed_voltages_2;
         std::size_t start_idx = max_delay_tpa; // start from end of overlap
         int k=0;
         for (std::size_t j= start_idx; j < dispensed_voltages_2.size(); j++)

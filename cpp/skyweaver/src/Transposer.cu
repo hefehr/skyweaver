@@ -158,6 +158,7 @@ void Transposer::transpose(InputVoltageType const& taftp_voltages,
                           taftp_voltages.nsamples(),
                           taftp_voltages.npol(), 
                           _config.nantennas()});
+    ftpa_voltages.metalike(taftp_voltages);
     BOOST_LOG_TRIVIAL(debug) << "Output vector for transposer: \n" << ftpa_voltages.describe();
     dim3 grid(nheap_groups, _config.nchans(), 1);
     dim3 block(512, 1, 1);

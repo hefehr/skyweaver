@@ -71,6 +71,7 @@ void run_pipeline(Pipeline& pipeline, skyweaver::PipelineConfig& config){
         config.npol()
         });
     taftp_input_voltage.frequencies(config.channel_frequencies());
+    taftp_input_voltage.dms({0.0f});
 
     std::size_t input_bytes = taftp_input_voltage.size() * sizeof(typename decltype(taftp_input_voltage)::value_type);
     pipeline.init(header);

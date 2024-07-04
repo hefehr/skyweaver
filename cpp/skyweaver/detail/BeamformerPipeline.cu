@@ -7,6 +7,7 @@
 #include <stdexcept>
 #include <string>
 
+
 namespace skyweaver
 {
 
@@ -112,37 +113,55 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
     // Need to add the unix timestmap to the delay manager here
     // to fetch valid delays for this epoch.
     BOOST_LOG_TRIVIAL(debug) << "Checking for delay updates";
+    
+    _timer.start("fetch delays");
     auto const& delays = _delay_manager->delays(_unix_timestamp);
+    _timer.stop("fetch delays");
 
     // Stays the same
     BOOST_LOG_TRIVIAL(debug)
         << "Calculating weights at unix time: " << _unix_timestamp;
+    
+    _timer.start("calculate weights");
     auto const& weights = _weights_manager->weights(delays,
                                                     _unix_timestamp,
                                                     _delay_manager->epoch());
+    _timer.stop("calculate weights");
+
+
     BOOST_LOG_TRIVIAL(debug)
         << "Transposing input data from TAFTP to FTPA order";
+    _timer.start("transpose TAFTP to FTPA");
     _transposer->transpose(_taftp_from_host,
                            _ftpa_post_transpose,
                            _header.nantennas,
                            _processing_stream);
+    _timer.stop("transpose TAFTP to FTPA");                        
     _ftpa_dedispersed.resize(_ftpa_post_transpose.size());
     // Stays the same
     BOOST_LOG_TRIVIAL(debug) << "Checking if channel statistics update request";
+    _timer.start("calculate statistics");
     _stats_manager->calculate_statistics(_ftpa_post_transpose);
+    _timer.stop("calculate statistics");
     if (_call_count == 0)
-    {
+    {   
+        _timer.start("update scalings");
         _stats_manager->update_scalings(_delay_manager->beamset_weights(),
                                         _delay_manager->nbeamsets());
+        _timer.stop("update scalings");
     }
     
     BOOST_LOG_TRIVIAL(debug)
         << "FTPA post transpose size: " << _ftpa_post_transpose.size();
 
+    _timer.start("dispenser hoarding");
     _dispenser->hoard(_ftpa_post_transpose);
+    _timer.stop("dispenser hoarding");
 
     for(unsigned int dm_idx = 0; dm_idx < _config.coherent_dms().size();
         ++dm_idx) {
+        
+        _timer.start("coherent dedispersion");
         for(unsigned int freq_idx = 0; freq_idx < _config.nchans();
             ++freq_idx) {
             BOOST_LOG_TRIVIAL(debug) << "{{{[[[<<< DM Idx: " << dm_idx
@@ -157,12 +176,14 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
                 freq_idx * _ftpa_post_transpose.size() / _config.nchans(),
                 dm_idx);
         }
+        _timer.stop("coherent dedispersion");
 
         BOOST_LOG_TRIVIAL(debug) << "_ftpa_dedispersed.size() = " << _ftpa_dedispersed.size();
         BOOST_LOG_TRIVIAL(debug) << "_stats_manager->ib_scaling() = " << _stats_manager->ib_scaling().size();
         BOOST_LOG_TRIVIAL(debug) << "_stats_manager->ib_offsets() = " << _stats_manager->ib_offsets().size();
         BOOST_LOG_TRIVIAL(debug) << "_delay_manager->beamset_weights() = " << _delay_manager->beamset_weights().size();
 
+        _timer.start("incoherent beamforming");
         _incoherent_beamformer->beamform(_ftpa_dedispersed,
                                          _tf_ib_raw,
                                          _tf_ib,
@@ -171,7 +192,8 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
                                          _delay_manager->beamset_weights(),
                                          _nbeamsets,
                                          _processing_stream);
-
+        _timer.stop("incoherent beamforming");
+        _timer.start("coherent beamforming");
         _coherent_beamformer->beamform(_ftpa_dedispersed,
                                        weights,
                                        _stats_manager->cb_scaling(),
@@ -181,10 +203,18 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
                                        _btf_cbs,
                                        _nbeamsets,
                                        _processing_stream);
+        _timer.stop("coherent beamforming");
+        _timer.start("coherent beam handler");
         _cb_handler(_btf_cbs, dm_idx);
+        _timer.stop("coherent beam handler");
+        _timer.start("incoherent beam handler");
         _ib_handler(_tf_ib, dm_idx);
+        _timer.stop("incoherent beam handler");
     }
+    _timer.start("statistics handler");
     _stats_handler(_stats_manager->statistics());
+    _timer.stop("statistics handler");
+    _timer.show_all_timings();
 }
 
 template <typename CBHandler,

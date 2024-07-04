@@ -14,6 +14,7 @@ set(skyweaver_src
    src/ObservationHeader.cpp
    src/PipelineConfig.cpp
    src/StatisticsCalculator.cu
+   src/Timer.cpp
    src/Transposer.cu
    src/WeightsManager.cu
    )
@@ -32,6 +33,7 @@ set(skyweaver_inc
     ObservationHeader.hpp
     PipelineConfig.hpp
     StatisticsCalculator.cuh
+    Timer.hpp
     Transposer.cuh
     WeightsManager.cuh
    )

@@ -13,6 +13,7 @@
 #include "skyweaver/StatisticsCalculator.cuh"
 #include "skyweaver/Transposer.cuh"
 #include "skyweaver/WeightsManager.cuh"
+#include "skyweaver/Timer.hpp"
 
 #include <functional>
 
@@ -112,6 +113,9 @@ class BeamformerPipeline
     long double _unix_timestamp;
     std::size_t _sample_clock_tick_per_block;
     std::size_t _call_count;
+
+    // Trackers
+    Timer _timer;
 };
 
 } // namespace skyweaver

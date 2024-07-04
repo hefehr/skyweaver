@@ -3,6 +3,7 @@
 #include "skyweaver/IncoherentDedispersionPipeline.cuh"
 #include "skyweaver/MultiFileWriter.cuh"
 #include "skyweaver/test/BeamformerPipelineTester.cuh"
+#include "skyweaver/DescribedVector.hpp"
 
 
 
@@ -135,8 +136,13 @@ TEST_F(BeamformerPipelineTester, full_pipeline_test)
     IDPipelineType dedispersion_pipeline(config, cb_handler);
     BPipelineType pipeline(config, dedispersion_pipeline, ib_handler, stats_handler);
 
-    std::size_t input_size = header.nantennas * config.nchans() * config.npol() * config.gulp_length_samps();
-    InputVectorType input(input_size);
+    InputVectorType input({
+        config.gulp_length_samps()/config.nsamples_per_heap(), // T
+        header.nantennas, // A
+        config.nchans(), // F
+        config.nsamples_per_heap(), // T
+        config.npol() // P
+        });
     
     pipeline.init(header);
     for (int ii = 0; ii < 100; ++ii)

@@ -27,23 +27,26 @@ void TransposerTester::TearDown()
     CUDA_ERROR_CHECK(cudaStreamDestroy(_stream));
 }
 
-void TransposerTester::transpose_c_reference(HostVoltageType const& input,
-                                             HostVoltageType& output,
-                                             int input_nantennas,
-                                             int output_nantennas,
-                                             int nchans,
-                                             int ntimestamps)
+void TransposerTester::transpose_c_reference(HostInputVoltageType const& input,
+                                             HostOutputVoltageType& output,
+                                             std::size_t input_nantennas,
+                                             std::size_t output_nantennas,
+                                             std::size_t nchans,
+                                             std::size_t ntimestamps)
 {
     // TAFTP to FTPA
     // Input dimensions
-    int tp   = _config.nsamples_per_heap() * _config.npol();
-    int ftp  = nchans * tp;
-    int aftp = input_nantennas * ftp;
+    std::size_t tp   = _config.nsamples_per_heap() * _config.npol();
+    std::size_t ftp  = nchans * tp;
+    std::size_t aftp = input_nantennas * ftp;
 
     // Output dimensions
-    int pa  = _config.npol() * output_nantennas;
-    int tpa = _config.nsamples_per_heap() * ntimestamps * pa;
-    output.resize(nchans * tpa, {0, 0});
+    std::size_t pa  = _config.npol() * output_nantennas;
+    std::size_t tpa = _config.nsamples_per_heap() * ntimestamps * pa;
+    output.resize({input.nchannels(), 
+                   input.nsamples(),
+                   input.npol(), 
+                   output_nantennas});
 
     for(int timestamp_idx = 0; timestamp_idx < ntimestamps; ++timestamp_idx) {
         for(int antenna_idx = 0; antenna_idx < input_nantennas; ++antenna_idx) {
@@ -70,14 +73,14 @@ void TransposerTester::transpose_c_reference(HostVoltageType const& input,
     }
 }
 
-void TransposerTester::compare_against_host(DeviceVoltageType const& gpu_input,
-                                            DeviceVoltageType const& gpu_output,
+void TransposerTester::compare_against_host(DeviceInputVoltageType const& gpu_input,
+                                            DeviceOutputVoltageType const& gpu_output,
                                             std::size_t input_nantennas,
                                             std::size_t ntimestamps)
 {
-    HostVoltageType host_input = gpu_input;
-    HostVoltageType host_output;
-    HostVoltageType cuda_output = gpu_output;
+    HostInputVoltageType host_input = gpu_input;
+    HostOutputVoltageType host_output;
+    HostOutputVoltageType cuda_output = gpu_output;
     transpose_c_reference(host_input,
                           host_output,
                           input_nantennas,
@@ -98,13 +101,20 @@ TEST_P(TransposerTester, cycling_prime_test)
     std::size_t input_nantennas = params.nantennas;
     std::size_t input_size = (ntimestamps * input_nantennas * _config.nchans() *
                               _config.nsamples_per_heap() * _config.npol());
-    HostVoltageType host_gpu_input(input_size);
+    HostInputVoltageType host_gpu_input({
+        ntimestamps,
+        input_nantennas,
+        _config.nchans(),
+        _config.nsamples_per_heap(),
+        _config.npol()
+    });
+
     for(int ii = 0; ii < input_size; ++ii) {
         host_gpu_input[ii].x = (ii % 113);
         host_gpu_input[ii].y = (ii % 107);
     }
-    DeviceVoltageType gpu_input = host_gpu_input;
-    DeviceVoltageType gpu_output;
+    DeviceInputVoltageType gpu_input = host_gpu_input;
+    DeviceOutputVoltageType gpu_output;
     transposer.transpose(gpu_input, gpu_output, input_nantennas, _stream);
     compare_against_host(gpu_input, gpu_output, input_nantennas, ntimestamps);
 }

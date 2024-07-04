@@ -106,22 +106,17 @@ __global__ void transpose_k(char2 const* __restrict__ input,
 } // namespace kernels
 
 Transposer::Transposer(PipelineConfig const& config)
-    : _config(config), _output_size_per_heap_group(0)
+    : _config(config)
 {
     BOOST_LOG_TRIVIAL(debug) << "Constructing Transposer instance";
-    _output_size_per_heap_group =
-        (_config.npol() * _config.nsamples_per_heap() * _config.nchans() *
-         _config.nantennas());
-    BOOST_LOG_TRIVIAL(debug)
-        << "Output size per heap group: " << _output_size_per_heap_group;
 }
 
 Transposer::~Transposer()
 {
 }
 
-void Transposer::transpose(VoltageType const& taftp_voltages,
-                           VoltageType& ftpa_voltages,
+void Transposer::transpose(InputVoltageType const& taftp_voltages,
+                           OutputVoltageType& ftpa_voltages,
                            std::size_t input_nantennas,
                            cudaStream_t stream)
 {
@@ -156,15 +151,14 @@ void Transposer::transpose(VoltageType const& taftp_voltages,
         throw std::runtime_error(
             "Input number of antennas must be <= to the maximum nantennas");
     }
-    int nheap_groups = taftp_voltages.size() / heap_group_size;
+    int nheap_groups = taftp_voltages.extents()[0];
     BOOST_LOG_TRIVIAL(debug) << "Number of heap groups: " << nheap_groups;
     // Resize output buffer
-    BOOST_LOG_TRIVIAL(debug)
-        << "Resizing output buffer from " << ftpa_voltages.size() << " to "
-        << _output_size_per_heap_group * nheap_groups;
-    // Resize the output and set the data to zero
-    // _output_size_per_heap_group contains the number of antennas to pad to
-    ftpa_voltages.resize(_output_size_per_heap_group * nheap_groups, {0, 0});
+    ftpa_voltages.resize({taftp_voltages.nchannels(), 
+                          taftp_voltages.nsamples(),
+                          taftp_voltages.npol(), 
+                          _config.nantennas()});
+    BOOST_LOG_TRIVIAL(debug) << "Output vector for transposer: \n" << ftpa_voltages.describe();
     dim3 grid(nheap_groups, _config.nchans(), 1);
     dim3 block(512, 1, 1);
     char2 const* input_ptr = thrust::raw_pointer_cast(taftp_voltages.data());

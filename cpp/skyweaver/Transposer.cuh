@@ -3,6 +3,7 @@
 
 #include "psrdada_cpp/common.hpp"
 #include "skyweaver/PipelineConfig.hpp"
+#include "skyweaver/DescribedVector.hpp"
 #include "thrust/device_vector.h"
 
 namespace skyweaver
@@ -41,7 +42,8 @@ __global__ void split_transpose_k(char2 const* __restrict__ input,
 class Transposer
 {
   public:
-    typedef thrust::device_vector<char2> VoltageType;
+    typedef TAFTPVoltagesD<char2> InputVoltageType;
+    typedef FTPAVoltagesD<char2> OutputVoltageType;
 
   public:
     /**
@@ -61,14 +63,13 @@ class Transposer
      * @param[in]  input_nantennas The number of antennas in the input data
      * @param[in]  stream          The cuda stream to use
      */
-    void transpose(VoltageType const& taftp_voltages,
-                   VoltageType& ftpa_voltages,
+    void transpose(InputVoltageType const& taftp_voltages,
+                   OutputVoltageType& ftpa_voltages,
                    std::size_t input_nantennas,
                    cudaStream_t stream);
 
   private:
     PipelineConfig const& _config;
-    std::size_t _output_size_per_heap_group;
 };
 
 } // namespace skyweaver

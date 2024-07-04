@@ -14,6 +14,7 @@
 #include "skyweaver/Transposer.cuh"
 #include "skyweaver/WeightsManager.cuh"
 #include "skyweaver/Timer.hpp"
+#include "skyweaver/DescribedVector.hpp"
 
 #include <functional>
 
@@ -27,8 +28,8 @@ template <typename CBHandler,
 class BeamformerPipeline
 {
   public:
-    typedef thrust::host_vector<char2> HostVoltageVectorType;
-    typedef thrust::device_vector<char2> VoltageVectorType;
+    using HostVoltageVectorType = TAFTPVoltagesH<char2>;
+    using VoltageVectorType = TAFTPVoltagesD<char2>;
     typedef thrust::device_vector<typename BeamformerTraits::QuantisedPowerType>
         PowerVectorType;
     typedef thrust::device_vector<typename BeamformerTraits::RawPowerType>
@@ -102,9 +103,9 @@ class BeamformerPipeline
     std::unique_ptr<BufferedDispenser> _dispenser;
 
     // Buffers
-    VoltageVectorType _taftp_from_host;
-    VoltageVectorType _ftpa_post_transpose;
-    VoltageVectorType _ftpa_dedispersed;
+    TAFTPVoltagesD<char2> _taftp_from_host;
+    FTPAVoltagesD<char2> _ftpa_post_transpose;
+    typename FTPAVoltagesD<char2>::VectorType _ftpa_dedispersed;
     PowerVectorType _btf_cbs;
     RawPowerVectorType _tf_ib_raw;
     PowerVectorType _tf_ib;

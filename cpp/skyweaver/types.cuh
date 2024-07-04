@@ -74,7 +74,6 @@ inline std::ostream& operator<<(std::ostream& stream, float4 const& val) {
     return stream;
 }
 
-
 template <typename T>
 struct is_device_vector : std::false_type {};
 

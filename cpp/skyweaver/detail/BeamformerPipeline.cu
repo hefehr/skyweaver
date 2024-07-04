@@ -32,14 +32,11 @@ BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
         throw std::runtime_error("Gulp size is not a multiple of "
                                  "the number of samples per heap");
     }
-    std::size_t nheap_groups = nsamples / _config.nsamples_per_heap();
-    std::size_t input_taftp_size =
-        nheap_groups * nsamples / _config.nsamples_per_heap();
-    _taftp_from_host.resize(input_taftp_size, {0, 0});
     // Calculate the timestamp step per block
     _sample_clock_tick_per_block = 2 * _config.total_nchans() * nsamples;
     BOOST_LOG_TRIVIAL(debug)
         << "Sample clock tick per block: " << _sample_clock_tick_per_block;
+
     CUDA_ERROR_CHECK(cudaStreamCreate(&_h2d_copy_stream));
     CUDA_ERROR_CHECK(cudaStreamCreate(&_processing_stream));
     CUDA_ERROR_CHECK(cudaStreamCreate(&_d2h_copy_stream));
@@ -49,6 +46,7 @@ BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
     float tsamp = _config.nchans() / _config.bandwidth();
     auto it = std::max_element(_config.coherent_dms().begin(), _config.coherent_dms().end());
     float max_dm = *it;
+    BOOST_LOG_TRIVIAL(debug) << "Constructing coherent dedisperser plan";
     float max_dm_delay = CoherentDedisperser::get_dm_delay(f_low, f_high, max_dm);
     CoherentDedisperser::createConfig(
         _dedisperser_config,  _config.gulp_length_samps(), max_dm_delay, 
@@ -94,11 +92,6 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
     _cb_handler.init(_header);
     _ib_handler.init(_header);
     _stats_handler.init(_header);
-    _taftp_from_host.resize(_config.gulp_length_samps() * header.nantennas *
-                                _config.nchans() * _config.npol(),
-                            {0, 0});
-    BOOST_LOG_TRIVIAL(debug) << "Resized TAFTP input vector to "
-                             << _taftp_from_host.size() << " elements";
 }
 
 template <typename CBHandler,
@@ -141,7 +134,7 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
     // Stays the same
     BOOST_LOG_TRIVIAL(debug) << "Checking if channel statistics update request";
     _timer.start("calculate statistics");
-    _stats_manager->calculate_statistics(_ftpa_post_transpose);
+    _stats_manager->calculate_statistics(_ftpa_post_transpose.vector());
     _timer.stop("calculate statistics");
     if (_call_count == 0)
     {   
@@ -155,7 +148,7 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
         << "FTPA post transpose size: " << _ftpa_post_transpose.size();
 
     _timer.start("dispenser hoarding");
-    _dispenser->hoard(_ftpa_post_transpose);
+    _dispenser->hoard(_ftpa_post_transpose.vector());
     _timer.stop("dispenser hoarding");
 
     for(unsigned int dm_idx = 0; dm_idx < _config.coherent_dms().size();
@@ -178,11 +171,6 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
         }
         _timer.stop("coherent dedispersion");
 
-        BOOST_LOG_TRIVIAL(debug) << "_ftpa_dedispersed.size() = " << _ftpa_dedispersed.size();
-        BOOST_LOG_TRIVIAL(debug) << "_stats_manager->ib_scaling() = " << _stats_manager->ib_scaling().size();
-        BOOST_LOG_TRIVIAL(debug) << "_stats_manager->ib_offsets() = " << _stats_manager->ib_offsets().size();
-        BOOST_LOG_TRIVIAL(debug) << "_delay_manager->beamset_weights() = " << _delay_manager->beamset_weights().size();
-
         _timer.start("incoherent beamforming");
         _incoherent_beamformer->beamform(_ftpa_dedispersed,
                                          _tf_ib_raw,
@@ -193,6 +181,7 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
                                          _nbeamsets,
                                          _processing_stream);
         _timer.stop("incoherent beamforming");
+
         _timer.start("coherent beamforming");
         _coherent_beamformer->beamform(_ftpa_dedispersed,
                                        weights,
@@ -204,9 +193,11 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
                                        _nbeamsets,
                                        _processing_stream);
         _timer.stop("coherent beamforming");
+
         _timer.start("coherent beam handler");
         _cb_handler(_btf_cbs, dm_idx);
         _timer.stop("coherent beam handler");
+
         _timer.start("incoherent beam handler");
         _ib_handler(_tf_ib, dm_idx);
         _timer.stop("incoherent beam handler");
@@ -224,8 +215,9 @@ template <typename CBHandler,
 bool BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
 operator()(HostVoltageVectorType const& taftp_on_host)
 {
-    BOOST_LOG_TRIVIAL(debug) << "Pipeline operator() called";
-    BOOST_LOG_TRIVIAL(debug) << "taftp_on_host size: " << taftp_on_host.size();
+    BOOST_LOG_TRIVIAL(debug) << "Pipeline operator() called with data: \n" << taftp_on_host.describe();
+
+     _taftp_from_host.resize(taftp_on_host.extents());
 
     if(taftp_on_host.size() != _taftp_from_host.size()) {
         throw std::runtime_error(
@@ -256,3 +248,5 @@ operator()(HostVoltageVectorType const& taftp_on_host)
     return false;
 }
 } // namespace skyweaver
+
+

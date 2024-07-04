@@ -6,6 +6,7 @@
 #include "skyweaver/MultiFileReader.cuh"
 #include "skyweaver/MultiFileWriter.cuh"
 #include "skyweaver/PipelineConfig.hpp"
+#include "skyweaver/DescribedVector.hpp"
 #include "thrust/host_vector.h"
 #include "thrust/device_vector.h"
 
@@ -53,19 +54,27 @@ std::ostream& operator<<(std::ostream& os, const std::vector<float>& vec)
 } // namespace std
 
 template <class Pipeline>
-void run_pipeline(Pipeline& pipeline, skyweaver::PipelineConfig const& config){
+void run_pipeline(Pipeline& pipeline, skyweaver::PipelineConfig& config){
 
     skyweaver::MultiFileReader file_reader(config);
     auto const& header = file_reader.get_header();
+    validate_header(header, config);
+    update_config(config, header);
     std::size_t input_elements = header.nantennas * config.nchans() *
                                  config.npol() * config.gulp_length_samps();
-    thrust::host_vector<char2> taftp_input_voltage(input_elements);
-    std::size_t input_bytes =
-        input_elements * sizeof(decltype(taftp_input_voltage)::value_type);
-    if(config.nchans() != header.nchans) {
-        std::runtime_error("Data has invalid number of channels");
-    }
+    
+    typename Pipeline::HostVoltageVectorType taftp_input_voltage({
+        config.gulp_length_samps()/config.nsamples_per_heap(), // T
+        header.nantennas, // A
+        config.nchans(), // F
+        config.nsamples_per_heap(), // T
+        config.npol()
+        });
+    taftp_input_voltage.frequencies(config.channel_frequencies());
+
+    std::size_t input_bytes = taftp_input_voltage.size() * sizeof(typename decltype(taftp_input_voltage)::value_type);
     pipeline.init(header);
+
     BOOST_LOG_TRIVIAL(info)
         << "Total input size (bytes): " << file_reader.get_total_size();
     // TODO: Add a parameter to PipelineConfig for start sample? time?
@@ -85,7 +94,7 @@ void run_pipeline(Pipeline& pipeline, skyweaver::PipelineConfig const& config){
 }
 
 template <typename BfTraits, bool enable_incoherent_dedispersion>
-void setup_pipeline(skyweaver::PipelineConfig const& config)
+void setup_pipeline(skyweaver::PipelineConfig& config)
 {
     using OutputType = typename BfTraits::QuantisedPowerType;
     NullHandler ib_handler;

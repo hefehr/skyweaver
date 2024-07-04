@@ -20,8 +20,10 @@ struct TransposerParameters {
 class TransposerTester: public ::testing::TestWithParam<TransposerParameters>
 {
   public:
-    typedef Transposer::VoltageType DeviceVoltageType;
-    typedef thrust::host_vector<char2> HostVoltageType;
+    typedef Transposer::InputVoltageType DeviceInputVoltageType;
+    typedef Transposer::OutputVoltageType DeviceOutputVoltageType;
+    typedef TAFTPVoltagesH<char2> HostInputVoltageType;
+    typedef FTPAVoltagesH<char2> HostOutputVoltageType;
 
   protected:
     void SetUp() override;
@@ -32,15 +34,15 @@ class TransposerTester: public ::testing::TestWithParam<TransposerParameters>
     ~TransposerTester();
 
   protected:
-    void transpose_c_reference(HostVoltageType const& input,
-                               HostVoltageType& output,
-                               int input_nantennas,
-                               int output_nantennas,
-                               int nchans,
-                               int ntimestamps);
+    void transpose_c_reference(HostInputVoltageType const& input,
+                               HostOutputVoltageType& output,
+                               std::size_t input_nantennas,
+                               std::size_t output_nantennas,
+                               std::size_t nchans,
+                               std::size_t ntimestamps);
 
-    void compare_against_host(DeviceVoltageType const& gpu_input,
-                              DeviceVoltageType const& gpu_output,
+    void compare_against_host(DeviceInputVoltageType const& gpu_input,
+                              DeviceOutputVoltageType const& gpu_output,
                               std::size_t input_nantennas,
                               std::size_t ntimestamps);
 

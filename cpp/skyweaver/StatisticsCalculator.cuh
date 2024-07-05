@@ -2,6 +2,7 @@
 #define SKYWEAVER_STATISTICSCALCULATOR_CUH
 
 #include "skyweaver/PipelineConfig.hpp"
+#include "skyweaver/DescribedVector.hpp"
 
 #include <fstream>
 #include <thrust/device_vector.h>
@@ -40,8 +41,8 @@ class StatisticsCalculator
     typedef float ScalingType;
     typedef thrust::device_vector<ScalingType> ScalingVectorDType;
     typedef thrust::host_vector<ScalingType> ScalingVectorHType;
-    typedef thrust::device_vector<Statistics> StatisticsVectorDType;
-    typedef thrust::host_vector<Statistics> StatisticsVectorHType;
+    typedef FPAStatsD<Statistics> StatisticsVectorDType;
+    typedef FPAStatsH<Statistics> StatisticsVectorHType;
 
   public:
     /**
@@ -60,7 +61,7 @@ class StatisticsCalculator
      * @brief      Calculate all statistics for the given input data
      */
     void
-    calculate_statistics(thrust::device_vector<char2> const& ftpa_voltages);
+    calculate_statistics(FTPAVoltagesD<char2> const& ftpa_voltages);
 
     /**
      * @brief      Return the current channel input levels on GPU memory

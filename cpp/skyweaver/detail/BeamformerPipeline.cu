@@ -154,7 +154,7 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
     // Stays the same
     BOOST_LOG_TRIVIAL(debug) << "Checking if channel statistics update request";
     _timer.start("calculate statistics");
-    _stats_manager->calculate_statistics(_ftpa_post_transpose.vector());
+    _stats_manager->calculate_statistics(_ftpa_post_transpose);
     _timer.stop("calculate statistics");
     if (_call_count == 0)
     {   

@@ -1,6 +1,7 @@
 
 #include "psrdada_cpp/cuda_utils.hpp"
 #include "skyweaver/PipelineConfig.hpp"
+#include "skyweaver/DescribedVector.hpp"
 #include "skyweaver/skyweaver_constants.hpp"
 #include "skyweaver/test/StatisticsCalculatorTester.cuh"
 
@@ -119,8 +120,8 @@ void StatisticsCalculatorTester::TearDown()
 }
 
 void StatisticsCalculatorTester::compare_against_host(
-    thrust::host_vector<char2>& data,
-    thrust::host_vector<Statistics>& gpu_results) const
+    FTPAVoltagesH<char2>& data,
+    FPAStatsH<Statistics>& gpu_results) const
 {
     std::size_t fpa_size =
         _config.nantennas() * _config.npol() * _config.nchans();
@@ -169,22 +170,21 @@ TEST_F(StatisticsCalculatorTester, test_normal_dist)
 {
     // Make some input data
     std::size_t nsamples = 1024;
-    std::size_t input_size =
-        _config.nantennas() * _config.npol() * _config.nchans() * nsamples;
     thrust::default_random_engine rng(1337);
     thrust::random::normal_distribution<float> dist(0.0f, 20.0f);
-    thrust::host_vector<char2> ftpa_voltages_h(input_size);
+    FTPAVoltagesH<char2> ftpa_voltages_h({_config.nchans(), nsamples, _config.npol(), _config.nantennas()});
     thrust::generate(ftpa_voltages_h.begin(), ftpa_voltages_h.end(), [&] {
         char2 val;
         val.x = static_cast<int8_t>(std::clamp(dist(rng), -127.0f, 127.0f));
         val.y = static_cast<int8_t>(std::clamp(dist(rng), -127.0f, 127.0f));
         return val;
     });
-    thrust::device_vector<char2> ftpa_voltages = ftpa_voltages_h;
+    FTPAVoltagesD<char2> ftpa_voltages = ftpa_voltages_h;
     StatisticsCalculator calculator(_config, _stream);
     calculator.calculate_statistics(ftpa_voltages);
-    thrust::device_vector<Statistics> stats = calculator.statistics();
-    thrust::host_vector<Statistics> stats_h(stats.size());
+    FPAStatsD<Statistics> stats = calculator.statistics();
+    FPAStatsH<Statistics> stats_h;
+    stats_h.like(stats);
     stats_h = stats;
     compare_against_host(ftpa_voltages_h, stats_h);
 }
@@ -193,15 +193,13 @@ TEST_F(StatisticsCalculatorTester, test_file_writer)
 {
     // Make some input data
     std::size_t nsamples = 1024;
-    std::size_t input_size =
-        _config.nantennas() * _config.npol() * _config.nchans() * nsamples;
-    thrust::host_vector<char2> ftpa_voltages_h(input_size, {0, 0});
-    thrust::device_vector<char2> ftpa_voltages = ftpa_voltages_h;
+    FTPAVoltagesH<char2> ftpa_voltages_h({_config.nchans(), nsamples, _config.npol(), _config.nantennas()});
+    FTPAVoltagesD<char2> ftpa_voltages = ftpa_voltages_h;
     StatisticsCalculator calculator(_config, _stream);
     calculator.open_statistics_file();
     calculator.calculate_statistics(ftpa_voltages);
     calculator.write_statistics();
-    thrust::device_vector<Statistics> stats = calculator.statistics();
+    FPAStatsD<Statistics> stats = calculator.statistics();
 }
 
 } // namespace test

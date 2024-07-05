@@ -22,8 +22,8 @@ class StatisticsCalculatorTester: public ::testing::Test
     StatisticsCalculatorTester();
     ~StatisticsCalculatorTester();
     void
-    compare_against_host(thrust::host_vector<char2>& data,
-                         thrust::host_vector<Statistics>& gpu_results) const;
+    compare_against_host(FTPAVoltagesH<char2>& data,
+                         FPAStatsH<Statistics>& gpu_results) const;     
 
   protected:
     cudaStream_t _stream;

@@ -112,8 +112,10 @@ struct DescribedVector {
 
     template <typename OtherDescribedVector>
     void metalike(const OtherDescribedVector& other){
-        frequencies(other.frequencies());
-        dms(other.dms());
+        _frequencies = other._frequencies;
+        _frequencies_stale = other._frequencies_stale;
+        _dms = other._dms;
+        _dms_stale = other._dms_stale;
     }
 
     auto& operator[](std::size_t idx)
@@ -326,7 +328,9 @@ template <typename T> using BTFPowersD = DescribedVector<thrust::device_vector<T
 // Incoherent dedisperser outputs
 template <typename T> using TDBPowersH = DescribedVector<thrust::host_vector<T>, TimeDim, DispersionDim, BeamDim>;
 template <typename T> using TDBPowersD = DescribedVector<thrust::device_vector<T>, TimeDim, DispersionDim, BeamDim>;
-
+// Statistics outputs
+template <typename T> using FPAStatsH = DescribedVector<thrust::host_vector<T>, FreqDim, PolnDim, AntennaDim>;
+template <typename T> using FPAStatsD = DescribedVector<thrust::device_vector<T>, FreqDim, PolnDim, AntennaDim>;
 
 } // namespace skyweaver
 

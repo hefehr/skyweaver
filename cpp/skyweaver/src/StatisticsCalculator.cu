@@ -87,14 +87,6 @@ StatisticsCalculator::StatisticsCalculator(PipelineConfig const& config,
 {
     BOOST_LOG_TRIVIAL(debug)
         << "Constructing new StatisticsCalculator instance";
-
-    // Resize all host and device arrays
-    std::size_t reduced_nchans_ib = _config.nchans() / _config.ib_fscrunch();
-    std::size_t reduced_nchans_cb = _config.nchans() / _config.cb_fscrunch();
-
-    // Statistics of a data block
-    _stats_d.resize(_config.nchans() * _config.nantennas() * _config.npol());
-    _stats_h.resize(_config.nchans() * _config.nantennas() * _config.npol());
 }
 
 StatisticsCalculator::~StatisticsCalculator()
@@ -105,18 +97,25 @@ StatisticsCalculator::~StatisticsCalculator()
 }
 
 void StatisticsCalculator::calculate_statistics(
-    thrust::device_vector<char2> const& ftpa_voltages)
+    FTPAVoltagesD<char2> const& ftpa_voltages)
 {
-    int fpa_size = _config.nantennas() * _config.nchans() * _config.npol();
-    assert(ftpa_voltages.size() % fpa_size == 0
-           /* TAFTP voltages is not a multiple of AFTP size*/);
+    _stats_d.resize({ftpa_voltages.nchannels(), ftpa_voltages.npol(), ftpa_voltages.nantennas()});
+    _stats_d.metalike(ftpa_voltages);
+    _stats_h.resize({ftpa_voltages.nchannels(), ftpa_voltages.npol(), ftpa_voltages.nantennas()});
+    _stats_h.metalike(ftpa_voltages);
+
+    int fpa_size = _stats_h.size();
+    if (ftpa_voltages.size() % fpa_size != 0)
+    {
+        throw std::runtime_error("FTPA voltages are not a multiple of FPA size");
+    }
     int nsamples = ftpa_voltages.size() / fpa_size;
     // call kernel
     char2 const* ftpa_voltages_ptr =
         thrust::raw_pointer_cast(ftpa_voltages.data());
     Statistics* stats_ptr = thrust::raw_pointer_cast(_stats_d.data());
-    dim3 dimBlock(_config.nantennas());
-    dim3 dimGrid(_config.nchans(), _config.npol());
+    dim3 dimBlock(_stats_d.nantennas());
+    dim3 dimGrid(_stats_d.nchannels(), _stats_d.npol());
     kernel::calculate_statistics<<<dimGrid, dimBlock, 0, _stream>>>(
         ftpa_voltages_ptr,
         stats_ptr,

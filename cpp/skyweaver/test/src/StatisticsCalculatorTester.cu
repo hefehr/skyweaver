@@ -142,9 +142,8 @@ void StatisticsCalculatorTester::compare_against_host(
                         (f * _config.nantennas() * _config.npol()) +
                         (p * _config.nantennas()) + a;
                     char2 d = data[input_idx];
-                    double power =
-                        double(d.x) * double(d.x) + double(d.y) * double(d.y);
-                    stats[output_idx].push(power);
+                    stats[output_idx].push(double(d.x));
+                    stats[output_idx].push(double(d.y));
                     ++input_idx;
                 }
             }

@@ -17,6 +17,21 @@ namespace skyweaver
 namespace kernel
 {
 
+__device__ void accumulate(double power, long long& n, double& M1, double& M2, double& M3, double& M4)
+{
+        long long n1 = n;
+        n++;
+        double delta    = power - M1;
+        double delta_n  = delta / n;
+        double delta_n2 = delta_n * delta_n;
+        double term1    = delta * delta_n * n1;
+        M1 += delta_n;
+        M4 += term1 * delta_n2 * (n * n - 3 * n + 3) + 6 * delta_n2 * M2 -
+              4 * delta_n * M3;
+        M3 += term1 * delta_n * (n - 2) - 3 * delta_n * M2;
+        M2 += term1;
+}
+
 /**
  * @brief Calculate statistics for the given input data
  *
@@ -46,23 +61,12 @@ __global__ void calculate_statistics(char2 const* __restrict__ ftpa_voltages,
         channel_idx * tpa_size + pol_idx * nantennas + antenna_idx;
     const int stride = npol * nantennas;
     double M1 = 0.0, M2 = 0.0, M3 = 0.0, M4 = 0.0;
-    int n = 0;
+    long long n = 0;
     for(int sample_idx = offset; sample_idx < (tpa_size + offset);
         sample_idx += stride) {
         char2 data = ftpa_voltages[sample_idx];
-        double power =
-            (double)data.x * (double)data.x + (double)data.y * (double)data.y;
-        long long n1 = n;
-        n++;
-        double delta    = power - M1;
-        double delta_n  = delta / n;
-        double delta_n2 = delta_n * delta_n;
-        double term1    = delta * delta_n * n1;
-        M1 += delta_n;
-        M4 += term1 * delta_n2 * (n * n - 3 * n + 3) + 6 * delta_n2 * M2 -
-              4 * delta_n * M3;
-        M3 += term1 * delta_n * (n - 2) - 3 * delta_n * M2;
-        M2 += term1;
+        accumulate(static_cast<double>(data.x), n, M1, M2, M3, M4);
+        accumulate(static_cast<double>(data.y), n, M1, M2, M3, M4);
     }
 
     // Output is ordered in FPA order

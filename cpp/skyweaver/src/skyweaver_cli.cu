@@ -80,17 +80,12 @@ void run_pipeline(Pipeline& pipeline, skyweaver::PipelineConfig& config){
         << "Total input size (bytes): " << file_reader.get_total_size();
     // TODO: Add a parameter to PipelineConfig for start sample? time?
     // TODO: Add a parameter to PipelineConfig for nsamples? duration?
-    int count = 3;
     while(!file_reader.eof()) {
         std::streamsize nbytes_read =
             file_reader.read(reinterpret_cast<char*>(thrust::raw_pointer_cast(
                                  taftp_input_voltage.data())),
                              input_bytes);
         pipeline(taftp_input_voltage);
-        --count;
-        if(count == 0) {
-            break;
-        }
     }
 }
 

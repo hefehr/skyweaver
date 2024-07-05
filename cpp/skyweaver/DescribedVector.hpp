@@ -30,6 +30,13 @@ inline std::ostream& operator<<(std::ostream& stream, std::vector<T, A> const& v
     return stream;
 }
 
+inline std::ostream& operator<<(std::ostream& stream, char2 const& val) {
+    stream << "(" << static_cast<int>(val.x) 
+    << "," << static_cast<int>(val.y) 
+    << ")";
+    return stream;
+}
+
 // Define the Dimension enum
 enum Dimension { TimeDim, FreqDim, BeamDim, AntennaDim, PolnDim, DispersionDim };
 

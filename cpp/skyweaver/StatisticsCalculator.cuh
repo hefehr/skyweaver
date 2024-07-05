@@ -17,6 +17,12 @@ struct Statistics {
     double kurtosis = 0.0f;
 };
 
+inline std::ostream& operator<<(std::ostream& stream, Statistics const& val) {
+    stream << "mean: " << val.mean << ", std: " << val.std 
+           << ", skew: " << val.skew << ", kurtosis: " << val.kurtosis;
+    return stream;
+}
+
 struct StatisticsFileHeader {
     uint32_t nantennas;
     uint32_t nchannels;

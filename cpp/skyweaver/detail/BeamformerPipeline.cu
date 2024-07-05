@@ -11,6 +11,26 @@
 namespace skyweaver
 {
 
+namespace {
+    template <typename VectorType>
+    void peek(VectorType const& vec, std::size_t n = 10)
+    {
+        std::cout << "Peeking at vector of length " << vec.size() << "\n";
+        std::size_t n_to_peek = std::min(n, vec.size());
+        thrust::host_vector<typename VectorType::value_type> h(n_to_peek);
+        thrust::copy(vec.begin(), vec.begin() + n_to_peek, h.begin());
+        for (auto const& val: h)
+        {   
+            if constexpr (std::is_same_v<typename VectorType::value_type, int8_t>){
+                std::cout << static_cast<int>(val) << "\n";
+            } else {
+                std::cout << val << "\n";
+            }
+
+        }
+    }
+}
+
 template <typename CBHandler,
           typename IBHandler,
           typename StatsHandler,
@@ -144,8 +164,14 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
         _timer.stop("update scalings");
     }
     
+    //BOOST_LOG_TRIVIAL(debug) << "Peeking the statistics";
+    //peek(_stats_manager->statistics(), 64);
+
     BOOST_LOG_TRIVIAL(debug)
         << "FTPA post transpose size: " << _ftpa_post_transpose.size();
+
+    //BOOST_LOG_TRIVIAL(debug) << "peeking _ftpa_post_transpose";
+    //peek(_ftpa_post_transpose);
 
     _timer.start("dispenser hoarding");
     _dispenser->hoard(_ftpa_post_transpose);
@@ -171,6 +197,9 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
         }
         _timer.stop("coherent dedispersion");
 
+        //BOOST_LOG_TRIVIAL(debug) << "peeking _ftpa_dedispersed";
+        //peek(_ftpa_dedispersed);
+
         _timer.start("incoherent beamforming");
         _incoherent_beamformer->beamform(_ftpa_dedispersed,
                                          _tf_ib_raw,
@@ -181,6 +210,9 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
                                          _nbeamsets,
                                          _processing_stream);
         _timer.stop("incoherent beamforming");
+
+        //BOOST_LOG_TRIVIAL(debug) << "peeking _tf_ib_raw";
+        //peek(_tf_ib_raw);
 
         _timer.start("coherent beamforming");
         _coherent_beamformer->beamform(_ftpa_dedispersed,
@@ -193,6 +225,9 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
                                        _nbeamsets,
                                        _processing_stream);
         _timer.stop("coherent beamforming");
+
+        //BOOST_LOG_TRIVIAL(debug) << "peeking _btf_cbs";
+        //peek(_btf_cbs);
 
         _timer.start("coherent beam handler");
         _cb_handler(_btf_cbs, dm_idx);
@@ -247,6 +282,4 @@ operator()(HostVoltageVectorType const& taftp_on_host)
     ++_call_count;
     return false;
 }
-} // namespace skyweaver
-
-
+} // na

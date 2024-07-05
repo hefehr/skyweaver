@@ -282,4 +282,6 @@ operator()(HostVoltageVectorType const& taftp_on_host)
     ++_call_count;
     return false;
 }
-} // na
+} // namespace skyweaver
+
+

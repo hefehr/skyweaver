@@ -19,7 +19,6 @@ namespace test
 class CoherentDedisperserTester: public ::testing::Test
 {
   protected:
-    PipelineConfig pipeline_config;
     CoherentDedisperserConfig dedisp_config;
     std::vector<float> dms;
     std::size_t nantennas;
@@ -27,6 +26,7 @@ class CoherentDedisperserTester: public ::testing::Test
     std::size_t npols;
     std::size_t nbits;    
     std::size_t max_delay_samps;
+    std::size_t fft_length;
 
 
     void SetUp() override;

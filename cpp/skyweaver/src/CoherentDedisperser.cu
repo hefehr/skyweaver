@@ -101,11 +101,11 @@ void CoherentDedisperser::createConfig(CoherentDedisperserConfig& config,
 namespace
 {
 #define NCHANS_PER_BLOCK 128
-
 } // namespace
+
 void CoherentDedisperser::dedisperse(
-    thrust::device_vector<char2> const& d_tpa_voltages_in,
-    thrust::device_vector<char2>& d_ftpa_voltages_out,
+    TPAVoltagesD<char2> const& d_tpa_voltages_in,
+    FTPAVoltagesD<char2>& d_ftpa_voltages_out,
     unsigned int freq_idx,
     unsigned int dm_idx)
 {

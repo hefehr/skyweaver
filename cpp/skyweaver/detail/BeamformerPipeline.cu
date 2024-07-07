@@ -190,8 +190,8 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
             BOOST_LOG_TRIVIAL(debug) << "Attempting to segfault";
 
             _coherent_dedisperser->dedisperse(
-                tpa_voltages.vector(),
-                _ftpa_dedispersed.vector(),
+                tpa_voltages,
+                _ftpa_dedispersed,
                 freq_idx,
                 dm_idx);
         }

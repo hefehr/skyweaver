@@ -1,8 +1,8 @@
 #ifndef SKYWEAVER_DEDISPERSER_COHERENTDEDISPERSER_HPP
 #define SKYWEAVER_DEDISPERSER_COHERENTDEDISPERSER_HPP
 
-#include "cufft.h"
 #include "skyweaver/skyweaver_constants.hpp"
+#include "skyweaver/DescribedVector.hpp"
 
 #include <boost/log/trivial.hpp>
 #include <cufft.h>
@@ -71,15 +71,10 @@ class CoherentDedisperser
     get_dm_delay(double f1, double f2, double dm); // f1 and f2 in MHz
     CoherentDedisperser(CoherentDedisperserConfig& config): config(config) {}
     ~CoherentDedisperser(){};
-    void dedisperse(thrust::device_vector<char2> const& d_tpa_voltages_in,
-                    thrust::device_vector<char2>& d_ftpa_voltages_out,
+    void dedisperse(TPAVoltagesD<char2> const& d_tpa_voltages_in,
+                    FTPAVoltagesD<char2>& d_ftpa_voltages_out,
                     unsigned int freq_idx,
                     unsigned int dm_idx);
-    void get_config(CoherentDedisperserConfig& config)
-    {
-        config = this->config;
-    }
-
   private:
     CoherentDedisperserConfig& config;
     thrust::device_vector<cufftComplex> d_fpa_spectra;

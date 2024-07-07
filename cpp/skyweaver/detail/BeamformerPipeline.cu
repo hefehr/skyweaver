@@ -62,7 +62,7 @@ BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
     _transposer.reset(new Transposer(_config));
     _coherent_beamformer.reset(new CoherentBeamformer(_config));
     _coherent_dedisperser.reset(
-        new CoherentDedisperser(_config, _dedisperser_config));
+        new CoherentDedisperser(_dedisperser_config));
     _incoherent_beamformer.reset(new IncoherentBeamformer(_config));
     _dispenser.reset(new BufferedDispenser(_config, _processing_stream));
     _nbeamsets = _delay_manager->nbeamsets();
@@ -173,7 +173,7 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
             _coherent_dedisperser->dedisperse(
                 tpa_voltages,
                 _ftpa_dedispersed,
-                freq_idx * _ftpa_post_transpose.size() / _config.nchans(),
+                freq_idx ,
                 dm_idx);
         }
         _timer.stop("coherent dedispersion");

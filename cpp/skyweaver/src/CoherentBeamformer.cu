@@ -233,7 +233,12 @@ void CoherentBeamformer<BfTraits>::beamform(
     assert(nsamples_out % SKYWEAVER_CB_NSAMPLES_PER_HEAP == 0);
     BOOST_LOG_TRIVIAL(debug) << "Resizing output buffer from " << output.size()
                              << " to " << output_size << " elements";
-    output.resize(output_size);
+    output.resize({
+        nsamples / _config.cb_tscrunch(),
+        _config.nchans() / _config.cb_fscrunch(),
+        _config.nbeams()
+    });
+    output.metalike(input);
     assert(weights.size() == _expected_weights_size);
     dim3 grid(nsamples /
                   (SKYWEAVER_CB_NWARPS_PER_BLOCK * _config.cb_tscrunch()),

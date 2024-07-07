@@ -5,6 +5,7 @@
 #include "cuda.h"
 #include "psrdada_cpp/common.hpp"
 #include "skyweaver/PipelineConfig.hpp"
+#include "skyweaver/DescribedVector.hpp"
 #include "thrust/device_vector.h"
 
 namespace skyweaver
@@ -46,14 +47,11 @@ template <typename BfTraits>
 class IncoherentBeamformer
 {
   public:
-    // TAFTP order
-    typedef thrust::device_vector<char2> VoltageVectorType;
+    typedef FTPAVoltagesD<char2> VoltageVectorType;
     // TF order
-    typedef thrust::device_vector<typename BfTraits::QuantisedPowerType>
-        PowerVectorType;
+    typedef BTFPowersD<typename BfTraits::QuantisedPowerType> PowerVectorType;
     // TF order
-    typedef thrust::device_vector<typename BfTraits::RawPowerType>
-        RawPowerVectorType;
+    typedef BTFPowersD<typename BfTraits::RawPowerType> RawPowerVectorType;
     // TF order
     typedef thrust::device_vector<float> ScalingVectorType;
 

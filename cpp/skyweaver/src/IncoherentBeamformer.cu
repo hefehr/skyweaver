@@ -134,23 +134,33 @@ void IncoherentBeamformer<BfTraits>::beamform(
         nbeamsets;
     BOOST_LOG_TRIVIAL(debug) << "Resizing output buffer from " << output.size()
                              << " to " << output_size << " elements";
-    output.resize(output_size);
-    output_raw.resize(output_size);
+    output.resize({
+        static_cast<std::size_t>(nbeamsets), 
+        ntimestamps, 
+        _config.nchans() / _config.ib_fscrunch()
+    });
+    output.metalike(input);
+    output_raw.resize({
+        static_cast<std::size_t>(nbeamsets), 
+        ntimestamps, 
+        _config.nchans() / _config.ib_fscrunch()
+    });
+    output_raw.metalike(input);
     if(output_scale.size() !=
-       (SKYWEAVER_NCHANS / SKYWEAVER_IB_FSCRUNCH) * nbeamsets) {
+       (_config.nchans() / _config.ib_fscrunch()) * nbeamsets) {
         std::runtime_error("Unexpected number of channels in scaling vector");
     }
     if(output_offset.size() !=
-       (SKYWEAVER_NCHANS / SKYWEAVER_IB_FSCRUNCH) * nbeamsets) {
+       (_config.nchans() / _config.ib_fscrunch()) * nbeamsets) {
         std::runtime_error("Unexpected number of channels in offset vector");
     }
     if(antenna_weights.size() != _config.nantennas() * nbeamsets) {
         std::runtime_error(
             "Antenna weights vector is not nantennas x nbeamsets in size");
     }
-    dim3 block(SKYWEAVER_NANTENNAS);
-    dim3 grid(ntimestamps / SKYWEAVER_IB_TSCRUNCH,
-              SKYWEAVER_NCHANS / SKYWEAVER_IB_FSCRUNCH);
+    dim3 block(_config.nantennas());
+    dim3 grid(ntimestamps / _config.ib_tscrunch(),
+              _config.nchans() / _config.ib_fscrunch());
     char2 const* ftpa_voltages_ptr = thrust::raw_pointer_cast(input.data());
     float const* output_scale_ptr =
         thrust::raw_pointer_cast(output_scale.data());

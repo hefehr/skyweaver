@@ -30,10 +30,6 @@ class BeamformerPipeline
   public:
     using HostVoltageVectorType = TAFTPVoltagesH<char2>;
     using VoltageVectorType = TAFTPVoltagesD<char2>;
-    typedef thrust::device_vector<typename BeamformerTraits::QuantisedPowerType>
-        PowerVectorType;
-    typedef thrust::device_vector<typename BeamformerTraits::RawPowerType>
-        RawPowerVectorType;
     typedef thrust::device_vector<float> ChannelScaleVectorType;
     typedef long double TimeType;
     typedef CoherentBeamformer<BeamformerTraits> CoherentBeamformer;
@@ -105,10 +101,10 @@ class BeamformerPipeline
     // Buffers
     TAFTPVoltagesD<char2> _taftp_from_host;
     FTPAVoltagesD<char2> _ftpa_post_transpose;
-    typename FTPAVoltagesD<char2>::VectorType _ftpa_dedispersed;
-    PowerVectorType _btf_cbs;
-    RawPowerVectorType _tf_ib_raw;
-    PowerVectorType _tf_ib;
+    FTPAVoltagesD<char2> _ftpa_dedispersed;
+    TFBPowersD<typename BeamformerTraits::QuantisedPowerType> _btf_cbs;
+    BTFPowersD<typename BeamformerTraits::RawPowerType> _tf_ib_raw;
+    BTFPowersD<typename BeamformerTraits::QuantisedPowerType> _tf_ib;
 
     // Variable
     long double _unix_timestamp;

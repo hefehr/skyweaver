@@ -28,7 +28,12 @@ class BeamformerBencher: public benchmark::Fixture
              _config.nsamples_per_heap() * _config.npol());
         std::size_t weights_size =
             _config.nantennas() * _config.nchans() * _config.nbeams();
-        ftpa_voltages_gpu.resize(input_size);
+        ftpa_voltages_gpu.resize({
+            _config.nchans(),
+            ntimestamps * _config.nsamples_per_heap(),
+            _config.npol(),
+            _config.nantennas()
+        });
         fbpa_weights_gpu.resize(weights_size);
         scales.resize(_config.nchans() / _config.cb_fscrunch());
         offsets.resize(_config.nchans() / _config.cb_fscrunch());

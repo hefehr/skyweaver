@@ -166,7 +166,8 @@ void CoherentBeamformerTester<BfTraits>::compare_against_host(
     HostVoltageVectorType ftpa_voltages_host = ftpa_voltages_gpu;
     HostWeightsVectorType fbpa_weights_host  = fbpa_weights_gpu;
     HostPowerVectorType btf_powers_cuda      = btf_powers_gpu;
-    HostPowerVectorType btf_powers_host(btf_powers_gpu.size());
+    HostPowerVectorType btf_powers_host;
+    btf_powers_host.like(btf_powers_gpu);
 
     HostScalingVectorType scales               = scales_gpu;
     HostScalingVectorType offsets              = offsets_gpu;
@@ -286,7 +287,12 @@ TYPED_TEST(CoherentBeamformerTester, representative_noise_test)
     std::size_t weights_size =
         config.nantennas() * config.nchans() * config.nbeams();
 
-    typename CBT::HostVoltageVectorType ftpa_voltages_host(input_size);
+    typename CBT::HostVoltageVectorType ftpa_voltages_host({
+        config.nchans(),
+        ntimestamps * config.nsamples_per_heap(),
+        config.npol(),
+        config.nantennas()
+    });
     for(int ii = 0; ii < ftpa_voltages_host.size(); ++ii) {
         ftpa_voltages_host[ii].x =
             static_cast<int8_t>(std::lround(normal_dist(generator)));
@@ -323,8 +329,8 @@ TYPED_TEST(CoherentBeamformerTester, representative_noise_test)
     typename CBT::DeviceScalingVectorType ib_offset(
         config.nchans() / config.cb_fscrunch() * nbeamsets,
         ib_power_offset);
-    typename CBT::DevicePowerVectorType tf_powers_gpu;
-    typename CBT::DeviceRawPowerVectorType tf_powers_raw_gpu;
+    typename CBT::DeviceIBPowerVectorType tf_powers_gpu;
+    typename CBT::DeviceRawIBPowerVectorType tf_powers_raw_gpu;
 
     // dump_device_vector(ftpa_voltages_gpu, "ftpa_voltages_gpu.bin");
     incoherent_beamformer.beamform(ftpa_voltages_gpu,

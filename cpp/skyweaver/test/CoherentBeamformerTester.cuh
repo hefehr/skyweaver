@@ -19,14 +19,17 @@ class CoherentBeamformerTester: public ::testing::Test
     using BfTraitsType = BfTraits;
     typedef CoherentBeamformer<BfTraits> CoherentBeamformer;
     typedef CoherentBeamformer::VoltageVectorType DeviceVoltageVectorType;
-    typedef thrust::host_vector<typename DeviceVoltageVectorType::value_type>
+    typedef FTPAVoltagesH<typename DeviceVoltageVectorType::value_type>
         HostVoltageVectorType;
     typedef CoherentBeamformer::PowerVectorType DevicePowerVectorType;
-    typedef thrust::host_vector<typename DevicePowerVectorType::value_type>
+    typedef TFBPowersH<typename DevicePowerVectorType::value_type>
         HostPowerVectorType;
-    typedef CoherentBeamformer::RawPowerVectorType DeviceRawPowerVectorType;
-    typedef thrust::host_vector<typename DeviceRawPowerVectorType::value_type>
-        HostRawPowerVectorType;
+      typedef CoherentBeamformer::PowerVectorType DeviceIBPowerVectorType;
+    typedef BTFPowersH<typename DeviceIBPowerVectorType::value_type>
+        HostIBPowerVectorType;
+    typedef CoherentBeamformer::RawPowerVectorType DeviceRawIBPowerVectorType;
+    typedef BTFPowersH<typename DeviceRawIBPowerVectorType::value_type>
+        HostRawIBPowerVectorType;
     typedef CoherentBeamformer::WeightsVectorType DeviceWeightsVectorType;
     typedef thrust::host_vector<typename DeviceWeightsVectorType::value_type>
         HostWeightsVectorType;

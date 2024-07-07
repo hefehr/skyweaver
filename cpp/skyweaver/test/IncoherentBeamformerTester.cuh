@@ -3,6 +3,7 @@
 
 #include "skyweaver/IncoherentBeamformer.cuh"
 #include "skyweaver/PipelineConfig.hpp"
+#include "skyweaver/DescribedVector.hpp"
 #include "thrust/host_vector.h"
 
 #include <gtest/gtest.h>
@@ -19,13 +20,13 @@ class IncoherentBeamformerTester: public ::testing::Test
     using BfTraitsType = BfTraits;
     typedef IncoherentBeamformer<BfTraits> IncoherentBeamformer;
     typedef IncoherentBeamformer::VoltageVectorType DeviceVoltageVectorType;
-    typedef thrust::host_vector<typename DeviceVoltageVectorType::value_type>
+    typedef FTPAVoltagesH<typename DeviceVoltageVectorType::value_type>
         HostVoltageVectorType;
     typedef IncoherentBeamformer::PowerVectorType DevicePowerVectorType;
-    typedef thrust::host_vector<typename DevicePowerVectorType::value_type>
+    typedef BTFPowersH<typename DevicePowerVectorType::value_type>
         HostPowerVectorType;
     typedef IncoherentBeamformer::RawPowerVectorType DeviceRawPowerVectorType;
-    typedef thrust::host_vector<typename DeviceRawPowerVectorType::value_type>
+    typedef BTFPowersH<typename DeviceRawPowerVectorType::value_type>
         HostRawPowerVectorType;
     typedef IncoherentBeamformer::ScalingVectorType DeviceScalingVectorType;
     typedef thrust::host_vector<typename DeviceScalingVectorType::value_type>

@@ -150,7 +150,7 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
                            _header.nantennas,
                            _processing_stream);
     _timer.stop("transpose TAFTP to FTPA");                        
-    _ftpa_dedispersed.resize(_ftpa_post_transpose.size());
+    _ftpa_dedispersed.like(_ftpa_post_transpose);
     // Stays the same
     BOOST_LOG_TRIVIAL(debug) << "Checking if channel statistics update request";
     _timer.start("calculate statistics");
@@ -191,7 +191,7 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
 
             _coherent_dedisperser->dedisperse(
                 tpa_voltages.vector(),
-                _ftpa_dedispersed,
+                _ftpa_dedispersed.vector(),
                 freq_idx * _ftpa_post_transpose.size() / _config.nchans(),
                 dm_idx);
         }
@@ -230,11 +230,11 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
         //peek(_btf_cbs);
 
         _timer.start("coherent beam handler");
-        _cb_handler(_btf_cbs, dm_idx);
+        _cb_handler(_btf_cbs.vector(), dm_idx);
         _timer.stop("coherent beam handler");
 
         _timer.start("incoherent beam handler");
-        _ib_handler(_tf_ib, dm_idx);
+        _ib_handler(_tf_ib.vector(), dm_idx);
         _timer.stop("incoherent beam handler");
     }
     _timer.start("statistics handler");

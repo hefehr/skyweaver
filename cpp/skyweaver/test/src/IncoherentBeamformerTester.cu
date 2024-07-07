@@ -119,8 +119,10 @@ void IncoherentBeamformerTester<BfTraits>::compare_against_host(
     HostScalingVectorType h_scaling_vector    = scaling_vector;
     HostScalingVectorType h_offset_vector     = offset_vector;
     HostScalingVectorType h_beamset_weights   = beamset_weights;
-    HostRawPowerVectorType tf_powers_raw_host(tf_powers_raw_gpu.size());
-    HostPowerVectorType tf_powers_host(tf_powers_gpu.size());
+    HostRawPowerVectorType tf_powers_raw_host;
+    tf_powers_raw_host.like(tf_powers_raw_gpu);
+    HostPowerVectorType tf_powers_host;
+    tf_powers_host.like(tf_powers_gpu);
     beamformer_c_reference(ftpa_voltages_host,
                            tf_powers_raw_host,
                            tf_powers_host,
@@ -162,7 +164,12 @@ TYPED_TEST(IncoherentBeamformerTester, ib_representative_noise_test)
     std::size_t ntimestamps = 8192;
     std::size_t input_size =
         (ntimestamps * config.nantennas() * config.nchans() * config.npol());
-    typename IBT::HostVoltageVectorType ftpa_voltages_host(input_size);
+    typename IBT::HostVoltageVectorType ftpa_voltages_host({
+        config.nchans(),
+        ntimestamps,
+        config.npol(),
+        config.nantennas()
+    });
     for(int ii = 0; ii < ftpa_voltages_host.size(); ++ii) {
         ftpa_voltages_host[ii].x =
             static_cast<int8_t>(std::lround(normal_dist(generator)));

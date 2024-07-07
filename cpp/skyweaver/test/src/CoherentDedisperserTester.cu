@@ -117,11 +117,11 @@ TEST_F(CoherentDedisperserTester, testCoherentDedisperserWithPythonData)
     std::string inp_filename =
         "/homes/vkrishnan/dev/beamformer/skyweaver/cpp/skyweaver/test/data/"
         "dedispersion/codedisp_input_DM" +
-        std::to_string(int(dm)) + "_1chan.dat";
+        std::to_string(int(dm)) + "_1chan.bin";
     std::string out_filename =
         "/homes/vkrishnan/dev/beamformer/skyweaver/cpp/skyweaver/test/data/"
         "dedispersion/codedisp_output_DM" +
-        std::to_string(int(dm)) + "_1chan.dat";
+        std::to_string(int(dm)) + "_1chan.bin";
 
     std::ifstream codedisp_input(inp_filename, std::ios::binary);
     EXPECT_TRUE(codedisp_input.is_open());
@@ -207,11 +207,11 @@ TEST_F(CoherentDedisperserTester, testCoherentDedisperserWithPythonDataAllChans)
     std::string inp_filename =
         "/homes/vkrishnan/dev/beamformer/skyweaver/cpp/skyweaver/test/data/"
         "dedispersion/codedisp_input_DM" +
-        std::to_string(int(dm)) + ".dat";
+        std::to_string(int(dm)) + ".bin";
     std::string out_filename =
         "/homes/vkrishnan/dev/beamformer/skyweaver/cpp/skyweaver/test/data/"
         "dedispersion/codedisp_output_DM" +
-        std::to_string(int(dm)) + ".dat";
+        std::to_string(int(dm)) + ".bin";
 
     std::ifstream codedisp_input(inp_filename, std::ios::binary);
     EXPECT_TRUE(codedisp_input.is_open());

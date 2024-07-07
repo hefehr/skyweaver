@@ -79,7 +79,7 @@ print("dm_prefactor: ", dm_prefactor)
 for i in range(nchans_per_bridge):
    chirps[i] = chirp(chanedges[i], fine_chans, dm_prefactor)
 
-chirps[0].tofile("/homes/vkrishnan/dev/beamformer/skyweaver/cpp/skyweaver/test/data/dedispersion/chirp_python.dat")
+chirps[0].tofile("/homes/vkrishnan/dev/beamformer/skyweaver/cpp/skyweaver/test/data/dedispersion/chirp_python.bin")
 
 
 print(np.shape(chirps))
@@ -119,9 +119,9 @@ data = np.random.randint(-1 * 2**nbits/2, 2**nbits/2 -1, (nchans_per_bridge, nsa
 print("data size in bytes: ", data.nbytes)
 print("data shape: ", data.shape)
 # transposed_data = data.transpose(2,3,1,0,4)
-# transposed_data[0].tofile("/homes/vkrishnan/dev/beamformer/skyweaver/cpp/skyweaver/test/data/dedispersion/codedisp_input_DM{:03}.dat".format(dm))
+# transposed_data[0].tofile("/homes/vkrishnan/dev/beamformer/skyweaver/cpp/skyweaver/test/data/dedispersion/codedisp_input_DM{:03}.bin".format(dm))
 # print(data.shape, transposed_data.shape)
-data.tofile("/homes/vkrishnan/dev/beamformer/skyweaver/cpp/skyweaver/test/data/dedispersion/codedisp_input_DM{:03}.dat".format(dm))
+data.tofile("/homes/vkrishnan/dev/beamformer/skyweaver/cpp/skyweaver/test/data/dedispersion/codedisp_input_DM{:03}.bin".format(dm))
 
 truncated_length = fftlen - max_shift
 
@@ -183,7 +183,7 @@ for ant in range(nant):
 #output = output.transpose(2,3,1,0,4).astype(np.int8)
 
 
-output.tofile("/homes/vkrishnan/dev/beamformer/skyweaver/cpp/skyweaver/test/data/dedispersion/codedisp_output_DM{:03}.dat".format(dm))
+output.tofile("/homes/vkrishnan/dev/beamformer/skyweaver/cpp/skyweaver/test/data/dedispersion/codedisp_output_DM{:03}.bin".format(dm))
 print("outputdata size in bytes: ", output.nbytes)
 #differemce
 print("difference: ", (data.nbytes - output.nbytes)/nant/npol/nchans_per_bridge/ncomplex)

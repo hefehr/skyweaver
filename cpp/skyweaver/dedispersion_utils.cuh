@@ -20,7 +20,7 @@ T dm_delay(T f_ref, T f, T dm)
 struct DMSampleDelay
 {
     __host__ __device__
-    DMDelay(double dm, double f_ref, double tsamp)
+    DMSampleDelay(double dm, double f_ref, double tsamp)
     : _dm(dm), _f_ref(f_ref), _tsamp(tsamp){}
 
     __host__ __device__

@@ -7,6 +7,8 @@ namespace skyweaver
 namespace test
 {
 
+//    cd /tmp/skyweaver_build/cpp/skyweaver/test/ && make -j && cd /homes/vkrishnan/dev/beamformer/skyweaver/cpp/skyweaver/test/ && /tmp/skyweaver_build/cpp/skyweaver/test/gtest_skyweaver --gtest_filter=CoherentDedisperserTester*
+
 CoherentDedisperserTester::CoherentDedisperserTester(): ::testing::Test()
 {
 }
@@ -123,11 +125,11 @@ TEST_F(CoherentDedisperserTester, testCoherentDedisperserWithPythonData)
     // input file name is of format codedisp_input_DM<dm>.dat build the filename
     // here
     std::string inp_filename =
-        "/homes/vkrishnan/dev/beamformer/skyweaver/cpp/skyweaver/test/data/"
+        "data/"
         "dedispersion/codedisp_input_DM" +
         std::to_string(int(dm)) + "_1chan.bin";
     std::string out_filename =
-        "/homes/vkrishnan/dev/beamformer/skyweaver/cpp/skyweaver/test/data/"
+        "data/"
         "dedispersion/codedisp_output_DM" +
         std::to_string(int(dm)) + "_1chan.bin";
 
@@ -229,11 +231,11 @@ TEST_F(CoherentDedisperserTester, testCoherentDedisperserWithPythonDataAllChans)
     // input file name is of format codedisp_input_DM<dm>.dat build the filename
     // here
     std::string inp_filename =
-        "/homes/vkrishnan/dev/beamformer/skyweaver/cpp/skyweaver/test/data/"
+        "data/"
         "dedispersion/codedisp_input_DM" +
         std::to_string(int(dm)) + ".bin";
     std::string out_filename =
-        "/homes/vkrishnan/dev/beamformer/skyweaver/cpp/skyweaver/test/data/"
+        "data/"
         "dedispersion/codedisp_output_DM" +
         std::to_string(int(dm)) + ".bin";
 

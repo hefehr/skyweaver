@@ -66,6 +66,7 @@ void IncoherentDedispersionPipeline<InputType, OutputType, Handler>::init(Observ
 template <typename InputType, typename OutputType, typename Handler>
 void IncoherentDedispersionPipeline<InputType, OutputType, Handler>::operator()(InputVectorType const& data, std::size_t dm_idx)
 {
+    _output_buffers[dm_idx].metalike(data);
     _agg_buffers[dm_idx]->push_back(data.vector());
 }
 

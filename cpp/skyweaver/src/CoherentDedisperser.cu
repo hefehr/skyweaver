@@ -181,9 +181,7 @@ void CoherentDedisperser::dedisperse(
                               static_cast<char>(__float2int_rn(val.y / N));
                           return char2_val;
                       });
-
-    BOOST_LOG_TRIVIAL(debug) << "Transformed cufftComplex to char2";
-    BOOST_LOG_TRIVIAL(info) << "Copied data, done with this dedispersion call";
+    d_ftpa_voltages_out.dms({config._h_dms[dm_idx]});
 }
 
 void CoherentDedisperser::multiply_by_chirp(

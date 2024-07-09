@@ -294,7 +294,8 @@ struct DescribedVector {
             throw std::runtime_error("Invalid number of dispersion measures passed.");
         }
         _dms_stale = false;
-        _dms.resize(1, dm);
+        _dms.resize(1);
+        _dms[0] = dm;
     }
 
     float reference_dm() const{
@@ -325,6 +326,7 @@ struct DescribedVector {
         stream << std::setprecision(15);
         stream << "  frequencies (Hz): " << _frequencies << "\n";
         stream << "  DMs (pc cm^-3): " << _dms << "\n";
+        stream << "  Reference DMs (pc cm^-3): " << reference_dm() << "\n";
         stream << "  Time resolution (s): " << _tsamp << "\n";
         stream << "  Time offset (s): " << _utc_offset << "\n";
         stream << std::setprecision(6);

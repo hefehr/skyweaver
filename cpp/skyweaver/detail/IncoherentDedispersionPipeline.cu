@@ -43,8 +43,9 @@ template <typename InputType, typename OutputType, typename Handler>
 void IncoherentDedispersionPipeline<InputType, OutputType, Handler>::agg_buffer_callback(typename InputVectorType::VectorType const& buffer, std::size_t dm_idx)
 {
     BOOST_LOG_TRIVIAL(debug) << "Agg buffer callback called for dm_idx = " << dm_idx;
-    _dedispersers[dm_idx]->dedisperse(buffer, _output_buffers[dm_idx].vector());
+    _dedispersers[dm_idx]->dedisperse(buffer, _output_buffers[dm_idx]);
     BOOST_LOG_TRIVIAL(debug) << "Dedispersion complete, calling handler";
+    BOOST_LOG_TRIVIAL(debug) << _output_buffers[dm_idx].vector().size();
     _handler(_output_buffers[dm_idx], dm_idx);
 }
 

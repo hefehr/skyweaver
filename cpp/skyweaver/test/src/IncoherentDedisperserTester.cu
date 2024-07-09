@@ -1,4 +1,5 @@
 #include "skyweaver/test/IncoherentDedisperserTester.cuh"
+#include "skyweaver/DescribedVector.hpp"
 #include "skyweaver/AggregationBuffer.cuh"
 #include "skyweaver/types.cuh"
 #include "skyweaver/test/test_utils.cuh"
@@ -58,10 +59,14 @@ TYPED_TEST(IncoherentDedisperserTester, ones_test)
     ASSERT_EQ(delays.size(), dms.size() * this->_config.channel_frequencies().size()) << "Delay vector has unexpected length";
     ASSERT_GT(dedisperser.max_delay(), 0);
     std::size_t nsamples = dedisperser.max_delay() * 2;
+
+
+
     thrust::host_vector<typename Traits::InputType> data(
         this->_config.nbeams() * nsamples * this->_config.nchans(), 
         value_traits<typename Traits::InputType>::one());
-    thrust::host_vector<typename Traits::OutputType> output;
+
+    TDBPowersH<typename Traits::OutputType> output;
     dedisperser.dedisperse(data, output);
     ASSERT_EQ(output.size(), (nsamples - dedisperser.max_delay()) * dms.size() * this->_config.nbeams());
     for (auto const& val: output)
@@ -79,7 +84,7 @@ TYPED_TEST(IncoherentDedisperserTester, too_few_samples_test)
     IncoherentDedisperser dedisperser(this->_config, dms);
     thrust::host_vector<typename Traits::InputType> data(
         this->_config.nbeams() * dedisperser.max_delay() * this->_config.nchans());
-    thrust::host_vector<typename Traits::OutputType> output;
+    TDBPowersH<typename Traits::OutputType> output;
     EXPECT_THROW(dedisperser.dedisperse(data, output), std::runtime_error);
 }
 

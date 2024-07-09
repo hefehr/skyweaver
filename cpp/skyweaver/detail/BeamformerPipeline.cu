@@ -241,7 +241,7 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
         _timer.stop("coherent beam handler");
 
         _timer.start("incoherent beam handler");
-        _ib_handler(_tf_ib_raw, dm_idx);
+        _ib_handler(_tf_ib, dm_idx);
         _timer.stop("incoherent beam handler");
     }
     _timer.start("statistics handler");

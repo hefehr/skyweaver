@@ -129,7 +129,7 @@ FileStream& MultiFileWriter<VectorType>::create_stream(VectorType const& stream_
             header_writer.set<long double>("DM", static_cast<long double>(stream_data.reference_dm()));
             header_writer.set<long double>("FREQ", _header.frequency);
             header_writer.set<long double>("BW", _header.bandwidth);
-            header_writer.set<long double>("TSAMP", stream_data.tsamp());
+            header_writer.set<long double>("TSAMP", stream_data.tsamp() * 1e6);
             if (_config.stokes_mode() == "IQUV"){
                 header_writer.set<std::size_t>("NPOL", 4);
             } else {

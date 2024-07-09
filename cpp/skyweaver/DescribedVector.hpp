@@ -118,6 +118,7 @@ struct DescribedVector {
         _dms = other._dms;
         _dms_stale = other._dms_stale;
         _tsamp = other._tsamp;
+        _utc_offset = other._utc_offset;
     }
 
     auto& operator[](std::size_t idx)
@@ -324,6 +325,8 @@ struct DescribedVector {
         stream << std::setprecision(15);
         stream << "  frequencies (Hz): " << _frequencies << "\n";
         stream << "  DMs (pc cm^-3): " << _dms << "\n";
+        stream << "  Time resolution (s): " << _tsamp << "\n";
+        stream << "  Time offset (s): " << _utc_offset << "\n";
         stream << std::setprecision(6);
         return stream.str();
     }

@@ -99,7 +99,7 @@ void setup_pipeline(skyweaver::PipelineConfig& config)
     update_config(config, header);
 
     using OutputType = typename BfTraits::QuantisedPowerType;
-    skyweaver::MultiFileWriter<skyweaver::BTFPowersH<OutputType>> ib_handler(config, "ib");
+    skyweaver::MultiFileWriter<skyweaver::BTFPowersH<typename BfTraits::RawPowerType>> ib_handler(config, "ib");
     skyweaver::MultiFileWriter<skyweaver::FPAStatsD<skyweaver::Statistics>> stats_handler(config, "stats");
     if constexpr (enable_incoherent_dedispersion)
     {   

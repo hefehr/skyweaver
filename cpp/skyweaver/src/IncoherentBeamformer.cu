@@ -67,15 +67,15 @@ __global__ void icbf_ftpa_general_k(
         }
     }
     for(int beamset_idx = 0; beamset_idx < nbeamsets; ++beamset_idx) {
-        acc_buffer[threadIdx.x] = power * antenna_weights[threadIdx.x];
+        acc_buffer[a_idx] = power * antenna_weights[a_idx];
         for(unsigned int ii = ACC_BUFFER_SIZE / 2; ii > 0; ii >>= 1) {
             __syncthreads();
-            if(threadIdx.x < ii) {
-                acc_buffer[threadIdx.x] = acc_buffer[threadIdx.x] + acc_buffer[threadIdx.x + ii];
+            if(a_idx < ii) {
+                acc_buffer[a_idx] = acc_buffer[a_idx] + acc_buffer[a_idx + ii];
             }
         }
         __syncthreads();
-        if(threadIdx.x == 0) {
+        if(a_idx == 0) {
             const typename BfTraits::RawPowerType power_f32 = acc_buffer[0];
             const int output_idx = beamset_idx * gridDim.x * gridDim.y +
                                    output_t_idx * gridDim.y + output_f_idx;

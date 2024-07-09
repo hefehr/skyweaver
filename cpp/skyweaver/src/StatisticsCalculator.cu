@@ -101,8 +101,10 @@ void StatisticsCalculator::calculate_statistics(
 {
     _stats_d.resize({ftpa_voltages.nchannels(), ftpa_voltages.npol(), ftpa_voltages.nantennas()});
     _stats_d.metalike(ftpa_voltages);
+    _stats_d.tsamp(ftpa_voltages.tsamp() * ftpa_voltages.nsamples());
     _stats_h.resize({ftpa_voltages.nchannels(), ftpa_voltages.npol(), ftpa_voltages.nantennas()});
     _stats_h.metalike(ftpa_voltages);
+    _stats_h.tsamp(ftpa_voltages.tsamp() * ftpa_voltages.nsamples());
 
     int fpa_size = _stats_h.size();
     if (ftpa_voltages.size() % fpa_size != 0)

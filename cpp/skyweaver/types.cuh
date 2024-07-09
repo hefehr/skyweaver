@@ -174,6 +174,7 @@ __host__ __device__ inline typename std::enable_if<is_vec4_v<T> && std::is_arith
 }
 
 template <typename U, typename T>
+__host__ __device__
 static inline typename std::enable_if<std::is_arithmetic_v<T> && std::is_arithmetic_v<U>, U>::type clamp(T const& value)
 {
     return static_cast<U>(
@@ -185,6 +186,7 @@ static inline typename std::enable_if<std::is_arithmetic_v<T> && std::is_arithme
 }
 
 template <typename U, typename T>
+__host__ __device__
 static inline typename std::enable_if<is_vec4_v<T> && is_vec4_v<U>, U>::type clamp(T const& value)
 {
     U clamped;

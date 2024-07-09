@@ -59,8 +59,6 @@ void run_pipeline(Pipeline& pipeline, skyweaver::PipelineConfig& config){
 
     skyweaver::MultiFileReader file_reader(config);
     auto const& header = file_reader.get_header();
-    validate_header(header, config);
-    update_config(config, header);
     std::size_t input_elements = header.nantennas * config.nchans() *
                                  config.npol() * config.gulp_length_samps();
     
@@ -94,6 +92,12 @@ void run_pipeline(Pipeline& pipeline, skyweaver::PipelineConfig& config){
 template <typename BfTraits, bool enable_incoherent_dedispersion>
 void setup_pipeline(skyweaver::PipelineConfig& config)
 {
+    // Update the config
+    skyweaver::MultiFileReader file_reader(config);
+    auto const& header = file_reader.get_header();
+    validate_header(header, config);
+    update_config(config, header);
+
     using OutputType = typename BfTraits::QuantisedPowerType;
     skyweaver::MultiFileWriter<skyweaver::BTFPowersH<OutputType>> ib_handler(config, "ib");
     skyweaver::MultiFileWriter<skyweaver::FPAStatsD<skyweaver::Statistics>> stats_handler(config, "stats");

@@ -3,6 +3,7 @@
 
 #include "skyweaver/PipelineConfig.hpp"
 #include "skyweaver/ObservationHeader.hpp"
+#include "skyweaver/DescribedVector.hpp"
 #include "thrust/host_vector.h"
 #include <gtest/gtest.h>
 
@@ -22,7 +23,7 @@ template <typename Traits>
 class IncoherentDedispersionPipelineTester: public ::testing::Test
 {
   public:
-    using OutputVectorType = thrust::host_vector<typename Traits::OutputType>;
+    using OutputVectorType = TDBPowersH<typename Traits::OutputType>;
 
   protected:
     void SetUp() override;
@@ -32,7 +33,7 @@ class IncoherentDedispersionPipelineTester: public ::testing::Test
     IncoherentDedispersionPipelineTester();
     ~IncoherentDedispersionPipelineTester();
 
-  void init(ObservationHeader const& header, std::vector<long double> const& dm_delays);
+  void init(ObservationHeader const& header);
 
   void operator()(OutputVectorType const&, std::size_t dm_idx);
 

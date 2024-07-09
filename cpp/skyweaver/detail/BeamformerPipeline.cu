@@ -230,11 +230,11 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
         //peek(_btf_cbs);
 
         _timer.start("coherent beam handler");
-        _cb_handler(_btf_cbs.vector(), dm_idx);
+        _cb_handler(_btf_cbs, dm_idx);
         _timer.stop("coherent beam handler");
 
         _timer.start("incoherent beam handler");
-        _ib_handler(_tf_ib.vector(), dm_idx);
+        _ib_handler(_tf_ib, dm_idx);
         _timer.stop("incoherent beam handler");
     }
     _timer.start("statistics handler");

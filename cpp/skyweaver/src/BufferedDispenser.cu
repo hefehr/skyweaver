@@ -68,6 +68,5 @@ void BufferedDispenser::hoard(DeviceFTPAVoltagesType const& new_ftpa_voltages_in
 
 typename BufferedDispenser::DeviceTPAVoltagesType const& BufferedDispenser::dispense(std::size_t chan_idx) const
 { // implements overlapped buffering of data
-
     return _d_channeled_tpa_voltages[chan_idx];
 }

@@ -40,10 +40,10 @@ IncoherentDedispersionPipeline<InputType, OutputType, Handler>::~IncoherentDedis
 }
 
 template <typename InputType, typename OutputType, typename Handler>
-void IncoherentDedispersionPipeline<InputType, OutputType, Handler>::agg_buffer_callback(InputVectorType const& buffer, std::size_t dm_idx)
+void IncoherentDedispersionPipeline<InputType, OutputType, Handler>::agg_buffer_callback(typename InputVectorType::VectorType const& buffer, std::size_t dm_idx)
 {
     BOOST_LOG_TRIVIAL(debug) << "Agg buffer callback called for dm_idx = " << dm_idx;
-    _dedispersers[dm_idx]->dedisperse(buffer, _output_buffers[dm_idx]);
+    _dedispersers[dm_idx]->dedisperse(buffer, _output_buffers[dm_idx].vector());
     BOOST_LOG_TRIVIAL(debug) << "Dedispersion complete, calling handler";
     _handler(_output_buffers[dm_idx], dm_idx);
 }
@@ -59,13 +59,13 @@ void IncoherentDedispersionPipeline<InputType, OutputType, Handler>::init(Observ
     {
         dm_delays[dm_idx] = _dedispersers[dm_idx]->max_delay() * tsamp;
     } 
-    _handler.init(header, dm_delays);
+    _handler.init(header);
 }
 
 template <typename InputType, typename OutputType, typename Handler>
 void IncoherentDedispersionPipeline<InputType, OutputType, Handler>::operator()(InputVectorType const& data, std::size_t dm_idx)
 {
-    _agg_buffers[dm_idx]->push_back(data);
+    _agg_buffers[dm_idx]->push_back(data.vector());
 }
 
 } // namespace skyweaver

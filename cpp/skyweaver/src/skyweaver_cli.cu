@@ -93,11 +93,12 @@ template <typename BfTraits, bool enable_incoherent_dedispersion>
 void setup_pipeline(skyweaver::PipelineConfig& config)
 {
     using OutputType = typename BfTraits::QuantisedPowerType;
-    NullHandler ib_handler;
+    //NullHandler ib_handler;
     NullHandler stats_handler;
-    skyweaver::MultiFileWriter cb_file_writer(config, "cb");
+    skyweaver::MultiFileWriter<skyweaver::BTFPowersH<OutputType>> ib_handler(config, "ib");
     if constexpr (enable_incoherent_dedispersion)
     {   
+        skyweaver::MultiFileWriter<skyweaver::TDBPowersH<OutputType>> cb_file_writer(config, "cb");
         skyweaver::IncoherentDedispersionPipeline<OutputType, OutputType, decltype(cb_file_writer)> dispersion_pipeline(config, cb_file_writer);
         skyweaver::BeamformerPipeline<decltype(dispersion_pipeline),
                                       decltype(ib_handler),
@@ -106,6 +107,7 @@ void setup_pipeline(skyweaver::PipelineConfig& config)
             pipeline(config, dispersion_pipeline, ib_handler, stats_handler);
         run_pipeline(pipeline, config);
     } else {
+        skyweaver::MultiFileWriter<skyweaver::TFBPowersD<OutputType>> cb_file_writer(config, "cb");
         skyweaver::BeamformerPipeline<decltype(cb_file_writer),
                                       decltype(ib_handler),
                                       decltype(stats_handler),

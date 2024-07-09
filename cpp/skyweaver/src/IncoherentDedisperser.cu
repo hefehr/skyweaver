@@ -66,14 +66,7 @@ void IncoherentDedisperser::prepare()
     }
     auto it = std::max_element(_delays.begin(), _delays.end());
     _max_delay = *it;
-
-    // ----- WARNING ------
-    // EB, 2024-07-05
-    // Below is a magical fudge factor of 4 that is 
-    // needed to make the scalings on the output of the 
-    // dedisperser sensible. This is intended to be 
-    // temporary!
-    _scale_factor = std::sqrt(_config.nchans()) * 4; 
+    _scale_factor = std::sqrt(_config.nchans()); 
 }
 
 std::vector<int> const& IncoherentDedisperser::delays() const

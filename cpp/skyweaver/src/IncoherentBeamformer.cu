@@ -140,12 +140,14 @@ void IncoherentBeamformer<BfTraits>::beamform(
         _config.nchans() / _config.ib_fscrunch()
     });
     output.metalike(input);
+    output.tsamp(input.tsamp() * _config.ib_tscrunch());
     output_raw.resize({
         static_cast<std::size_t>(nbeamsets), 
         ntimestamps, 
         _config.nchans() / _config.ib_fscrunch()
     });
     output_raw.metalike(input);
+    output_raw.tsamp(input.tsamp() * _config.ib_tscrunch());
     if(output_scale.size() !=
        (_config.nchans() / _config.ib_fscrunch()) * nbeamsets) {
         std::runtime_error("Unexpected number of channels in scaling vector");

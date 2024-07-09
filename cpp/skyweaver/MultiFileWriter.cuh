@@ -22,7 +22,7 @@ class MultiFileWriter
 
         void init(ObservationHeader const& header);
 
-        bool operator()(VectorType const& stream_data, std::size_t stream_idx);
+        bool operator()(VectorType const& stream_data, std::size_t stream_idx = 0);
 
     private:
         bool has_stream(std::size_t stream_idx);

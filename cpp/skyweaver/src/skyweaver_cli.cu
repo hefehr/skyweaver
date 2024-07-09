@@ -6,6 +6,7 @@
 #include "skyweaver/MultiFileReader.cuh"
 #include "skyweaver/MultiFileWriter.cuh"
 #include "skyweaver/PipelineConfig.hpp"
+#include "skyweaver/StatisticsCalculator.cuh"
 #include "skyweaver/DescribedVector.hpp"
 #include "thrust/host_vector.h"
 #include "thrust/device_vector.h"
@@ -94,9 +95,8 @@ template <typename BfTraits, bool enable_incoherent_dedispersion>
 void setup_pipeline(skyweaver::PipelineConfig& config)
 {
     using OutputType = typename BfTraits::QuantisedPowerType;
-    //NullHandler ib_handler;
-    NullHandler stats_handler;
     skyweaver::MultiFileWriter<skyweaver::BTFPowersH<OutputType>> ib_handler(config, "ib");
+    skyweaver::MultiFileWriter<skyweaver::FPAStatsD<skyweaver::Statistics>> stats_handler(config, "stats");
     if constexpr (enable_incoherent_dedispersion)
     {   
         skyweaver::MultiFileWriter<skyweaver::TDBPowersH<OutputType>> cb_file_writer(config, "cb");

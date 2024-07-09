@@ -60,7 +60,7 @@ NBIT         8
 NDIM         1
 NPOL         1
 NCHAN        64
-NBEAMS       800
+NBEAM       800
 ORDER        TFB
 
 CHAN0_IDX 2688
@@ -122,9 +122,9 @@ FileStream& MultiFileWriter<VectorType>::create_stream(VectorType const& stream_
                                         header_size,
                                         false);
             Header header_writer(bytes);
-            header_writer.set<std::size_t>("NBEAMS", stream_data.nbeams());
-            header_writer.set<std::size_t>("NCHANS", stream_data.nchannels());
-            header_writer.set<std::size_t>("NSAMPS", stream_data.nsamples());
+            header_writer.set<std::size_t>("NBEAM", stream_data.nbeams());
+            header_writer.set<std::size_t>("NCHAN", stream_data.nchannels());
+            header_writer.set<std::size_t>("NSAMP", stream_data.nsamples());
             header_writer.set<std::size_t>("NDMS", stream_data.ndms());
             header_writer.set<long double>("DM", static_cast<long double>(stream_data.reference_dm()));
             header_writer.set<long double>("FREQ", _header.frequency);

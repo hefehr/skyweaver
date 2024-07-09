@@ -239,6 +239,7 @@ void CoherentBeamformer<BfTraits>::beamform(
         _config.nbeams()
     });
     output.metalike(input);
+    output.tsamp(input.tsamp() * _config.cb_tscrunch());
     assert(weights.size() == _expected_weights_size);
     dim3 grid(nsamples /
                   (SKYWEAVER_CB_NWARPS_PER_BLOCK * _config.cb_tscrunch()),

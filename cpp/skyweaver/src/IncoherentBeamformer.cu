@@ -136,14 +136,14 @@ void IncoherentBeamformer<BfTraits>::beamform(
                              << " to " << output_size << " elements";
     output.resize({
         static_cast<std::size_t>(nbeamsets), 
-        ntimestamps, 
+        ntimestamps / _config.ib_tscrunch(), 
         _config.nchans() / _config.ib_fscrunch()
     });
     output.metalike(input);
     output.tsamp(input.tsamp() * _config.ib_tscrunch());
     output_raw.resize({
         static_cast<std::size_t>(nbeamsets), 
-        ntimestamps, 
+        ntimestamps / _config.ib_tscrunch(), 
         _config.nchans() / _config.ib_fscrunch()
     });
     output_raw.metalike(input);

@@ -316,7 +316,7 @@ struct DescribedVector {
         stream << "  dimensions: " << _sizes << "\n";
         stream << "  nsamples: " << nsamples() << "\n";
         stream << "  nchans: " << nchannels() << "\n";
-        stream << "  natntennas: " << nantennas() << "\n";
+        stream << "  nantennas: " << nantennas() << "\n";
         stream << "  nbeams: " << nbeams() << "\n";
         stream << "  ndms: " << ndms() << "\n";
         stream << "  npol: " << npol() << "\n";
@@ -361,8 +361,8 @@ template <typename T> using TPAVoltagesD = DescribedVector<thrust::device_vector
 template <typename T> using TFBPowersH = DescribedVector<thrust::host_vector<T>, TimeDim, FreqDim, BeamDim>;
 template <typename T> using TFBPowersD = DescribedVector<thrust::device_vector<T>, TimeDim, FreqDim, BeamDim>;
 // Incoherent beamformer outputs
-template <typename T> using BTFPowersH = DescribedVector<thrust::host_vector<T>, TimeDim, FreqDim, BeamDim>;
-template <typename T> using BTFPowersD = DescribedVector<thrust::device_vector<T>, TimeDim, FreqDim, BeamDim>;
+template <typename T> using BTFPowersH = DescribedVector<thrust::host_vector<T>, BeamDim, TimeDim, FreqDim>;
+template <typename T> using BTFPowersD = DescribedVector<thrust::device_vector<T>, BeamDim, TimeDim, FreqDim>;
 // Incoherent dedisperser outputs
 template <typename T> using TDBPowersH = DescribedVector<thrust::host_vector<T>, TimeDim, DispersionDim, BeamDim>;
 template <typename T> using TDBPowersD = DescribedVector<thrust::device_vector<T>, TimeDim, DispersionDim, BeamDim>;

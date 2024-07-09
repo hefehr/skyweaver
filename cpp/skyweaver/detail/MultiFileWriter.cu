@@ -124,7 +124,8 @@ FileStream& MultiFileWriter<VectorType>::create_stream(VectorType const& stream_
             Header header_writer(bytes);
             header_writer.set<std::size_t>("NBEAMS", stream_data.nbeams());
             header_writer.set<std::size_t>("NCHANS", stream_data.nchannels());
-            header_writer.set<long double>("NDMS", stream_data.ndms());
+            header_writer.set<std::size_t>("NSAMPS", stream_data.nsamples());
+            header_writer.set<std::size_t>("NDMS", stream_data.ndms());
             header_writer.set<long double>("DM", static_cast<long double>(stream_data.reference_dm()));
             header_writer.set<long double>("FREQ", _header.frequency);
             header_writer.set<long double>("BW", _header.bandwidth);

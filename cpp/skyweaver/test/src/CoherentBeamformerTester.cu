@@ -313,7 +313,7 @@ TYPED_TEST(CoherentBeamformerTester, representative_noise_test)
     typename CBT::DeviceVoltageVectorType ftpa_voltages_gpu =
         ftpa_voltages_host;
     typename CBT::DeviceWeightsVectorType fbpa_weights_gpu = fbpa_weights_host;
-    typename CBT::DevicePowerVectorType btf_powers_gpu;
+    typename CBT::DevicePowerVectorType tfb_powers_gpu;
 
     // Note that below even though this is for the IB we have to use the
     // CB scrunching parameters to make sure we get the right data out.
@@ -349,17 +349,17 @@ TYPED_TEST(CoherentBeamformerTester, representative_noise_test)
                                  cb_offsets,
                                  beamset_mapping,
                                  tf_powers_raw_gpu,
-                                 btf_powers_gpu,
+                                 tfb_powers_gpu,
                                  nbeamsets,
                                  this->_stream);
-    // dump_device_vector(btf_powers_gpu, "btf_powers_gpu.bin");
+    // dump_device_vector(tfb_powers_gpu, "tfb_powers_gpu.bin");
     this->compare_against_host(ftpa_voltages_gpu,
                                fbpa_weights_gpu,
                                cb_scales,
                                cb_offsets,
                                beamset_weights,
                                beamset_mapping,
-                               btf_powers_gpu,
+                               tfb_powers_gpu,
                                nsamples);
 }
 

@@ -2,6 +2,7 @@
 #define SKYWEAVER_TEST_COHERENTBEAMFORMERTESTER_CUH
 
 #include "skyweaver/CoherentBeamformer.cuh"
+#include "skyweaver/IncoherentBeamformer.cuh"
 #include "skyweaver/PipelineConfig.hpp"
 #include "thrust/host_vector.h"
 
@@ -18,16 +19,17 @@ class CoherentBeamformerTester: public ::testing::Test
   public:
     using BfTraitsType = BfTraits;
     typedef CoherentBeamformer<BfTraits> CoherentBeamformer;
+    typedef IncoherentBeamformer<BfTraits> IncoherentBeamformer;
     typedef CoherentBeamformer::VoltageVectorType DeviceVoltageVectorType;
     typedef FTPAVoltagesH<typename DeviceVoltageVectorType::value_type>
         HostVoltageVectorType;
     typedef CoherentBeamformer::PowerVectorType DevicePowerVectorType;
     typedef TFBPowersH<typename DevicePowerVectorType::value_type>
         HostPowerVectorType;
-      typedef CoherentBeamformer::PowerVectorType DeviceIBPowerVectorType;
+    typedef IncoherentBeamformer::PowerVectorType DeviceIBPowerVectorType;
     typedef BTFPowersH<typename DeviceIBPowerVectorType::value_type>
         HostIBPowerVectorType;
-    typedef CoherentBeamformer::RawPowerVectorType DeviceRawIBPowerVectorType;
+    typedef IncoherentBeamformer::RawPowerVectorType DeviceRawIBPowerVectorType;
     typedef BTFPowersH<typename DeviceRawIBPowerVectorType::value_type>
         HostRawIBPowerVectorType;
     typedef CoherentBeamformer::WeightsVectorType DeviceWeightsVectorType;

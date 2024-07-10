@@ -101,8 +101,10 @@ void StatisticsCalculator::calculate_statistics(
 {
     _stats_d.resize({ftpa_voltages.nchannels(), ftpa_voltages.npol(), ftpa_voltages.nantennas()});
     _stats_d.metalike(ftpa_voltages);
+    _stats_d.tsamp(ftpa_voltages.tsamp() * ftpa_voltages.nsamples());
     _stats_h.resize({ftpa_voltages.nchannels(), ftpa_voltages.npol(), ftpa_voltages.nantennas()});
     _stats_h.metalike(ftpa_voltages);
+    _stats_h.tsamp(ftpa_voltages.tsamp() * ftpa_voltages.nsamples());
 
     int fpa_size = _stats_h.size();
     if (ftpa_voltages.size() % fpa_size != 0)
@@ -178,7 +180,7 @@ void StatisticsCalculator::update_scalings(
     _ib_scaling_d.resize(reduced_nchans_ib * nbeamsets);
     _ib_scaling_h.resize(reduced_nchans_ib * nbeamsets);
 
-    for(int beamset_idx = 0; beamset_idx < nbeamsets; ++beamset_idx) {
+    for(std::uint32_t beamset_idx = 0; beamset_idx < nbeamsets; ++beamset_idx) {
         const float effective_nantennas = std::accumulate(
             &beamset_weights[_config.nantennas() * beamset_idx],
             &beamset_weights[_config.nantennas() * (beamset_idx + 1)],
@@ -220,55 +222,42 @@ void StatisticsCalculator::update_scalings(
         };
 
         // CB scaling and  offsets
-        for(std::uint32_t ii = 0; ii < reduced_nchans_cb; ++ii) {
-            _cb_offsets_h[beamset_idx * reduced_nchans_cb + ii] =
-                std::accumulate(&_stats_h[_config.cb_fscrunch() * ii],
-                                &_stats_h[_config.cb_fscrunch() * ii +
-                                          _config.cb_fscrunch()],
-                                0.0f,
-                                get_offset_cb) /
-                _config.cb_fscrunch();
+        // Note: we use effective_nantennas below instead of the _config.nantennas()
+        // because we want scaling factors that are valid for valid data. Using the 
+        // _config.nantnnas() would skew the stats.
+        const int scale_factor = _config.cb_fscrunch() * _config.npol() * effective_nantennas;
 
-            _cb_scaling_h[beamset_idx * reduced_nchans_cb + ii] =
-                std::accumulate(&_stats_h[_config.cb_fscrunch() * ii],
-                                &_stats_h[_config.cb_fscrunch() * ii +
-                                          _config.cb_fscrunch()],
-                                0.0f,
-                                get_scale_cb) /
-                _config.cb_fscrunch();
-
+        for(std::uint32_t out_chan_idx = 0; out_chan_idx < reduced_nchans_cb; ++out_chan_idx) {
+            const std::uint32_t oidx = beamset_idx * reduced_nchans_cb + out_chan_idx;
+            const std::uint32_t f_idx = _config.cb_fscrunch() * out_chan_idx;
+            const std::uint32_t pa = _config.npol() * _config.nantennas();
+            const std::uint32_t start_idx = f_idx * pa;
+            const std::uint32_t end_idx = (f_idx + _config.cb_fscrunch()) * pa;
+            _cb_offsets_h[oidx] = std::accumulate(&_stats_h[start_idx], &_stats_h[end_idx], 0.0f, get_offset_cb) / scale_factor;
+            _cb_scaling_h[oidx] = std::accumulate(&_stats_h[start_idx], &_stats_h[end_idx], 0.0f, get_scale_cb) / scale_factor;
             BOOST_LOG_TRIVIAL(debug)
                 << "Coherent beam power offset (beamset " << beamset_idx
-                << "): " << _cb_offsets_h[beamset_idx * reduced_nchans_ib + ii];
+                << "): " << _cb_offsets_h[oidx];
             BOOST_LOG_TRIVIAL(debug)
                 << "Coherent beam power scaling (beamset " << beamset_idx
-                << "): " << _cb_scaling_h[beamset_idx * reduced_nchans_ib + ii];
+                << "): " << _cb_scaling_h[oidx];
         }
 
         // scaling for incoherent beamformer
-        for(std::uint32_t ii = 0; ii < reduced_nchans_ib; ++ii) {
-            _ib_offsets_h[beamset_idx * reduced_nchans_ib + ii] =
-                std::accumulate(&_stats_h[_config.ib_fscrunch() * ii],
-                                &_stats_h[_config.ib_fscrunch() * ii +
-                                          _config.ib_fscrunch()],
-                                0.0f,
-                                get_offset_ib) /
-                _config.ib_fscrunch();
-
-            _ib_scaling_h[beamset_idx * reduced_nchans_ib + ii] =
-                std::accumulate(&_stats_h[_config.ib_fscrunch() * ii],
-                                &_stats_h[_config.ib_fscrunch() * ii +
-                                          _config.ib_fscrunch()],
-                                0.0f,
-                                get_scale_ib) /
-                _config.ib_fscrunch();
-
+        for(std::uint32_t out_chan_idx = 0; out_chan_idx < reduced_nchans_ib; ++out_chan_idx) {
+            const std::uint32_t oidx = beamset_idx * reduced_nchans_ib + out_chan_idx;
+            const std::uint32_t f_idx = _config.ib_fscrunch() * out_chan_idx;
+            const std::uint32_t pa = _config.npol() * _config.nantennas();
+            const std::uint32_t start_idx = f_idx * pa;
+            const std::uint32_t end_idx = (f_idx + _config.ib_fscrunch()) * pa;
+            _ib_offsets_h[oidx] = std::accumulate(&_stats_h[start_idx], &_stats_h[end_idx], 0.0f, get_offset_ib) / scale_factor;
+            _ib_scaling_h[oidx] = std::accumulate(&_stats_h[start_idx], &_stats_h[end_idx], 0.0f, get_scale_ib) / scale_factor;
             BOOST_LOG_TRIVIAL(debug)
                 << "Incoherent beam power offset (beamset " << beamset_idx
-                << "): " << _ib_offsets_h[beamset_idx * reduced_nchans_ib + ii];
+                << "): " << _ib_offsets_h[beamset_idx * reduced_nchans_ib + out_chan_idx];
             BOOST_LOG_TRIVIAL(debug)
                 << "Incoherent beam power scaling (beamset " << beamset_idx
-                << "): " << _ib_scaling_h[beamset_idx * reduced_nchans_ib + ii];
+                << "): " << _ib_scaling_h[beamset_idx * reduced_nchans_ib + out_chan_idx];
         }
     }
     // At this stage, all scaling vectors are available on the host and

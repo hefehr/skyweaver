@@ -8,13 +8,16 @@ void read_dada_header(psrdada_cpp::RawBytes& raw_header,
 {
     Header parser(raw_header);
     header.nchans    = parser.get<decltype(header.nchans)>("NCHAN");
+    header.obs_nchans    = parser.get<decltype(header.obs_nchans)>("OBS_NCHAN");
     header.npol      = parser.get<decltype(header.npol)>("NPOL");
     header.nbits     = parser.get<decltype(header.nbits)>("NBIT");
     header.nantennas = parser.get<decltype(header.nantennas)>("NANT");
     header.sample_clock_start =
         parser.get<decltype(header.sample_clock_start)>("SAMPLE_CLOCK_START");
     header.bandwidth = parser.get<decltype(header.bandwidth)>("BW");
+    header.obs_bandwidth = parser.get<decltype(header.obs_bandwidth)>("OBS_BW");
     header.frequency = parser.get<decltype(header.frequency)>("FREQ");
+    header.obs_frequency = parser.get<decltype(header.obs_frequency)>("OBS_FREQ");
     header.tsamp     = parser.get<decltype(header.tsamp)>("TSAMP");
     header.sample_clock =
         parser.get<decltype(header.sample_clock)>("SAMPLE_CLOCK");

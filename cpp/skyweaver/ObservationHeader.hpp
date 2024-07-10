@@ -8,14 +8,17 @@
 namespace skyweaver
 {
 struct ObservationHeader {
-    std::size_t nchans             = 0;   // Number of frequency channels
+    std::size_t nchans             = 0;   // Number of frequency channels in the subband
     std::size_t npol               = 0;   // Number of polarisations
     std::size_t nbits              = 0;   // Number of bits per sample
     std::size_t nantennas          = 0;   // Number of antennas
     std::size_t sample_clock_start = 0;   // The start epoch in sampler ticks
     std::size_t chan0_idx          = 0;   // The index of the first channel
-    long double bandwidth          = 0.0; // Bandwidth in Hz
-    long double frequency          = 0.0; // Centre frequency in Hz
+    std::size_t obs_nchans         = 0;   // The total number of channels in the observation
+    long double bandwidth          = 0.0; // Bandwidth in Hz of the subband
+    long double obs_bandwidth      = 0.0; // The full bandwidth in Hz of the observation
+    long double frequency          = 0.0; // Centre frequency in Hz of the subband
+    long double obs_frequency      = 0.0; // Centre frequency in Hz of the observation
     long double tsamp              = 0.0; // Sampling interval in microseconds
     long double sample_clock       = 0.0; // The sampling rate in Hz
     long double sync_time          = 0.0; // The UNIX epoch of the sampler zero

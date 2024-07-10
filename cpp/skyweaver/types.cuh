@@ -74,12 +74,6 @@ inline std::ostream& operator<<(std::ostream& stream, float4 const& val) {
     return stream;
 }
 
-template <typename T>
-struct is_device_vector : std::false_type {};
-
-template <typename T, typename Alloc>
-struct is_device_vector<thrust::device_vector<T, Alloc>> : std::true_type {};
-
 /**
  * vector - vector operations
  * explicit static_casts used to avoid Wnarrowing errors for int8_t types due to integral promotion 
@@ -180,6 +174,7 @@ __host__ __device__ inline typename std::enable_if<is_vec4_v<T> && std::is_arith
 }
 
 template <typename U, typename T>
+__host__ __device__
 static inline typename std::enable_if<std::is_arithmetic_v<T> && std::is_arithmetic_v<U>, U>::type clamp(T const& value)
 {
     return static_cast<U>(
@@ -191,6 +186,7 @@ static inline typename std::enable_if<std::is_arithmetic_v<T> && std::is_arithme
 }
 
 template <typename U, typename T>
+__host__ __device__
 static inline typename std::enable_if<is_vec4_v<T> && is_vec4_v<U>, U>::type clamp(T const& value)
 {
     U clamped;

@@ -9,6 +9,7 @@
 #include <numeric>
 #include <sstream>
 #include <initializer_list>
+#include <type_traits>
 
 namespace skyweaver
 {
@@ -80,11 +81,11 @@ struct DescribedVector {
     using DispersionMeasuresType =  std::vector<float>;
     
     DescribedVector()
-    : _dms_stale(true), _frequencies_stale(true), _dims{dims...} {
+    : _dms_stale(true), _frequencies_stale(true), _dims{dims...}, _tsamp(0.0) {
     }
 
     DescribedVector(std::initializer_list<std::size_t> sizes)
-    : _dms_stale(true), _frequencies_stale(true), _sizes(sizes), _dims{dims...} {
+    : _dms_stale(true), _frequencies_stale(true), _sizes(sizes), _dims{dims...}, _tsamp(0.0) {
         if (_sizes.size() != sizeof...(dims)) {
             throw std::invalid_argument("Number of sizes must match number of dimensions");
         }
@@ -99,7 +100,7 @@ struct DescribedVector {
     : _sizes(other._sizes), _dims{other._dims}, 
       _vector(other._vector.begin(), other._vector.end()), 
       _dms(other._dms), _frequencies(other._frequencies), 
-      _dms_stale(other._dms_stale), 
+      _dms_stale(other._dms_stale), _tsamp(other._tsamp),
       _frequencies_stale(other._frequencies_stale) {
     }
 
@@ -116,6 +117,8 @@ struct DescribedVector {
         _frequencies_stale = other._frequencies_stale;
         _dms = other._dms;
         _dms_stale = other._dms_stale;
+        _tsamp = other._tsamp;
+        _utc_offset = other._utc_offset;
     }
 
     auto& operator[](std::size_t idx)
@@ -251,6 +254,18 @@ struct DescribedVector {
          return get_dim_extent<DispersionDim>();
     } 
 
+    void tsamp(double tsamp_){
+        _tsamp = tsamp_;
+    }
+
+    double tsamp() const {
+        return _tsamp;
+    }
+
+    double utc_offset() const {
+        return _utc_offset;
+    }
+
     std::vector<std::size_t> const& extents() const
     {
         return _sizes;
@@ -279,7 +294,21 @@ struct DescribedVector {
             throw std::runtime_error("Invalid number of dispersion measures passed.");
         }
         _dms_stale = false;
-        _dms.resize(1, dm);
+        _dms.resize(1);
+        _dms[0] = dm;
+    }
+
+    float reference_dm() const{
+        if (!_dms.empty()){
+            return _dms[0];
+        } else {
+            return 0.0f;
+        }
+    }
+
+    std::string dims_as_string() const
+    {
+        return dimensions_to_string(_dims);
     }
 
     std::string describe() const
@@ -289,7 +318,7 @@ struct DescribedVector {
         stream << "  dimensions: " << _sizes << "\n";
         stream << "  nsamples: " << nsamples() << "\n";
         stream << "  nchans: " << nchannels() << "\n";
-        stream << "  natntennas: " << nantennas() << "\n";
+        stream << "  nantennas: " << nantennas() << "\n";
         stream << "  nbeams: " << nbeams() << "\n";
         stream << "  ndms: " << ndms() << "\n";
         stream << "  npol: " << npol() << "\n";
@@ -297,6 +326,9 @@ struct DescribedVector {
         stream << std::setprecision(15);
         stream << "  frequencies (Hz): " << _frequencies << "\n";
         stream << "  DMs (pc cm^-3): " << _dms << "\n";
+        stream << "  Reference DMs (pc cm^-3): " << reference_dm() << "\n";
+        stream << "  Time resolution (s): " << _tsamp << "\n";
+        stream << "  Time offset (s): " << _utc_offset << "\n";
         stream << std::setprecision(6);
         return stream.str();
     }
@@ -307,8 +339,19 @@ struct DescribedVector {
     bool _frequencies_stale;
     std::vector<std::size_t> _sizes;
     std::vector<Dimension> _dims;
+    double _tsamp = 0.0;
+    double _utc_offset = 0.0;
     VectorType _vector;
 };
+
+template <typename T>
+struct is_device_vector : std::false_type {};
+
+template <typename T, typename Alloc>
+struct is_device_vector<thrust::device_vector<T, Alloc>> : std::true_type {};
+
+template <typename T, typename Alloc, Dimension... Dims>
+struct is_device_vector<DescribedVector<thrust::device_vector<T, Alloc>, Dims...>> : std::true_type {};
 
 // Pipeline inputs
 template <typename T> using TAFTPVoltagesH = DescribedVector<thrust::host_vector<T>, TimeDim, AntennaDim, FreqDim, TimeDim, PolnDim>;
@@ -323,8 +366,8 @@ template <typename T> using TPAVoltagesD = DescribedVector<thrust::device_vector
 template <typename T> using TFBPowersH = DescribedVector<thrust::host_vector<T>, TimeDim, FreqDim, BeamDim>;
 template <typename T> using TFBPowersD = DescribedVector<thrust::device_vector<T>, TimeDim, FreqDim, BeamDim>;
 // Incoherent beamformer outputs
-template <typename T> using BTFPowersH = DescribedVector<thrust::host_vector<T>, TimeDim, FreqDim, BeamDim>;
-template <typename T> using BTFPowersD = DescribedVector<thrust::device_vector<T>, TimeDim, FreqDim, BeamDim>;
+template <typename T> using BTFPowersH = DescribedVector<thrust::host_vector<T>, BeamDim, TimeDim, FreqDim>;
+template <typename T> using BTFPowersD = DescribedVector<thrust::device_vector<T>, BeamDim, TimeDim, FreqDim>;
 // Incoherent dedisperser outputs
 template <typename T> using TDBPowersH = DescribedVector<thrust::host_vector<T>, TimeDim, DispersionDim, BeamDim>;
 template <typename T> using TDBPowersD = DescribedVector<thrust::device_vector<T>, TimeDim, DispersionDim, BeamDim>;

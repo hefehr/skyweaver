@@ -11,7 +11,6 @@ set(skyweaver_src
    src/IncoherentBeamformer.cu
    src/IncoherentDedisperser.cu
    src/MultiFileReader.cu
-   src/MultiFileWriter.cu
    src/ObservationHeader.cpp
    src/PipelineConfig.cpp
    src/StatisticsCalculator.cu
@@ -31,7 +30,6 @@ set(skyweaver_inc
     IncoherentBeamformer.cuh
     IncoherentDedisperser.cuh
     MultiFileReader.cuh
-    MultiFileWriter.cuh    
     ObservationHeader.hpp
     PipelineConfig.hpp
     StatisticsCalculator.cuh

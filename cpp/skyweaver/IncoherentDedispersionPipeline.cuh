@@ -2,6 +2,7 @@
 #define SKYWEAVER_INCOHERENTDEDISPERSIONPIPELINE_CUH
 
 #include "skyweaver/IncoherentDedisperser.cuh"
+#include "skyweaver/DescribedVector.hpp"
 #include "skyweaver/AggregationBuffer.cuh"
 #include "skyweaver/PipelineConfig.hpp"
 #include "skyweaver/ObservationHeader.hpp"
@@ -18,8 +19,8 @@ class IncoherentDedispersionPipeline
 public: 
     typedef AggregationBuffer<InputType> AggBufferType;
     typedef std::vector<std::unique_ptr<AggBufferType>> AggBufferVector;
-    typedef thrust::host_vector<InputType> InputVectorType; 
-    typedef thrust::host_vector<OutputType> OutputVectorType; 
+    typedef TFBPowersH<InputType> InputVectorType; //CoherentBeam Data
+    typedef TDBPowersH<OutputType> OutputVectorType; //Dedispersered Data
     typedef IncoherentDedisperser DedisperserType;
     typedef std::vector<std::unique_ptr<DedisperserType>> DedisperserVector;
     
@@ -32,7 +33,7 @@ public:
     void operator()(InputVectorType const& data, std::size_t dm_idx);
 
 private:
-    void agg_buffer_callback(InputVectorType const& buffer, std::size_t dm_idx);
+    void agg_buffer_callback(typename InputVectorType::VectorType const& buffer, std::size_t dm_idx);
 
 private:
     PipelineConfig const& _config;

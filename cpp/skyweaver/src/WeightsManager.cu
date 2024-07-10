@@ -2,6 +2,7 @@
 #include "skyweaver/DelayManager.cuh"
 #include "skyweaver/PipelineConfig.hpp"
 #include "skyweaver/WeightsManager.cuh"
+#include "skyweaver/types.cuh"
 
 #include <thrust/device_vector.h>
 
@@ -47,7 +48,6 @@ generate_weights_k(float3 const* __restrict__ delay_models,
     char2 compressed_weight;
     // This isn't really needed as there will never be more than 64 antennas
     // However this makes this fucntion more flexible with smaller blocks
-
     for(int chan_idx = blockIdx.y; chan_idx < nchans; chan_idx += gridDim.y) {
         double frequency = channel_frequencies[chan_idx];
         int chan_offset  = chan_idx * weights_per_channel; // correct
@@ -73,10 +73,8 @@ generate_weights_k(float3 const* __restrict__ delay_models,
                     // If we ever have to implement scalar weightings, this
                     // must change.
                     sincos(TWOPI * phase, &weight.y, &weight.x);
-                    compressed_weight.x =
-                        (char)__double2int_rn(weight.x * 127.0 * delay_model.x);
-                    compressed_weight.y = (char)__double2int_rn(
-                        -1.0 * weight.y * 127.0 * delay_model.x);
+                    compressed_weight.x = clamp<int8_t, int>(__double2int_rn(weight.x * 127.0 * delay_model.x));
+                    compressed_weight.y = clamp<int8_t, int>(__double2int_rn(-1.0 * weight.y * 127.0 * delay_model.x));
                     int output_idx =
                         time_idx * weights_per_time_step + antenna_offset;
                     weights[output_idx] = compressed_weight;

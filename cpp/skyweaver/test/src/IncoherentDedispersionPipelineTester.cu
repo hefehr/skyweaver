@@ -1,5 +1,6 @@
 #include "skyweaver/test/IncoherentDedispersionPipelineTester.cuh"
 #include "skyweaver/IncoherentDedispersionPipeline.cuh"
+#include "skyweaver/DescribedVector.hpp"
 #include <cstring>
 
 namespace skyweaver
@@ -29,7 +30,7 @@ void IncoherentDedispersionPipelineTester<Traits>::TearDown(){
 }
 
 template <typename Traits>
-void IncoherentDedispersionPipelineTester<Traits>::init(ObservationHeader const& header, std::vector<long double> const& dm_delays)
+void IncoherentDedispersionPipelineTester<Traits>::init(ObservationHeader const& header)
 {
     _init_called = true;
     _init_arg = header;
@@ -74,7 +75,7 @@ TYPED_TEST(IncoherentDedispersionPipelineTester, operator_calls) {
     ObservationHeader header;
     pipeline.init(header);
     auto const& dms = this->_config.coherent_dms();
-    thrust::host_vector<IType> input(this->_config.nchans() * this->_config.nbeams() * 8192);
+    TFBPowersH<IType> input({8192, this->_config.nchans(), this->_config.nbeams()});
     for (int ii = 0; ii < 2; ++ii){
         for (int dm_idx = 0; dm_idx < dms.size(); ++dm_idx)
         {

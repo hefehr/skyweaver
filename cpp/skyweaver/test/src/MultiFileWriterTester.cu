@@ -1,4 +1,5 @@
 #include "skyweaver/test/MultiFileWriterTester.cuh"
+#include "skyweaver/DescribedVector.hpp"
 
 #include <cstdio>
 #include <vector>
@@ -39,15 +40,17 @@ void MultiFileWriterTester::TearDown()
 
 TEST_F(MultiFileWriterTester, simple_updating_write)
 {
+    using InputType = TFBPowersH<int8_t>;
+
     BOOST_LOG_TRIVIAL(debug)
         << "Testing in tmp directory: " << _config.output_dir();
-    MultiFileWriter mfw(_config);
+    MultiFileWriter<InputType> mfw(_config);
     _config.max_output_filesize(1000);
-    std::size_t output_nchans = _config.nchans() / _config.cb_fscrunch();
-    // TODO this needs to include a 4 if running in full Stokes
-    std::size_t btf_size =
-        _config.nbeams() * _config.nsamples_per_block() * output_nchans;
-    std::vector<int8_t> powers(btf_size);
+    InputType powers({
+        _config.nsamples_per_block(),
+        64,
+        _config.nbeams()
+    });
     ObservationHeader header;
     header.nchans = _config.nchans();
     header.tsamp  = 0.000064;

@@ -1,40 +1,43 @@
 #ifndef SKYWEAVER_MULTIFILEWRITER_CUH
 #define SKYWEAVER_MULTIFILEWRITER_CUH
 
+#include "skyweaver/DescribedVector.hpp"
 #include "skyweaver/FileOutputStream.hpp"
 #include "skyweaver/ObservationHeader.hpp"
 #include "skyweaver/PipelineConfig.hpp"
 #include "skyweaver/types.cuh"
 #include "thrust/host_vector.h"
+#include <map>
 
 namespace skyweaver
 {
 
+template <typename VectorType>
 class MultiFileWriter
 {
-  public:
-    MultiFileWriter(PipelineConfig const& config, std::string tag="");
-    MultiFileWriter(MultiFileWriter const&) = delete;
-    ~MultiFileWriter();
+    public:
+        MultiFileWriter(PipelineConfig const& config, std::string tag="");
+        MultiFileWriter(MultiFileWriter const&) = delete;
+        ~MultiFileWriter();
 
-    void init(ObservationHeader const& header);
-    void init(ObservationHeader const& header, std::vector<long double> const& dm_delays);
+        void init(ObservationHeader const& header);
 
-    template <typename VectorType>
-    typename std::enable_if<!is_device_vector<VectorType>::value, bool>::type 
-    operator()(VectorType const& btf_powers, std::size_t dm_idx);
+        bool operator()(VectorType const& stream_data, std::size_t stream_idx = 0);
 
-    template <typename VectorType>
-    typename std::enable_if<is_device_vector<VectorType>::value, bool>::type 
-    operator()(VectorType const& btf_powers, std::size_t dm_idx);
+    private:
+        bool has_stream(std::size_t stream_idx);
+        FileStream& create_stream(VectorType const& stream_data, std::size_t stream_idx);
+        std::string get_basefilename(VectorType const& stream_data, std::size_t stream_idx);
+        std::string get_extension(VectorType const& stream_data);
 
-  private:
-    void make_dada_header() const;
 
-    PipelineConfig const& _config;
-    std::string _tag;
-    std::vector<std::unique_ptr<FileStream>> _file_streams;
-    std::vector<long double> _dm_delays;
+        PipelineConfig const& _config;
+        std::string _tag;
+        ObservationHeader _header;
+        std::map<std::size_t, std::unique_ptr<FileStream>> _file_streams;
+        std::map<std::size_t, std::vector<std::size_t>> _stream_dims;
+        std::vector<long double> _dm_delays;
+
 };
 
 } // namespace skyweaver

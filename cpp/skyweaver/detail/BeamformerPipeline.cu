@@ -19,15 +19,21 @@ namespace {
         std::size_t n_to_peek = std::min(n, vec.size());
         thrust::host_vector<typename VectorType::value_type> h(n_to_peek);
         thrust::copy(vec.begin(), vec.begin() + n_to_peek, h.begin());
+        bool first = true;
         for (auto const& val: h)
         {   
-            if constexpr (std::is_same_v<typename VectorType::value_type, int8_t>){
-                std::cout << static_cast<int>(val) << "\n";
+            if (!first){
+                std::cout << ", ";
             } else {
-                std::cout << val << "\n";
+                first = false;
             }
-
+            if constexpr (std::is_same_v<typename VectorType::value_type, int8_t>){
+                std::cout << static_cast<int>(val);
+            } else {
+                std::cout << val;
+            }
         }
+        std::cout << "\n";
     }
 }
 
@@ -98,6 +104,8 @@ BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
     CUDA_ERROR_CHECK(cudaStreamDestroy(_h2d_copy_stream));
     CUDA_ERROR_CHECK(cudaStreamDestroy(_processing_stream));
     CUDA_ERROR_CHECK(cudaStreamDestroy(_d2h_copy_stream));
+    _timer.show_all_timings();
+
 }
 
 template <typename CBHandler,
@@ -140,7 +148,8 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
                                                     _unix_timestamp,
                                                     _delay_manager->epoch());
     _timer.stop("calculate weights");
-
+    //BOOST_LOG_TRIVIAL(info) << "Peaking weights at epoch " << std::setprecision(15) <<  _unix_timestamp;
+    //peek(weights, weights.size());
 
     BOOST_LOG_TRIVIAL(debug)
         << "Transposing input data from TAFTP to FTPA order";
@@ -179,7 +188,6 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
 
     for(unsigned int dm_idx = 0; dm_idx < _config.coherent_dms().size();
         ++dm_idx) {
-        
         _timer.start("coherent dedispersion");
         for(unsigned int freq_idx = 0; freq_idx < _config.nchans();
             ++freq_idx) {
@@ -199,7 +207,6 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
 
         //BOOST_LOG_TRIVIAL(debug) << "peeking _ftpa_dedispersed";
         //peek(_ftpa_dedispersed);
-
         _timer.start("incoherent beamforming");
         _incoherent_beamformer->beamform(_ftpa_dedispersed,
                                          _tf_ib_raw,
@@ -230,17 +237,16 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
         //peek(_btf_cbs);
 
         _timer.start("coherent beam handler");
-        _cb_handler(_btf_cbs.vector(), dm_idx);
+        _cb_handler(_btf_cbs, dm_idx);
         _timer.stop("coherent beam handler");
 
         _timer.start("incoherent beam handler");
-        _ib_handler(_tf_ib.vector(), dm_idx);
+        _ib_handler(_tf_ib, dm_idx);
         _timer.stop("incoherent beam handler");
     }
     _timer.start("statistics handler");
     _stats_handler(_stats_manager->statistics());
     _timer.stop("statistics handler");
-    _timer.show_all_timings();
 }
 
 template <typename CBHandler,

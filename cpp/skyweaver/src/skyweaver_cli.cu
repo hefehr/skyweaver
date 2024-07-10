@@ -6,6 +6,7 @@
 #include "skyweaver/MultiFileReader.cuh"
 #include "skyweaver/MultiFileWriter.cuh"
 #include "skyweaver/PipelineConfig.hpp"
+#include "skyweaver/StatisticsCalculator.cuh"
 #include "skyweaver/DescribedVector.hpp"
 #include "thrust/host_vector.h"
 #include "thrust/device_vector.h"
@@ -58,8 +59,6 @@ void run_pipeline(Pipeline& pipeline, skyweaver::PipelineConfig& config){
 
     skyweaver::MultiFileReader file_reader(config);
     auto const& header = file_reader.get_header();
-    validate_header(header, config);
-    update_config(config, header);
     std::size_t input_elements = header.nantennas * config.nchans() *
                                  config.npol() * config.gulp_length_samps();
     
@@ -72,6 +71,7 @@ void run_pipeline(Pipeline& pipeline, skyweaver::PipelineConfig& config){
         });
     taftp_input_voltage.frequencies(config.channel_frequencies());
     taftp_input_voltage.dms({0.0f});
+    taftp_input_voltage.tsamp(header.obs_nchans / header.obs_bandwidth);
 
     std::size_t input_bytes = taftp_input_voltage.size() * sizeof(typename decltype(taftp_input_voltage)::value_type);
     pipeline.init(header);
@@ -92,12 +92,18 @@ void run_pipeline(Pipeline& pipeline, skyweaver::PipelineConfig& config){
 template <typename BfTraits, bool enable_incoherent_dedispersion>
 void setup_pipeline(skyweaver::PipelineConfig& config)
 {
+    // Update the config
+    skyweaver::MultiFileReader file_reader(config);
+    auto const& header = file_reader.get_header();
+    validate_header(header, config);
+    update_config(config, header);
+
     using OutputType = typename BfTraits::QuantisedPowerType;
-    NullHandler ib_handler;
-    NullHandler stats_handler;
-    skyweaver::MultiFileWriter cb_file_writer(config, "cb");
+    skyweaver::MultiFileWriter<skyweaver::BTFPowersH<OutputType>> ib_handler(config, "ib");
+    skyweaver::MultiFileWriter<skyweaver::FPAStatsD<skyweaver::Statistics>> stats_handler(config, "stats");
     if constexpr (enable_incoherent_dedispersion)
     {   
+        skyweaver::MultiFileWriter<skyweaver::TDBPowersH<OutputType>> cb_file_writer(config, "cb");
         skyweaver::IncoherentDedispersionPipeline<OutputType, OutputType, decltype(cb_file_writer)> dispersion_pipeline(config, cb_file_writer);
         skyweaver::BeamformerPipeline<decltype(dispersion_pipeline),
                                       decltype(ib_handler),
@@ -106,6 +112,7 @@ void setup_pipeline(skyweaver::PipelineConfig& config)
             pipeline(config, dispersion_pipeline, ib_handler, stats_handler);
         run_pipeline(pipeline, config);
     } else {
+        skyweaver::MultiFileWriter<skyweaver::TFBPowersD<OutputType>> cb_file_writer(config, "cb");
         skyweaver::BeamformerPipeline<decltype(cb_file_writer),
                                       decltype(ib_handler),
                                       decltype(stats_handler),

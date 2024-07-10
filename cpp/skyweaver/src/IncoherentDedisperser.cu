@@ -1,4 +1,5 @@
 #include "skyweaver/IncoherentDedisperser.cuh"
+#include "skyweaver/DescribedVector.hpp"
 #include "skyweaver/types.cuh"
 #include "thrust/host_vector.h"
 
@@ -65,14 +66,7 @@ void IncoherentDedisperser::prepare()
     }
     auto it = std::max_element(_delays.begin(), _delays.end());
     _max_delay = *it;
-
-    // ----- WARNING ------
-    // EB, 2024-07-05
-    // Below is a magical fudge factor of 4 that is 
-    // needed to make the scalings on the output of the 
-    // dedisperser sensible. This is intended to be 
-    // temporary!
-    _scale_factor = std::sqrt(_config.nchans()) * 4; 
+    _scale_factor = std::sqrt(_config.nchans()); 
 }
 
 std::vector<int> const& IncoherentDedisperser::delays() const
@@ -103,7 +97,11 @@ void IncoherentDedisperser::dedisperse<InputVectorType, OutputVectorType>(
         throw std::runtime_error("Fewer than max_delay samples passed to dedisperse method");
     }
     const std::size_t bf       = nbeams * nchans;
-    tdb_powers.resize((nsamples - _max_delay) * nbeams * ndms);
+    tdb_powers.resize({
+        nsamples - _max_delay,
+        ndms,
+        nbeams
+    });
     AccumulatorVectorType powers(nbeams);
     for (int t_idx = 0; t_idx < (nsamples - _max_delay); ++t_idx)
     {
@@ -130,9 +128,9 @@ void IncoherentDedisperser::dedisperse<InputVectorType, OutputVectorType>(
 }
 
 // This is the set of explicitly supported template arguments
-template void IncoherentDedisperser::dedisperse<thrust::host_vector<int8_t>, thrust::host_vector<int8_t>>(
-    thrust::host_vector<int8_t> const& tfb_powers, thrust::host_vector<int8_t>& tdb_powers);
-template void IncoherentDedisperser::dedisperse<thrust::host_vector<char4>, thrust::host_vector<char4>>(
-    thrust::host_vector<char4> const& tfb_powers, thrust::host_vector<char4>& tdb_powers);
+template void IncoherentDedisperser::dedisperse<thrust::host_vector<int8_t>, TDBPowersH<int8_t>>(
+    thrust::host_vector<int8_t> const& tfb_powers, TDBPowersH<int8_t>& tdb_powers);
+template void IncoherentDedisperser::dedisperse<thrust::host_vector<char4>, TDBPowersH<char4>>(
+    thrust::host_vector<char4> const& tfb_powers, TDBPowersH<char4>& tdb_powers);
 
 } // namespace skyweaver

@@ -125,8 +125,7 @@ TEST_F(BeamformerPipelineTester, full_pipeline_test)
     validate_header(header, config);
     update_config(config, header);
 
-    MultiFileWriter cb_handler(config, "cb");
-    //MultiFileWriter ib_handler(config, "ib");
+    MultiFileWriter<TDBPowersH<typename BfTraits::QuantisedPowerType>> cb_handler(config, "cb");
     NullHandler ib_handler;
     NullHandler stats_handler;
     using IDPipelineType = IncoherentDedispersionPipeline<typename BfTraits::QuantisedPowerType, typename BfTraits::QuantisedPowerType, decltype(cb_handler)>;

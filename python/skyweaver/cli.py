@@ -160,7 +160,7 @@ def delays_create(
         raise ValueError("Pointing idx {} requested but only {} pointings in session")
     step = step * u.s
     pointing = pointings[pointing_idx]
-    delays, _, _ = skyweaver.create_delays(sm, bc, pointing, step=step)
+    delays, targets, _ = skyweaver.create_delays(sm, bc, pointing, step=step)
     if outfile is None:
         fname = "swdelays_{}_{}_to_{}_{}.bin".format(
             pointing.phase_centre.name,
@@ -174,6 +174,10 @@ def delays_create(
     with open(fname, "wb") as fo:
         for delay_model in delays:
             fo.write(delay_model.to_bytes())
+    with open(fname + ".targets", "w") as fo:
+        for target in targets:
+            fo.write(target.format_katcp() +"\n")
+        
 
 def parse_default_args(args):
     """Execute functions for common arguments

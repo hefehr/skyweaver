@@ -22,7 +22,13 @@ template <typename Traits>
 void IncoherentDedispersionPipelineTester<Traits>::SetUp(){
     _config.centre_frequency(1284e6);
     _config.bandwidth(13375000.0);
-    _config.coherent_dms({0.0f, 10.0f, 20.0f, 30.0f, 40.0f, 50.0f});
+    auto& plan = _config.ddplan();
+    plan.add_block(0.0f);
+    plan.add_block(10.0f);
+    plan.add_block(20.0f);
+    plan.add_block(30.0f);
+    plan.add_block(40.0f);
+    plan.add_block(50.0f);
 }
 
 template <typename Traits>

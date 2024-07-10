@@ -157,9 +157,9 @@ std::vector<float> const& PipelineConfig::coherent_dms() const
     return _coherent_dms;
 }
 
-void PipelineConfig::coherent_dms(std::vector<float> const& coherent_dms)
+DedispersionPlan& PipelineConfig::ddplan()
 {
-    _coherent_dms = coherent_dms;
+    return _ddplan;
 }
 
 void PipelineConfig::dedisp_max_delay_samps(std::size_t max_delay)

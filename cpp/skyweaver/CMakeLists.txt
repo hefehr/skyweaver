@@ -4,6 +4,7 @@ set(skyweaver_src
    src/BufferedDispenser.cu
    src/CoherentBeamformer.cu
    src/CoherentDedisperser.cu
+   src/DedispersionPlan.cpp
    src/DelayManager.cu
    src/DescribedVector.cpp
    src/FileOutputStream.cpp
@@ -23,6 +24,7 @@ set(skyweaver_inc
     BufferedDispenser.cuh
     CoherentBeamformer.cuh
     CoherentDedisperser.cuh
+    DedispersionPlan.hpp
     DelayManager.cuh
     DescribedVector.hpp
     FileOutputStream.hpp

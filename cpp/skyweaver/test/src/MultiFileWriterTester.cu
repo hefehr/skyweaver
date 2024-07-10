@@ -28,9 +28,10 @@ void MultiFileWriterTester::SetUp()
     char template_dirname[] = "/tmp/skyweaver_test_XXXXXX";
     char* directory_path    = mkdtemp(template_dirname);
     _config.output_dir(std::string(directory_path));
-    std::vector<float> dms;
-    for(float dm = 0.0f; dm < 5; dm += 1.2345f) { dms.push_back(dm); }
-    _config.coherent_dms(dms);
+    auto& plan = _config.ddplan();
+    for(float dm = 0.0f; dm < 5; dm += 1.2345f) {
+         plan.add_block(dm);
+    }
 }
 
 void MultiFileWriterTester::TearDown()

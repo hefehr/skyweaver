@@ -3,7 +3,7 @@
 
 #include "psrdada_cpp/common.hpp"
 #include "skyweaver/skyweaver_constants.hpp"
-
+#include "skyweaver/DedispersionPlan.hpp"
 #include <string>
 
 namespace skyweaver
@@ -148,14 +148,14 @@ class PipelineConfig
     /**
      * @brief      Get the coherent dm trials to be dedispersed to
      *
+     * @details    Helper method to return the coherent DMs from the ddplan
      */
     std::vector<float> const& coherent_dms() const;
 
     /**
-     * @brief      Set the coherent dm trials to be dedispersed to
-     *
+     * @brief      Get a reference to the dedispersion plan 
      */
-    void coherent_dms(std::vector<float> const&);
+    DedispersionPlan& ddplan();
 
     /**
      * @brief      Return the length of the kernel in samples
@@ -379,6 +379,7 @@ class PipelineConfig
     float _cb_power_offset;
     float _ib_power_scaling;
     float _ib_power_offset;
+    DedispersionPlan _ddplan;
     mutable std::vector<double> _channel_frequencies;
 };
 

@@ -192,27 +192,34 @@ int main(int argc, char** argv)
              "The desired standard deviation for output data")
 
             /**
-             * Dispersion measures for coherent dedispersion
-             * Can be specified on the command line with:
+             * Defines a dedispersion plan to be executed.
+             * Argument is colon-separated with no spaces.
+             * Parameters:
+             * <coherent_dm>:<start_incoherent_dm>:<end_incoherent_dm>:<dm_step>:<tscrunch>
+             * The tscrunch is defined relative to the beamformer output.
              *
-             * --coherent-dm 1 2 3
+             * --ddplan 5.0:0.0:10.0:0.1:1
              * or
-             * --coherent-dm 1 --coherent-dm 2 --coherent-dm 3
+             * --ddplan 5.0:1
              *
              * In the configuration file it can only be specified with:
              *
-             * coherent-dm=1
-             * coherent-dm=2
-             * coherent-dm=3
+             * ddplan=5.0:0.0:10.0:0.1:1
+             * ddplan=5.0:1
              */
-            ("coherent-dm",
-             po::value<std::vector<float>>()
+            ("ddplan",
+             po::value<std::vector<std::string>>()
                  ->multitoken()
-                 ->default_value(config.coherent_dms())
-                 ->notifier([&config](std::vector<float> const& dms) {
-                     config.coherent_dms(dms);
+                 ->required()
+                 ->notifier([&config](std::vector<std::string> const& descriptors) {
+                    for (auto const& descriptor: descriptors)
+                    {
+                        config.ddplan().add_block(descriptor);
+                    }
                  }),
-             "The dispersion measures to coherently dedisperse to")
+             "A dispersion plan definition string (<coherent_dm>:<start_incoherent_dm>:"
+             "<end_incoherent_dm>:<dm_step>:<tscrunch>) or (<coherent_dm>:<tscrunch>) "
+             "or (<coherent_dm>)")
 
             ("enable-incoherent-dedispersion",
              po::value<bool>()

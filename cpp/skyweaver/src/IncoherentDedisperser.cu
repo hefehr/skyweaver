@@ -105,7 +105,7 @@ void IncoherentDedisperser::dedisperse<InputVectorType, OutputVectorType>(
     AccumulatorVectorType powers(nbeams);
     for (int t_idx = _max_delay; t_idx < nsamples; ++t_idx)
     {
-        int t_output_offset = t_idx * nbeams * ndms;
+        int t_output_offset = (t_idx - _max_delay) * nbeams * ndms;
         for (int dm_idx = 0; dm_idx < ndms; ++dm_idx)
         {
             int offset = nchans * dm_idx;

@@ -103,7 +103,7 @@ void IncoherentDedisperser::dedisperse<InputVectorType, OutputVectorType>(
         nbeams
     });
     AccumulatorVectorType powers(nbeams);
-    for (int t_idx = 0; t_idx < (nsamples - _max_delay); ++t_idx)
+    for (int t_idx = _max_delay; t_idx < nsamples; ++t_idx)
     {
         int t_output_offset = t_idx * nbeams * ndms;
         for (int dm_idx = 0; dm_idx < ndms; ++dm_idx)
@@ -112,7 +112,7 @@ void IncoherentDedisperser::dedisperse<InputVectorType, OutputVectorType>(
             std::fill(powers.begin(), powers.end(), value_traits<typename decltype(powers)::value_type>::zero());
             for (int f_idx = 0; f_idx < nchans; ++f_idx)
             {
-                int idx = (t_idx + _delays[offset + f_idx]) * bf + f_idx * nbeams;
+                int idx = (t_idx - _delays[offset + f_idx]) * bf + f_idx * nbeams;
                 for (int b_idx = 0; b_idx < nbeams; ++b_idx)
                 {
                     powers[b_idx] += tfb_powers[idx + b_idx];

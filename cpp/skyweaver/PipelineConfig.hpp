@@ -158,6 +158,11 @@ class PipelineConfig
     DedispersionPlan& ddplan();
 
     /**
+     * @brief      Get a const reference to the dedispersion plan 
+     */
+    DedispersionPlan const& ddplan() const;
+
+    /**
      * @brief      Return the length of the kernel in samples
     */
     std::size_t dedisp_max_delay_samps() const;

@@ -126,7 +126,7 @@ int main(int argc, char** argv)
 {
     try {
         skyweaver::PipelineConfig config;
-
+        psrdada_cpp::set_log_level("warning");
         /**
          * Define and parse the program options
          */
@@ -320,6 +320,7 @@ int main(int argc, char** argv)
         BOOST_LOG_TRIVIAL(info) << "Output level: " << config.output_level();
         BOOST_LOG_TRIVIAL(info) << "Coherent DMs: " << config.coherent_dms();
         BOOST_LOG_TRIVIAL(info) << "Gulp size: " << config.gulp_length_samps();
+        BOOST_LOG_TRIVIAL(info) << config.ddplan();
 
         if (config.enable_incoherent_dedispersion())
         {

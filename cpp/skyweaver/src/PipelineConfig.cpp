@@ -162,6 +162,11 @@ DedispersionPlan& PipelineConfig::ddplan()
     return _ddplan;
 }
 
+DedispersionPlan const& PipelineConfig::ddplan() const
+{
+    return _ddplan;
+}
+
 void PipelineConfig::dedisp_max_delay_samps(std::size_t max_delay)
 {
     _dedisp_max_delay_samps = max_delay;

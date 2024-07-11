@@ -2,8 +2,8 @@
 #define SKYWEAVER_TRANSPOSER_HPP
 
 #include "psrdada_cpp/common.hpp"
-#include "skyweaver/PipelineConfig.hpp"
 #include "skyweaver/DescribedVector.hpp"
+#include "skyweaver/PipelineConfig.hpp"
 #include "thrust/device_vector.h"
 
 namespace skyweaver

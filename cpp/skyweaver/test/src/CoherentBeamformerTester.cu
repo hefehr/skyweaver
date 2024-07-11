@@ -119,7 +119,7 @@ void CoherentBeamformerTester<BfTraits>::beamformer_c_reference(
                 const int output_sample_idx = sample_idx / tscrunch;
                 const int output_chan_idx   = channel_idx / fscrunch;
                 const int nchans_out        = nchannels / fscrunch;
-                
+
                 /* For BTF outputs
                 const int nsamps_out        = nsamples / tscrunch;
                 const int tf_size           = nsamps_out * nchans_out;
@@ -128,9 +128,8 @@ void CoherentBeamformerTester<BfTraits>::beamformer_c_reference(
                                               output_chan_idx;
                 */
                 // For TFB outputs
-                const int output_idx        = output_sample_idx * nbeams * nchans_out
-                                              + output_chan_idx * nbeams
-                                              + beam_idx;
+                const int output_idx = output_sample_idx * nbeams * nchans_out +
+                                       output_chan_idx * nbeams + beam_idx;
 
                 const int scloff_idx =
                     beamset_idx * nchans_out + output_chan_idx;
@@ -287,12 +286,11 @@ TYPED_TEST(CoherentBeamformerTester, representative_noise_test)
     std::size_t weights_size =
         config.nantennas() * config.nchans() * config.nbeams();
 
-    typename CBT::HostVoltageVectorType ftpa_voltages_host({
-        config.nchans(),
-        ntimestamps * config.nsamples_per_heap(),
-        config.npol(),
-        config.nantennas()
-    });
+    typename CBT::HostVoltageVectorType ftpa_voltages_host(
+        {config.nchans(),
+         ntimestamps * config.nsamples_per_heap(),
+         config.npol(),
+         config.nantennas()});
     for(int ii = 0; ii < ftpa_voltages_host.size(); ++ii) {
         ftpa_voltages_host[ii].x =
             static_cast<int8_t>(std::lround(normal_dist(generator)));

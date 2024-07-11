@@ -1,8 +1,9 @@
 #ifndef SKYWEAVER_BEAMFORMER_UTILS_CUH
 #define SKYWEAVER_BEAMFORMER_UTILS_CUH
 
-#include "skyweaver/types.cuh"
 #include "cuComplex.h"
+#include "skyweaver/types.cuh"
+
 #include <type_traits>
 
 namespace skyweaver

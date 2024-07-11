@@ -1,11 +1,9 @@
-#include "skyweaver/PipelineConfig.hpp"
-#include "skyweaver/beamformer_utils.cuh"
+#include "skyweaver/DescribedVector.hpp"
 #include "skyweaver/IncoherentDedispersionPipeline.cuh"
 #include "skyweaver/MultiFileWriter.cuh"
+#include "skyweaver/PipelineConfig.hpp"
+#include "skyweaver/beamformer_utils.cuh"
 #include "skyweaver/test/BeamformerPipelineTester.cuh"
-#include "skyweaver/DescribedVector.hpp"
-
-
 
 #include <filesystem>
 namespace fs = std::filesystem;
@@ -14,8 +12,9 @@ namespace skyweaver
 {
 namespace test
 {
-namespace {
-    std::string default_dada_header = R"(
+namespace
+{
+std::string default_dada_header = R"(
 HEADER       DADA
 HDR_VERSION  1.0
 HDR_SIZE     4096
@@ -67,7 +66,6 @@ CHAN0_IDX 2688
 )";
 }
 
-
 class NullHandler
 {
   public:
@@ -118,37 +116,47 @@ TEST_F(BeamformerPipelineTester, full_pipeline_test)
     config.output_dir("/tmp/");
     config.delay_file("data/test_delays.bin");
     ObservationHeader header;
-    std::vector<char> header_bytes(default_dada_header.size()+1);
+    std::vector<char> header_bytes(default_dada_header.size() + 1);
     std::strcpy(header_bytes.data(), default_dada_header.c_str());
-    psrdada_cpp::RawBytes raw_header(header_bytes.data(), default_dada_header.size(), default_dada_header.size(), false);
+    psrdada_cpp::RawBytes raw_header(header_bytes.data(),
+                                     default_dada_header.size(),
+                                     default_dada_header.size(),
+                                     false);
     read_dada_header(raw_header, header);
     validate_header(header, config);
     update_config(config, header);
 
-    MultiFileWriter<TDBPowersH<typename BfTraits::QuantisedPowerType>> cb_handler(config, "cb");
+    MultiFileWriter<TDBPowersH<typename BfTraits::QuantisedPowerType>>
+        cb_handler(config, "cb");
     NullHandler ib_handler;
     NullHandler stats_handler;
-    using IDPipelineType = IncoherentDedispersionPipeline<typename BfTraits::QuantisedPowerType, typename BfTraits::QuantisedPowerType, decltype(cb_handler)>;
-    using BPipelineType = BeamformerPipeline<IDPipelineType, decltype(ib_handler), decltype(stats_handler), BfTraits>;
+    using IDPipelineType =
+        IncoherentDedispersionPipeline<typename BfTraits::QuantisedPowerType,
+                                       typename BfTraits::QuantisedPowerType,
+                                       decltype(cb_handler)>;
+    using BPipelineType   = BeamformerPipeline<IDPipelineType,
+                                               decltype(ib_handler),
+                                               decltype(stats_handler),
+                                               BfTraits>;
     using InputVectorType = typename BPipelineType::HostVoltageVectorType;
 
     IDPipelineType dedispersion_pipeline(config, cb_handler);
-    BPipelineType pipeline(config, dedispersion_pipeline, ib_handler, stats_handler);
+    BPipelineType pipeline(config,
+                           dedispersion_pipeline,
+                           ib_handler,
+                           stats_handler);
 
     InputVectorType input({
-        config.gulp_length_samps()/config.nsamples_per_heap(), // T
-        header.nantennas, // A
-        config.nchans(), // F
-        config.nsamples_per_heap(), // T
-        config.npol() // P
-        });        
+        config.gulp_length_samps() / config.nsamples_per_heap(), // T
+        header.nantennas,                                        // A
+        config.nchans(),                                         // F
+        config.nsamples_per_heap(),                              // T
+        config.npol()                                            // P
+    });
     input.frequencies(config.channel_frequencies());
     input.dms({0.0f});
     pipeline.init(header);
-    for (int ii = 0; ii < 100; ++ii)
-    {
-        pipeline(input);
-    }
+    for(int ii = 0; ii < 100; ++ii) { pipeline(input); }
 }
 
 } // namespace test

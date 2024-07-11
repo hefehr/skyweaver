@@ -1,7 +1,7 @@
 
 #include "psrdada_cpp/cuda_utils.hpp"
-#include "skyweaver/PipelineConfig.hpp"
 #include "skyweaver/DescribedVector.hpp"
+#include "skyweaver/PipelineConfig.hpp"
 #include "skyweaver/skyweaver_constants.hpp"
 #include "skyweaver/test/StatisticsCalculatorTester.cuh"
 
@@ -172,7 +172,8 @@ TEST_F(StatisticsCalculatorTester, test_normal_dist)
     std::size_t nsamples = 1024;
     thrust::default_random_engine rng(1337);
     thrust::random::normal_distribution<float> dist(0.0f, 20.0f);
-    FTPAVoltagesH<char2> ftpa_voltages_h({_config.nchans(), nsamples, _config.npol(), _config.nantennas()});
+    FTPAVoltagesH<char2> ftpa_voltages_h(
+        {_config.nchans(), nsamples, _config.npol(), _config.nantennas()});
     thrust::generate(ftpa_voltages_h.begin(), ftpa_voltages_h.end(), [&] {
         char2 val;
         val.x = static_cast<int8_t>(std::clamp(dist(rng), -127.0f, 127.0f));
@@ -193,7 +194,8 @@ TEST_F(StatisticsCalculatorTester, test_file_writer)
 {
     // Make some input data
     std::size_t nsamples = 1024;
-    FTPAVoltagesH<char2> ftpa_voltages_h({_config.nchans(), nsamples, _config.npol(), _config.nantennas()});
+    FTPAVoltagesH<char2> ftpa_voltages_h(
+        {_config.nchans(), nsamples, _config.npol(), _config.nantennas()});
     FTPAVoltagesD<char2> ftpa_voltages = ftpa_voltages_h;
     StatisticsCalculator calculator(_config, _stream);
     calculator.open_statistics_file();

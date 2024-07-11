@@ -71,9 +71,9 @@ static_assert(SKYWEAVER_NBEAMS % 32 == 0,
  * The factor by which to time scrunch the
  * coherent beam data.
  */
-//#ifndef SKYWEAVER_CB_FSCRUNCH
-//    #define SKYWEAVER_CB_FSCRUNCH 4
-//#endif // SKYWEAVER_CB_FSCRUNCH
+// #ifndef SKYWEAVER_CB_FSCRUNCH
+//     #define SKYWEAVER_CB_FSCRUNCH 4
+// #endif // SKYWEAVER_CB_FSCRUNCH
 #define SKYWEAVER_CB_FSCRUNCH 1
 
 /**
@@ -88,9 +88,9 @@ static_assert(SKYWEAVER_NBEAMS % 32 == 0,
  * The factor by which to time scrunch the
  * incoherent beam data.
  */
-//#ifndef SKYWEAVER_IB_FSCRUNCH
-//    #define SKYWEAVER_IB_FSCRUNCH 4
-//#endif // SKYWEAVER_IB_FSCRUNCH
+// #ifndef SKYWEAVER_IB_FSCRUNCH
+//     #define SKYWEAVER_IB_FSCRUNCH 4
+// #endif // SKYWEAVER_IB_FSCRUNCH
 #define SKYWEAVER_IB_FSCRUNCH 1
 
 // These are fixed for MeerKAT F-engine data

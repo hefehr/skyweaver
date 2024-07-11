@@ -7,14 +7,14 @@
 #include "skyweaver/CoherentBeamformer.cuh"
 #include "skyweaver/CoherentDedisperser.cuh"
 #include "skyweaver/DelayManager.cuh"
+#include "skyweaver/DescribedVector.hpp"
 #include "skyweaver/IncoherentBeamformer.cuh"
 #include "skyweaver/ObservationHeader.hpp"
 #include "skyweaver/PipelineConfig.hpp"
 #include "skyweaver/StatisticsCalculator.cuh"
+#include "skyweaver/Timer.hpp"
 #include "skyweaver/Transposer.cuh"
 #include "skyweaver/WeightsManager.cuh"
-#include "skyweaver/Timer.hpp"
-#include "skyweaver/DescribedVector.hpp"
 
 #include <functional>
 
@@ -29,7 +29,7 @@ class BeamformerPipeline
 {
   public:
     using HostVoltageVectorType = TAFTPVoltagesH<char2>;
-    using VoltageVectorType = TAFTPVoltagesD<char2>;
+    using VoltageVectorType     = TAFTPVoltagesD<char2>;
     typedef thrust::device_vector<float> ChannelScaleVectorType;
     typedef long double TimeType;
     typedef CoherentBeamformer<BeamformerTraits> CoherentBeamformer;

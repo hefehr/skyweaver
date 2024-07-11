@@ -1,12 +1,12 @@
-#include "skyweaver/test/MultiFileWriterTester.cuh"
 #include "skyweaver/DescribedVector.hpp"
+#include "skyweaver/test/MultiFileWriterTester.cuh"
 
 #include <cstdio>
-#include <vector>
 #include <filesystem>
 #include <iostream>
 #include <stdlib.h>
 #include <string>
+#include <vector>
 
 namespace fs = std::filesystem;
 
@@ -29,9 +29,7 @@ void MultiFileWriterTester::SetUp()
     char* directory_path    = mkdtemp(template_dirname);
     _config.output_dir(std::string(directory_path));
     auto& plan = _config.ddplan();
-    for(float dm = 0.0f; dm < 5; dm += 1.2345f) {
-         plan.add_block(dm);
-    }
+    for(float dm = 0.0f; dm < 5; dm += 1.2345f) { plan.add_block(dm); }
 }
 
 void MultiFileWriterTester::TearDown()
@@ -47,11 +45,7 @@ TEST_F(MultiFileWriterTester, simple_updating_write)
         << "Testing in tmp directory: " << _config.output_dir();
     MultiFileWriter<InputType> mfw(_config);
     _config.max_output_filesize(1000);
-    InputType powers({
-        _config.nsamples_per_block(),
-        64,
-        _config.nbeams()
-    });
+    InputType powers({_config.nsamples_per_block(), 64, _config.nbeams()});
     ObservationHeader header;
     header.nchans = _config.nchans();
     header.tsamp  = 0.000064;

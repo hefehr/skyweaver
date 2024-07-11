@@ -1,7 +1,7 @@
 #include "psrdada_cpp/cuda_utils.hpp"
-#include "skyweaver/types.cuh"
 #include "skyweaver/IncoherentBeamformer.cuh"
 #include "skyweaver/beamformer_utils.cuh"
+#include "skyweaver/types.cuh"
 
 #include <cassert>
 
@@ -134,18 +134,14 @@ void IncoherentBeamformer<BfTraits>::beamform(
         nbeamsets;
     BOOST_LOG_TRIVIAL(debug) << "Resizing output buffer from " << output.size()
                              << " to " << output_size << " elements";
-    output.resize({
-        static_cast<std::size_t>(nbeamsets), 
-        ntimestamps / _config.ib_tscrunch(), 
-        _config.nchans() / _config.ib_fscrunch()
-    });
+    output.resize({static_cast<std::size_t>(nbeamsets),
+                   ntimestamps / _config.ib_tscrunch(),
+                   _config.nchans() / _config.ib_fscrunch()});
     output.metalike(input);
     output.tsamp(input.tsamp() * _config.ib_tscrunch());
-    output_raw.resize({
-        static_cast<std::size_t>(nbeamsets), 
-        ntimestamps / _config.ib_tscrunch(), 
-        _config.nchans() / _config.ib_fscrunch()
-    });
+    output_raw.resize({static_cast<std::size_t>(nbeamsets),
+                       ntimestamps / _config.ib_tscrunch(),
+                       _config.nchans() / _config.ib_fscrunch()});
     output_raw.metalike(input);
     output_raw.tsamp(input.tsamp() * _config.ib_tscrunch());
     if(output_scale.size() !=

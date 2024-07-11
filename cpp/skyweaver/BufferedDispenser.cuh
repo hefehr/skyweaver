@@ -3,9 +3,9 @@
 
 #pragma once
 #include "cuda.h"
+#include "skyweaver/DescribedVector.hpp"
 #include "skyweaver/MultiFileReader.cuh"
 #include "skyweaver/PipelineConfig.hpp"
-#include "skyweaver/DescribedVector.hpp"
 
 #include <cassert>
 #include <memory>
@@ -32,8 +32,8 @@ class skyweaver::BufferedDispenser
     PipelineConfig const& _config;
     std::size_t _block_length_tpa; // length of nsamples * nantennas * npol  but
                                    // not char2, per block of data
-    std::size_t _max_delay_tpa; // length of dedispersion kernel in samples
-                                    // * nantennas * npol  but not char2
+    std::size_t _max_delay_tpa;    // length of dedispersion kernel in samples
+                                   // * nantennas * npol  but not char2
     std::vector<DeviceTPAVoltagesType>
         _d_prev_channeled_tpa_voltages; // stores it until next iteration. This
                                         // is a buffer of kernel length size for

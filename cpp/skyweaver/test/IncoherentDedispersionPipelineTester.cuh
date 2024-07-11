@@ -1,10 +1,11 @@
 #ifndef SKYWEAVER_TEST_INCOHERENTDEDISPERSIONPIPELINETESTER_CUH
 #define SKYWEAVER_TEST_INCOHERENTDEDISPERSIONPIPELINETESTER_CUH
 
-#include "skyweaver/PipelineConfig.hpp"
-#include "skyweaver/ObservationHeader.hpp"
 #include "skyweaver/DescribedVector.hpp"
+#include "skyweaver/ObservationHeader.hpp"
+#include "skyweaver/PipelineConfig.hpp"
 #include "thrust/host_vector.h"
+
 #include <gtest/gtest.h>
 
 namespace skyweaver
@@ -13,9 +14,8 @@ namespace test
 {
 
 template <typename InputType_, typename OutputType_>
-struct IDPipelineTraits
-{
-    using InputType = InputType_;
+struct IDPipelineTraits {
+    using InputType  = InputType_;
     using OutputType = OutputType_;
 };
 
@@ -33,9 +33,9 @@ class IncoherentDedispersionPipelineTester: public ::testing::Test
     IncoherentDedispersionPipelineTester();
     ~IncoherentDedispersionPipelineTester();
 
-  void init(ObservationHeader const& header);
+    void init(ObservationHeader const& header);
 
-  void operator()(OutputVectorType const&, std::size_t dm_idx);
+    void operator()(OutputVectorType const&, std::size_t dm_idx);
 
   protected:
     bool _init_called;

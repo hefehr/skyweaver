@@ -4,8 +4,8 @@
 #include "beamformer_utils.cuh"
 #include "cuda.h"
 #include "psrdada_cpp/common.hpp"
-#include "skyweaver/PipelineConfig.hpp"
 #include "skyweaver/DescribedVector.hpp"
+#include "skyweaver/PipelineConfig.hpp"
 #include "thrust/device_vector.h"
 
 namespace skyweaver
@@ -41,7 +41,6 @@ __global__ void icbf_ftpa_general_k(
     int nbeamsets);
 
 } // namespace kernels
-
 
 template <typename BfTraits>
 class IncoherentBeamformer

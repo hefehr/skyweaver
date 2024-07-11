@@ -2,15 +2,15 @@
 #include "errno.h"
 #include "psrdada_cpp/cli_utils.hpp"
 #include "skyweaver/BeamformerPipeline.cuh"
+#include "skyweaver/DescribedVector.hpp"
 #include "skyweaver/IncoherentDedispersionPipeline.cuh"
 #include "skyweaver/MultiFileReader.cuh"
 #include "skyweaver/MultiFileWriter.cuh"
 #include "skyweaver/PipelineConfig.hpp"
 #include "skyweaver/StatisticsCalculator.cuh"
-#include "skyweaver/DescribedVector.hpp"
 #include "skyweaver/logging.hpp"
-#include "thrust/host_vector.h"
 #include "thrust/device_vector.h"
+#include "thrust/host_vector.h"
 
 #include <algorithm>
 #include <cerrno>
@@ -56,25 +56,26 @@ std::ostream& operator<<(std::ostream& os, const std::vector<float>& vec)
 } // namespace std
 
 template <class Pipeline>
-void run_pipeline(Pipeline& pipeline, skyweaver::PipelineConfig& config){
-
+void run_pipeline(Pipeline& pipeline, skyweaver::PipelineConfig& config)
+{
     skyweaver::MultiFileReader file_reader(config);
-    auto const& header = file_reader.get_header();
+    auto const& header         = file_reader.get_header();
     std::size_t input_elements = header.nantennas * config.nchans() *
                                  config.npol() * config.gulp_length_samps();
-    
-    typename Pipeline::HostVoltageVectorType taftp_input_voltage({
-        config.gulp_length_samps()/config.nsamples_per_heap(), // T
-        header.nantennas, // A
-        config.nchans(), // F
-        config.nsamples_per_heap(), // T
-        config.npol()
-        });
+
+    typename Pipeline::HostVoltageVectorType taftp_input_voltage(
+        {config.gulp_length_samps() / config.nsamples_per_heap(), // T
+         header.nantennas,                                        // A
+         config.nchans(),                                         // F
+         config.nsamples_per_heap(),                              // T
+         config.npol()});
     taftp_input_voltage.frequencies(config.channel_frequencies());
     taftp_input_voltage.tsamp(header.obs_nchans / header.obs_bandwidth);
     taftp_input_voltage.dms({0.0});
 
-    std::size_t input_bytes = taftp_input_voltage.size() * sizeof(typename decltype(taftp_input_voltage)::value_type);
+    std::size_t input_bytes =
+        taftp_input_voltage.size() *
+        sizeof(typename decltype(taftp_input_voltage)::value_type);
     pipeline.init(header);
 
     BOOST_LOG_TRIVIAL(info)
@@ -100,12 +101,18 @@ void setup_pipeline(skyweaver::PipelineConfig& config)
     update_config(config, header);
 
     using OutputType = typename BfTraits::QuantisedPowerType;
-    skyweaver::MultiFileWriter<skyweaver::BTFPowersH<OutputType>> ib_handler(config, "ib");
-    skyweaver::MultiFileWriter<skyweaver::FPAStatsD<skyweaver::Statistics>> stats_handler(config, "stats");
-    if constexpr (enable_incoherent_dedispersion)
-    {   
-        skyweaver::MultiFileWriter<skyweaver::TDBPowersH<OutputType>> cb_file_writer(config, "cb");
-        skyweaver::IncoherentDedispersionPipeline<OutputType, OutputType, decltype(cb_file_writer)> dispersion_pipeline(config, cb_file_writer);
+    skyweaver::MultiFileWriter<skyweaver::BTFPowersH<OutputType>> ib_handler(
+        config,
+        "ib");
+    skyweaver::MultiFileWriter<skyweaver::FPAStatsD<skyweaver::Statistics>>
+        stats_handler(config, "stats");
+    if constexpr(enable_incoherent_dedispersion) {
+        skyweaver::MultiFileWriter<skyweaver::TDBPowersH<OutputType>>
+            cb_file_writer(config, "cb");
+        skyweaver::IncoherentDedispersionPipeline<OutputType,
+                                                  OutputType,
+                                                  decltype(cb_file_writer)>
+            dispersion_pipeline(config, cb_file_writer);
         skyweaver::BeamformerPipeline<decltype(dispersion_pipeline),
                                       decltype(ib_handler),
                                       decltype(stats_handler),
@@ -113,7 +120,8 @@ void setup_pipeline(skyweaver::PipelineConfig& config)
             pipeline(config, dispersion_pipeline, ib_handler, stats_handler);
         run_pipeline(pipeline, config);
     } else {
-        skyweaver::MultiFileWriter<skyweaver::TFBPowersD<OutputType>> cb_file_writer(config, "cb");
+        skyweaver::MultiFileWriter<skyweaver::TFBPowersD<OutputType>>
+            cb_file_writer(config, "cb");
         skyweaver::BeamformerPipeline<decltype(cb_file_writer),
                                       decltype(ib_handler),
                                       decltype(stats_handler),
@@ -212,23 +220,24 @@ int main(int argc, char** argv)
              po::value<std::vector<std::string>>()
                  ->multitoken()
                  ->required()
-                 ->notifier([&config](std::vector<std::string> const& descriptors) {
-                    for (auto const& descriptor: descriptors)
-                    {
-                        config.ddplan().add_block(descriptor);
-                    }
-                 }),
-             "A dispersion plan definition string (<coherent_dm>:<start_incoherent_dm>:"
-             "<end_incoherent_dm>:<dm_step>:<tscrunch>) or (<coherent_dm>:<tscrunch>) "
+                 ->notifier(
+                     [&config](std::vector<std::string> const& descriptors) {
+                         for(auto const& descriptor: descriptors) {
+                             config.ddplan().add_block(descriptor);
+                         }
+                     }),
+             "A dispersion plan definition string "
+             "(<coherent_dm>:<start_incoherent_dm>:"
+             "<end_incoherent_dm>:<dm_step>:<tscrunch>) or "
+             "(<coherent_dm>:<tscrunch>) "
              "or (<coherent_dm>)")
 
-            ("enable-incoherent-dedispersion",
-             po::value<bool>()
-                 ->default_value(true)
-                 ->notifier([&config](bool const& enable) {
-                     config.enable_incoherent_dedispersion(enable);
-                 }),
-             "Turn on/off incoherent dedispersion after beamforming")
+                ("enable-incoherent-dedispersion",
+                 po::value<bool>()->default_value(true)->notifier(
+                     [&config](bool const& enable) {
+                         config.enable_incoherent_dedispersion(enable);
+                     }),
+                 "Turn on/off incoherent dedispersion after beamforming")
 
             // Number of samples to read in each gulp
             ("gulp-size",
@@ -323,44 +332,55 @@ int main(int argc, char** argv)
         BOOST_LOG_TRIVIAL(info) << "Coherent DMs: " << config.coherent_dms();
         BOOST_LOG_TRIVIAL(info) << "Gulp size: " << config.gulp_length_samps();
         BOOST_LOG_TRIVIAL(info) << config.ddplan();
-        if (config.enable_incoherent_dedispersion())
-        {
+        if(config.enable_incoherent_dedispersion()) {
             if(config.stokes_mode() == "I") {
                 setup_pipeline<skyweaver::SingleStokesBeamformerTraits<
-                    skyweaver::StokesParameter::I>, true>(config);
+                                   skyweaver::StokesParameter::I>,
+                               true>(config);
             } else if(config.stokes_mode() == "Q") {
                 setup_pipeline<skyweaver::SingleStokesBeamformerTraits<
-                    skyweaver::StokesParameter::Q>, true>(config);
+                                   skyweaver::StokesParameter::Q>,
+                               true>(config);
             } else if(config.stokes_mode() == "U") {
                 setup_pipeline<skyweaver::SingleStokesBeamformerTraits<
-                    skyweaver::StokesParameter::U>, true>(config);
+                                   skyweaver::StokesParameter::U>,
+                               true>(config);
             } else if(config.stokes_mode() == "V") {
                 setup_pipeline<skyweaver::SingleStokesBeamformerTraits<
-                    skyweaver::StokesParameter::V>, true>(config);
+                                   skyweaver::StokesParameter::V>,
+                               true>(config);
             } else if(config.stokes_mode() == "IQUV") {
-                setup_pipeline<skyweaver::FullStokesBeamformerTraits, true>(config);
+                setup_pipeline<skyweaver::FullStokesBeamformerTraits, true>(
+                    config);
             } else {
-                throw std::runtime_error("Invalid Stokes mode passed, must be one "
-                                        "of I, Q, U, V or IQUV");
+                throw std::runtime_error(
+                    "Invalid Stokes mode passed, must be one "
+                    "of I, Q, U, V or IQUV");
             }
         } else {
             if(config.stokes_mode() == "I") {
                 setup_pipeline<skyweaver::SingleStokesBeamformerTraits<
-                    skyweaver::StokesParameter::I>, false>(config);
+                                   skyweaver::StokesParameter::I>,
+                               false>(config);
             } else if(config.stokes_mode() == "Q") {
                 setup_pipeline<skyweaver::SingleStokesBeamformerTraits<
-                    skyweaver::StokesParameter::Q>, false>(config);
+                                   skyweaver::StokesParameter::Q>,
+                               false>(config);
             } else if(config.stokes_mode() == "U") {
                 setup_pipeline<skyweaver::SingleStokesBeamformerTraits<
-                    skyweaver::StokesParameter::U>, false>(config);
+                                   skyweaver::StokesParameter::U>,
+                               false>(config);
             } else if(config.stokes_mode() == "V") {
                 setup_pipeline<skyweaver::SingleStokesBeamformerTraits<
-                    skyweaver::StokesParameter::V>, false>(config);
+                                   skyweaver::StokesParameter::V>,
+                               false>(config);
             } else if(config.stokes_mode() == "IQUV") {
-                setup_pipeline<skyweaver::FullStokesBeamformerTraits, false>(config);
+                setup_pipeline<skyweaver::FullStokesBeamformerTraits, false>(
+                    config);
             } else {
-                throw std::runtime_error("Invalid Stokes mode passed, must be one "
-                                        "of I, Q, U, V or IQUV");
+                throw std::runtime_error(
+                    "Invalid Stokes mode passed, must be one "
+                    "of I, Q, U, V or IQUV");
             }
         }
     } catch(std::exception& e) {

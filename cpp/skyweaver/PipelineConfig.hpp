@@ -2,8 +2,9 @@
 #define SKYWEAVER_PIPELINECONFIG_HPP
 
 #include "psrdada_cpp/common.hpp"
-#include "skyweaver/skyweaver_constants.hpp"
 #include "skyweaver/DedispersionPlan.hpp"
+#include "skyweaver/skyweaver_constants.hpp"
+
 #include <string>
 
 namespace skyweaver
@@ -153,32 +154,34 @@ class PipelineConfig
     std::vector<float> const& coherent_dms() const;
 
     /**
-     * @brief      Get a reference to the dedispersion plan 
+     * @brief      Get a reference to the dedispersion plan
      */
     DedispersionPlan& ddplan();
 
     /**
-     * @brief      Get a const reference to the dedispersion plan 
+     * @brief      Get a const reference to the dedispersion plan
      */
     DedispersionPlan const& ddplan() const;
 
     /**
      * @brief      Return the length of the kernel in samples
-    */
+     */
     std::size_t dedisp_max_delay_samps() const;
 
     /**
      * @brief      Set the length of the kernel in samples
-    */
+     */
     void dedisp_max_delay_samps(std::size_t);
 
     /**
-     * @brief      Enable/disable incoherent dedispersion based fscrunch after beamforming
+     * @brief      Enable/disable incoherent dedispersion based fscrunch after
+     * beamforming
      */
     void enable_incoherent_dedispersion(bool enable);
 
     /**
-     * @brief      Check if incoherent dedispersion based fscrunch after beamforming is enabled
+     * @brief      Check if incoherent dedispersion based fscrunch after
+     * beamforming is enabled
      */
     bool enable_incoherent_dedispersion() const;
 
@@ -370,7 +373,7 @@ class PipelineConfig
     std::string _output_dir;
     std::size_t _max_output_filesize;
     std::string _output_file_prefix;
-    std::size_t _dedisp_max_delay_samps; 
+    std::size_t _dedisp_max_delay_samps;
     bool _enable_incoherent_dedispersion;
     double _cfreq;
     double _bw;

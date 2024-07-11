@@ -2,9 +2,9 @@
 #define SKYWEAVER_COHERENTBEAMFORMER_CUH
 
 #include "cuda.h"
+#include "skyweaver/DescribedVector.hpp"
 #include "skyweaver/PipelineConfig.hpp"
 #include "skyweaver/beamformer_utils.cuh"
-#include "skyweaver/DescribedVector.hpp"
 #include "thrust/device_vector.h"
 
 namespace skyweaver
@@ -49,10 +49,8 @@ class CoherentBeamformer
     // FTPA order
     typedef FTPAVoltagesD<char2> VoltageVectorType;
     // TFB order
-    typedef TFBPowersD<typename BfTraits::QuantisedPowerType>
-        PowerVectorType;
-    typedef BTFPowersD<typename BfTraits::RawPowerType>
-        RawPowerVectorType;
+    typedef TFBPowersD<typename BfTraits::QuantisedPowerType> PowerVectorType;
+    typedef BTFPowersD<typename BfTraits::RawPowerType> RawPowerVectorType;
     // FBA order (assuming equal weight per polarisation)
     typedef thrust::device_vector<char2> WeightsVectorType;
     typedef thrust::device_vector<float> ScalingVectorType;

@@ -105,8 +105,7 @@ __global__ void transpose_k(char2 const* __restrict__ input,
 
 } // namespace kernels
 
-Transposer::Transposer(PipelineConfig const& config)
-    : _config(config)
+Transposer::Transposer(PipelineConfig const& config): _config(config)
 {
     BOOST_LOG_TRIVIAL(debug) << "Constructing Transposer instance";
 }
@@ -154,12 +153,13 @@ void Transposer::transpose(InputVoltageType const& taftp_voltages,
     int nheap_groups = taftp_voltages.extents()[0];
     BOOST_LOG_TRIVIAL(debug) << "Number of heap groups: " << nheap_groups;
     // Resize output buffer
-    ftpa_voltages.resize({taftp_voltages.nchannels(), 
+    ftpa_voltages.resize({taftp_voltages.nchannels(),
                           taftp_voltages.nsamples(),
-                          taftp_voltages.npol(), 
+                          taftp_voltages.npol(),
                           _config.nantennas()});
     ftpa_voltages.metalike(taftp_voltages);
-    BOOST_LOG_TRIVIAL(debug) << "Output vector for transposer: \n" << ftpa_voltages.describe();
+    BOOST_LOG_TRIVIAL(debug) << "Output vector for transposer: \n"
+                             << ftpa_voltages.describe();
     dim3 grid(nheap_groups, _config.nchans(), 1);
     dim3 block(512, 1, 1);
     char2 const* input_ptr = thrust::raw_pointer_cast(taftp_voltages.data());

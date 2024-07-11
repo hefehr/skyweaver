@@ -1,8 +1,8 @@
 #ifndef SKYWEAVER_STATISTICSCALCULATOR_CUH
 #define SKYWEAVER_STATISTICSCALCULATOR_CUH
 
-#include "skyweaver/PipelineConfig.hpp"
 #include "skyweaver/DescribedVector.hpp"
+#include "skyweaver/PipelineConfig.hpp"
 
 #include <fstream>
 #include <thrust/device_vector.h>
@@ -18,8 +18,9 @@ struct Statistics {
     double kurtosis = 0.0f;
 };
 
-inline std::ostream& operator<<(std::ostream& stream, Statistics const& val) {
-    stream << "mean: " << val.mean << ", std: " << val.std 
+inline std::ostream& operator<<(std::ostream& stream, Statistics const& val)
+{
+    stream << "mean: " << val.mean << ", std: " << val.std
            << ", skew: " << val.skew << ", kurtosis: " << val.kurtosis;
     return stream;
 }
@@ -60,8 +61,7 @@ class StatisticsCalculator
     /**
      * @brief      Calculate all statistics for the given input data
      */
-    void
-    calculate_statistics(FTPAVoltagesD<char2> const& ftpa_voltages);
+    void calculate_statistics(FTPAVoltagesD<char2> const& ftpa_voltages);
 
     /**
      * @brief      Return the current channel input levels on GPU memory

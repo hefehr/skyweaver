@@ -1,9 +1,9 @@
 #include "psrdada_cpp/cli_utils.hpp"
 #include "psrdada_cpp/cuda_utils.hpp"
-#include "skyweaver/beamformer_utils.cuh"
 #include "skyweaver/CoherentBeamformer.cuh"
 #include "skyweaver/IncoherentBeamformer.cuh"
 #include "skyweaver/PipelineConfig.hpp"
+#include "skyweaver/beamformer_utils.cuh"
 #include "skyweaver/skyweaver_constants.hpp"
 
 #include <benchmark/benchmark.h>
@@ -16,7 +16,9 @@
 class BeamformerBencher: public benchmark::Fixture
 {
   public:
-    typedef skyweaver::SingleStokesBeamformerTraits<skyweaver::StokesParameter::I> BfTraits;
+    typedef skyweaver::SingleStokesBeamformerTraits<
+        skyweaver::StokesParameter::I>
+        BfTraits;
     typedef skyweaver::CoherentBeamformer<BfTraits> CoherentBeamformer;
     typedef skyweaver::IncoherentBeamformer<BfTraits> IncoherentBeamformer;
 
@@ -28,12 +30,10 @@ class BeamformerBencher: public benchmark::Fixture
              _config.nsamples_per_heap() * _config.npol());
         std::size_t weights_size =
             _config.nantennas() * _config.nchans() * _config.nbeams();
-        ftpa_voltages_gpu.resize({
-            _config.nchans(),
-            ntimestamps * _config.nsamples_per_heap(),
-            _config.npol(),
-            _config.nantennas()
-        });
+        ftpa_voltages_gpu.resize({_config.nchans(),
+                                  ntimestamps * _config.nsamples_per_heap(),
+                                  _config.npol(),
+                                  _config.nantennas()});
         fbpa_weights_gpu.resize(weights_size);
         scales.resize(_config.nchans() / _config.cb_fscrunch());
         offsets.resize(_config.nchans() / _config.cb_fscrunch());
@@ -78,8 +78,8 @@ class BeamformerBencher: public benchmark::Fixture
 
 BENCHMARK_DEFINE_F(BeamformerBencher, simple_bench)(benchmark::State& state)
 {
-    typedef typename CoherentBeamformer::VoltageVectorType::value_type
-        ValueType;
+    typedef
+        typename CoherentBeamformer::VoltageVectorType::value_type ValueType;
     float elapsed_time;
     float total_elapsed_time = 0.0f;
     CoherentBeamformer coherent_beamformer(_config);

@@ -145,15 +145,15 @@ __global__ void bf_ftpa_general_k(
     int const beam_idx          = (start_beam_idx + lane_idx);
     int const output_sample_idx = sample_offset / SKYWEAVER_CB_TSCRUNCH;
     int const nsamps_out        = nsamples / SKYWEAVER_CB_TSCRUNCH;
-    
+
     // Specify BTF order outputs
     // int const output_idx        = beam_idx * nsamps_out * gridDim.y +
     //                              output_sample_idx * gridDim.y + blockIdx.y;
 
     // Specify TFB order outputs
-    int const output_idx        = output_sample_idx * gridDim.y * SKYWEAVER_NBEAMS // T
-                                  + blockIdx.y * SKYWEAVER_NBEAMS                  // F
-                                  + beam_idx;                                       // B
+    int const output_idx = output_sample_idx * gridDim.y * SKYWEAVER_NBEAMS // T
+                           + blockIdx.y * SKYWEAVER_NBEAMS                  // F
+                           + beam_idx;                                      // B
 
     int const beamset_idx  = beamset_mapping[beam_idx];
     int const ib_power_idx = beamset_idx * nsamps_out * gridDim.y +
@@ -233,11 +233,9 @@ void CoherentBeamformer<BfTraits>::beamform(
     assert(nsamples_out % SKYWEAVER_CB_NSAMPLES_PER_HEAP == 0);
     BOOST_LOG_TRIVIAL(debug) << "Resizing output buffer from " << output.size()
                              << " to " << output_size << " elements";
-    output.resize({
-        nsamples / _config.cb_tscrunch(),
-        _config.nchans() / _config.cb_fscrunch(),
-        _config.nbeams()
-    });
+    output.resize({nsamples / _config.cb_tscrunch(),
+                   _config.nchans() / _config.cb_fscrunch(),
+                   _config.nbeams()});
     output.metalike(input);
     output.tsamp(input.tsamp() * _config.cb_tscrunch());
     assert(weights.size() == _expected_weights_size);

@@ -39,8 +39,8 @@ long double Header::get<long double>(char const* key) const
 {
     fetch_header_string(key);
     long double value = std::strtold(_buffer, NULL);
-    BOOST_LOG_TRIVIAL(debug) << "Header get: " << key << " = " 
-                             <<  std::setprecision(15) << value;
+    BOOST_LOG_TRIVIAL(debug)
+        << "Header get: " << key << " = " << std::setprecision(15) << value;
     return value;
 }
 

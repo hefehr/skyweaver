@@ -1,13 +1,16 @@
+#include "skyweaver/DescribedVector.hpp"
 #include "skyweaver/test/CoherentDedisperserTester.cuh"
 #include "skyweaver/test/test_utils.cuh"
-#include "skyweaver/DescribedVector.hpp"
 
 namespace skyweaver
 {
 namespace test
 {
 
-//    cd /tmp/skyweaver_build/cpp/skyweaver/test/ && make -j && cd /homes/vkrishnan/dev/beamformer/skyweaver/cpp/skyweaver/test/ && /tmp/skyweaver_build/cpp/skyweaver/test/gtest_skyweaver --gtest_filter=CoherentDedisperserTester*
+//    cd /tmp/skyweaver_build/cpp/skyweaver/test/ && make -j && cd
+//    /homes/vkrishnan/dev/beamformer/skyweaver/cpp/skyweaver/test/ &&
+//    /tmp/skyweaver_build/cpp/skyweaver/test/gtest_skyweaver
+//    --gtest_filter=CoherentDedisperserTester*
 
 CoherentDedisperserTester::CoherentDedisperserTester(): ::testing::Test()
 {
@@ -66,23 +69,15 @@ TEST_F(CoherentDedisperserTester, testCoherentDedisperser)
     BOOST_LOG_TRIVIAL(info) << "max_delay_tpa: " << max_delay_tpa;
     BOOST_LOG_TRIVIAL(info) << "block_length_tpa: " << block_length_tpa;
 
-    TPAVoltagesH<char2> h_voltages({
-        fft_length,
-        npols,
-        nantennas
-    });
+    TPAVoltagesH<char2> h_voltages({fft_length, npols, nantennas});
     random_normal_complex(h_voltages.vector(), h_voltages.size(), 0.0f, 17.0f);
 
     BOOST_LOG_TRIVIAL(info)
         << "testCoherentDedisperser input h_voltages.size(): "
         << h_voltages.size();
     TPAVoltagesD<char2> d_voltages = h_voltages;
-    FTPAVoltagesD<char2> d_voltages_out({
-        1,
-        fft_length - this->max_delay_samps,
-        npols,
-        nantennas
-    });
+    FTPAVoltagesD<char2> d_voltages_out(
+        {1, fft_length - this->max_delay_samps, npols, nantennas});
     BOOST_LOG_TRIVIAL(info)
         << "testCoherentDedisperser output d_voltages_out.size(): "
         << d_voltages_out.size();
@@ -124,14 +119,12 @@ TEST_F(CoherentDedisperserTester, testCoherentDedisperserWithPythonData)
 
     // input file name is of format codedisp_input_DM<dm>.dat build the filename
     // here
-    std::string inp_filename =
-        "data/"
-        "dedispersion/codedisp_input_DM" +
-        std::to_string(int(dm)) + "_1chan.bin";
-    std::string out_filename =
-        "data/"
-        "dedispersion/codedisp_output_DM" +
-        std::to_string(int(dm)) + "_1chan.bin";
+    std::string inp_filename = "data/"
+                               "dedispersion/codedisp_input_DM" +
+                               std::to_string(int(dm)) + "_1chan.bin";
+    std::string out_filename = "data/"
+                               "dedispersion/codedisp_output_DM" +
+                               std::to_string(int(dm)) + "_1chan.bin";
 
     std::ifstream codedisp_input(inp_filename, std::ios::binary);
     EXPECT_TRUE(codedisp_input.is_open());
@@ -142,13 +135,9 @@ TEST_F(CoherentDedisperserTester, testCoherentDedisperserWithPythonData)
     BOOST_LOG_TRIVIAL(info) << "Input File size: " << inp_filesize;
 
     std::size_t nelements = inp_filesize / sizeof(char2);
-    std::size_t nsamples = nelements / npols / nantennas;
+    std::size_t nsamples  = nelements / npols / nantennas;
     // read entire file to host vector
-    TPAVoltagesH<char2> h_voltages({
-        nsamples,
-        npols,
-        nantennas
-    });
+    TPAVoltagesH<char2> h_voltages({nsamples, npols, nantennas});
 
     codedisp_input.read(reinterpret_cast<char*>(h_voltages.data()),
                         inp_filesize);
@@ -167,14 +156,9 @@ TEST_F(CoherentDedisperserTester, testCoherentDedisperserWithPythonData)
     BOOST_LOG_TRIVIAL(info) << "Python output file size: " << out_filesize;
 
     std::size_t nelements_out = (out_filesize / sizeof(char2));
-    std::size_t nsamples_out = nelements_out / npols / nantennas;
+    std::size_t nsamples_out  = nelements_out / npols / nantennas;
     // read entire file to host vector
-    FTPAVoltagesH<char2> h_voltages_check({
-        1,
-        nsamples_out,
-        npols,
-        nantennas
-    });
+    FTPAVoltagesH<char2> h_voltages_check({1, nsamples_out, npols, nantennas});
     codedisp_output.read(reinterpret_cast<char*>(h_voltages_check.data()),
                          out_filesize);
     BOOST_LOG_TRIVIAL(debug)
@@ -185,13 +169,9 @@ TEST_F(CoherentDedisperserTester, testCoherentDedisperserWithPythonData)
 
     // These are the input TPA voltages
     TPAVoltagesD<char2> d_voltages = h_voltages;
-    
-    FTPAVoltagesD<char2> d_voltages_out({
-        1, 
-        fft_length - this->max_delay_samps,
-        npols,
-        nantennas
-    });
+
+    FTPAVoltagesD<char2> d_voltages_out(
+        {1, fft_length - this->max_delay_samps, npols, nantennas});
     BOOST_LOG_TRIVIAL(info)
         << "cpp output d_voltages_out.size(): " << d_voltages_out.size();
 
@@ -230,14 +210,12 @@ TEST_F(CoherentDedisperserTester, testCoherentDedisperserWithPythonDataAllChans)
 
     // input file name is of format codedisp_input_DM<dm>.dat build the filename
     // here
-    std::string inp_filename =
-        "data/"
-        "dedispersion/codedisp_input_DM" +
-        std::to_string(int(dm)) + ".bin";
-    std::string out_filename =
-        "data/"
-        "dedispersion/codedisp_output_DM" +
-        std::to_string(int(dm)) + ".bin";
+    std::string inp_filename = "data/"
+                               "dedispersion/codedisp_input_DM" +
+                               std::to_string(int(dm)) + ".bin";
+    std::string out_filename = "data/"
+                               "dedispersion/codedisp_output_DM" +
+                               std::to_string(int(dm)) + ".bin";
 
     std::ifstream codedisp_input(inp_filename, std::ios::binary);
     EXPECT_TRUE(codedisp_input.is_open());
@@ -249,12 +227,8 @@ TEST_F(CoherentDedisperserTester, testCoherentDedisperserWithPythonDataAllChans)
 
     // read entire file to host vector
     std::size_t nelements = inp_filesize / sizeof(char2);
-    std::size_t nsamples = nelements / npols / nantennas;
-    TPAVoltagesH<char2> h_voltages({
-        nsamples,
-        npols,
-        nantennas
-    });
+    std::size_t nsamples  = nelements / npols / nantennas;
+    TPAVoltagesH<char2> h_voltages({nsamples, npols, nantennas});
     codedisp_input.read(reinterpret_cast<char*>(h_voltages.data()),
                         inp_filesize);
     BOOST_LOG_TRIVIAL(debug)
@@ -272,14 +246,10 @@ TEST_F(CoherentDedisperserTester, testCoherentDedisperserWithPythonDataAllChans)
     BOOST_LOG_TRIVIAL(info) << "codedisp_output File size: " << out_filesize;
 
     std::size_t nelements_out = (out_filesize / sizeof(char2));
-    std::size_t nsamples_out = nelements_out / nchans / npols / nantennas;
+    std::size_t nsamples_out  = nelements_out / nchans / npols / nantennas;
     // read entire file to host vector
-    FTPAVoltagesH<char2> h_voltages_check({
-        nchans,
-        nsamples_out,
-        npols,
-        nantennas
-    });
+    FTPAVoltagesH<char2> h_voltages_check(
+        {nchans, nsamples_out, npols, nantennas});
     codedisp_output.read(reinterpret_cast<char*>(h_voltages_check.data()),
                          out_filesize);
     BOOST_LOG_TRIVIAL(debug)
@@ -298,11 +268,7 @@ TEST_F(CoherentDedisperserTester, testCoherentDedisperserWithPythonDataAllChans)
         // becasuse the vector's length is used in calculations inside the code.
         // It cannot take FTPA
 
-        TPAVoltagesD<char2> d_tpa_voltages({
-            fft_length,
-            npols,
-            nantennas
-        });
+        TPAVoltagesD<char2> d_tpa_voltages({fft_length, npols, nantennas});
         thrust::copy(d_voltages.begin() + i * block_length_tpa,
                      d_voltages.begin() + (i + 1) * block_length_tpa,
                      d_tpa_voltages.begin());

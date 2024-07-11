@@ -11,28 +11,29 @@ namespace skyweaver
 namespace test
 {
 
-template<class Container>
-class AggregationBufferTester : public ::testing::Test {
-protected:
+template <class Container>
+class AggregationBufferTester: public ::testing::Test
+{
+  protected:
     typedef typename Container::value_type T;
 
-    void SetUp() override {
+    void SetUp() override
+    {
         callback_count = 0;
-        callback_arg.clear();  
+        callback_arg.clear();
     }
 
-    void TearDown() override {
-    }
+    void TearDown() override {}
 
     int callback_count;
     thrust::host_vector<T> callback_arg;
 
-public:
-    void MockCallback(thrust::host_vector<T> const& arg) {
+  public:
+    void MockCallback(thrust::host_vector<T> const& arg)
+    {
         ++callback_count;
         callback_arg = arg;
     }
-
 };
 
 } // namespace test

@@ -11,11 +11,11 @@ PipelineConfig::PipelineConfig()
       _delay_file("delays.swd"), _statistics_file("./statistics.bin"),
       _output_dir("./"), _max_output_filesize(10000000000000),
       _output_file_prefix(""), _dedisp_max_delay_samps(0),
-      _enable_incoherent_dedispersion(true), _cfreq(1284000000.0), _bw(13375000.0),
-      _channel_frequencies_stale(true), _gulp_length_samps(4096),
-      _total_nchans(4096), _stokes_mode("I"), _output_level(24.0f),
-      _cb_power_scaling(0.0f), _cb_power_offset(0.0f), _ib_power_scaling(0.0f),
-      _ib_power_offset(0.0f)
+      _enable_incoherent_dedispersion(true), _cfreq(1284000000.0),
+      _bw(13375000.0), _channel_frequencies_stale(true),
+      _gulp_length_samps(4096), _total_nchans(4096), _stokes_mode("I"),
+      _output_level(24.0f), _cb_power_scaling(0.0f), _cb_power_offset(0.0f),
+      _ib_power_scaling(0.0f), _ib_power_offset(0.0f)
 {
 }
 

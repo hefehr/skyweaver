@@ -7,18 +7,19 @@ void read_dada_header(psrdada_cpp::RawBytes& raw_header,
                       ObservationHeader& header)
 {
     Header parser(raw_header);
-    header.nchans    = parser.get<decltype(header.nchans)>("NCHAN");
-    header.obs_nchans    = parser.get<decltype(header.obs_nchans)>("OBS_NCHAN");
-    header.npol      = parser.get<decltype(header.npol)>("NPOL");
-    header.nbits     = parser.get<decltype(header.nbits)>("NBIT");
-    header.nantennas = parser.get<decltype(header.nantennas)>("NANT");
+    header.nchans     = parser.get<decltype(header.nchans)>("NCHAN");
+    header.obs_nchans = parser.get<decltype(header.obs_nchans)>("OBS_NCHAN");
+    header.npol       = parser.get<decltype(header.npol)>("NPOL");
+    header.nbits      = parser.get<decltype(header.nbits)>("NBIT");
+    header.nantennas  = parser.get<decltype(header.nantennas)>("NANT");
     header.sample_clock_start =
         parser.get<decltype(header.sample_clock_start)>("SAMPLE_CLOCK_START");
-    header.bandwidth = parser.get<decltype(header.bandwidth)>("BW");
+    header.bandwidth     = parser.get<decltype(header.bandwidth)>("BW");
     header.obs_bandwidth = parser.get<decltype(header.obs_bandwidth)>("OBS_BW");
-    header.frequency = parser.get<decltype(header.frequency)>("FREQ");
-    header.obs_frequency = parser.get<decltype(header.obs_frequency)>("OBS_FREQ");
-    header.tsamp     = parser.get<decltype(header.tsamp)>("TSAMP");
+    header.frequency     = parser.get<decltype(header.frequency)>("FREQ");
+    header.obs_frequency =
+        parser.get<decltype(header.obs_frequency)>("OBS_FREQ");
+    header.tsamp = parser.get<decltype(header.tsamp)>("TSAMP");
     header.sample_clock =
         parser.get<decltype(header.sample_clock)>("SAMPLE_CLOCK");
     header.sync_time   = parser.get<decltype(header.sync_time)>("SYNC_TIME");
@@ -32,27 +33,30 @@ void read_dada_header(psrdada_cpp::RawBytes& raw_header,
     header.chan0_idx   = parser.get<decltype(header.chan0_idx)>("CHAN0_IDX");
 }
 
-void validate_header(ObservationHeader const& header, PipelineConfig const& config)
+void validate_header(ObservationHeader const& header,
+                     PipelineConfig const& config)
 {
-    if (header.nantennas > config.nantennas())
-    {
-        throw std::runtime_error("Input data contains too many antennas for current build, "
-                                 "-DSKYWEAVER_NANTENNAS should be larger than the data nantennas");
+    if(header.nantennas > config.nantennas()) {
+        throw std::runtime_error(
+            "Input data contains too many antennas for current build, "
+            "-DSKYWEAVER_NANTENNAS should be larger than the data nantennas");
     }
-    if (header.nchans != config.nchans())
-    {
-        throw std::runtime_error("Input data contains incorrect number of channels for current build, "
-                                 "-DSKYWEAVER_NCHANS should be equal to the data nchans");
+    if(header.nchans != config.nchans()) {
+        throw std::runtime_error(
+            "Input data contains incorrect number of channels for current "
+            "build, "
+            "-DSKYWEAVER_NCHANS should be equal to the data nchans");
     }
-    if (header.npol != config.npol())
-    {
-        throw std::runtime_error("Input data contains incorrect number of polarisations for current build, "
-                                 "-DSKYWEAVER_NPOL should be equal to the data npol");
+    if(header.npol != config.npol()) {
+        throw std::runtime_error(
+            "Input data contains incorrect number of polarisations for current "
+            "build, "
+            "-DSKYWEAVER_NPOL should be equal to the data npol");
     }
-    if (header.nbits != 8)
-    {
-        throw std::runtime_error("Input data contains incorrect number of bits per sample, "
-                                 "currently only 8-bit input supported");
+    if(header.nbits != 8) {
+        throw std::runtime_error(
+            "Input data contains incorrect number of bits per sample, "
+            "currently only 8-bit input supported");
     }
 }
 

@@ -1,9 +1,9 @@
 #ifndef SKYWEAVER_INCOHERENTBEAMFORMERTESTER_CUH
 #define SKYWEAVER_INCOHERENTBEAMFORMERTESTER_CUH
 
+#include "skyweaver/DescribedVector.hpp"
 #include "skyweaver/IncoherentBeamformer.cuh"
 #include "skyweaver/PipelineConfig.hpp"
-#include "skyweaver/DescribedVector.hpp"
 #include "thrust/host_vector.h"
 
 #include <gtest/gtest.h>

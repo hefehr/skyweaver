@@ -43,10 +43,8 @@ void TransposerTester::transpose_c_reference(HostInputVoltageType const& input,
     // Output dimensions
     std::size_t pa  = _config.npol() * output_nantennas;
     std::size_t tpa = _config.nsamples_per_heap() * ntimestamps * pa;
-    output.resize({input.nchannels(), 
-                   input.nsamples(),
-                   input.npol(), 
-                   output_nantennas});
+    output.resize(
+        {input.nchannels(), input.nsamples(), input.npol(), output_nantennas});
 
     for(int timestamp_idx = 0; timestamp_idx < ntimestamps; ++timestamp_idx) {
         for(int antenna_idx = 0; antenna_idx < input_nantennas; ++antenna_idx) {
@@ -73,10 +71,11 @@ void TransposerTester::transpose_c_reference(HostInputVoltageType const& input,
     }
 }
 
-void TransposerTester::compare_against_host(DeviceInputVoltageType const& gpu_input,
-                                            DeviceOutputVoltageType const& gpu_output,
-                                            std::size_t input_nantennas,
-                                            std::size_t ntimestamps)
+void TransposerTester::compare_against_host(
+    DeviceInputVoltageType const& gpu_input,
+    DeviceOutputVoltageType const& gpu_output,
+    std::size_t input_nantennas,
+    std::size_t ntimestamps)
 {
     HostInputVoltageType host_input = gpu_input;
     HostOutputVoltageType host_output;
@@ -101,13 +100,11 @@ TEST_P(TransposerTester, cycling_prime_test)
     std::size_t input_nantennas = params.nantennas;
     std::size_t input_size = (ntimestamps * input_nantennas * _config.nchans() *
                               _config.nsamples_per_heap() * _config.npol());
-    HostInputVoltageType host_gpu_input({
-        ntimestamps,
-        input_nantennas,
-        _config.nchans(),
-        _config.nsamples_per_heap(),
-        _config.npol()
-    });
+    HostInputVoltageType host_gpu_input({ntimestamps,
+                                         input_nantennas,
+                                         _config.nchans(),
+                                         _config.nsamples_per_heap(),
+                                         _config.npol()});
 
     for(int ii = 0; ii < input_size; ++ii) {
         host_gpu_input[ii].x = (ii % 113);

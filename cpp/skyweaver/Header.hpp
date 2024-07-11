@@ -56,8 +56,12 @@ class Header
      *
      * @tparam     T      The type of value being set
      */
-    template <template <typename, typename> class Container, typename T, typename A>
-    void set(char const* key, Container<T, A> const& values, std::size_t precision = 15);
+    template <template <typename, typename> class Container,
+              typename T,
+              typename A>
+    void set(char const* key,
+             Container<T, A> const& values,
+             std::size_t precision = 15);
 
     /**
      * @brief      Clear a DADA header

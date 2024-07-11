@@ -46,9 +46,9 @@ std::size_t FileStream::File::write(char const* ptr, std::size_t bytes)
             BOOST_LOG_TRIVIAL(debug) << "Completed write";
             return bytes;
         }
-    } catch (const std::ofstream::failure& e) {
-        BOOST_LOG_TRIVIAL(error) << "Error while writing to " << _full_path 
-                                 << " (" << e.what() << ")"; 
+    } catch(const std::ofstream::failure& e) {
+        BOOST_LOG_TRIVIAL(error) << "Error while writing to " << _full_path
+                                 << " (" << e.what() << ")";
         throw;
     }
 }

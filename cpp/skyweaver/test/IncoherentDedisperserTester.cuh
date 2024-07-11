@@ -3,6 +3,7 @@
 
 #include "skyweaver/IncoherentDedisperser.cuh"
 #include "skyweaver/PipelineConfig.hpp"
+
 #include <gtest/gtest.h>
 
 namespace skyweaver
@@ -11,8 +12,7 @@ namespace test
 {
 
 template <typename InputType_, typename OutputType_>
-struct IDTesterTraits
-{
+struct IDTesterTraits {
     typedef InputType_ InputType;
     typedef OutputType_ OutputType;
 };
@@ -35,4 +35,4 @@ class IncoherentDedisperserTester: public ::testing::Test
 } // namespace test
 } // namespace skyweaver
 
-#endif //SKYWEAVER_INCOHERENTDEDISPERSERTESTER_CUH
+#endif // SKYWEAVER_INCOHERENTDEDISPERSERTESTER_CUH

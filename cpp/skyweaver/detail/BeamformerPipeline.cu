@@ -7,35 +7,34 @@
 #include <stdexcept>
 #include <string>
 
-
 namespace skyweaver
 {
 
-namespace {
-    template <typename VectorType>
-    void peek(VectorType const& vec, std::size_t n = 10)
-    {
-        std::cout << "Peeking at vector of length " << vec.size() << "\n";
-        std::size_t n_to_peek = std::min(n, vec.size());
-        thrust::host_vector<typename VectorType::value_type> h(n_to_peek);
-        thrust::copy(vec.begin(), vec.begin() + n_to_peek, h.begin());
-        bool first = true;
-        for (auto const& val: h)
-        {   
-            if (!first){
-                std::cout << ", ";
-            } else {
-                first = false;
-            }
-            if constexpr (std::is_same_v<typename VectorType::value_type, int8_t>){
-                std::cout << static_cast<int>(val);
-            } else {
-                std::cout << val;
-            }
+namespace
+{
+template <typename VectorType>
+void peek(VectorType const& vec, std::size_t n = 10)
+{
+    std::cout << "Peeking at vector of length " << vec.size() << "\n";
+    std::size_t n_to_peek = std::min(n, vec.size());
+    thrust::host_vector<typename VectorType::value_type> h(n_to_peek);
+    thrust::copy(vec.begin(), vec.begin() + n_to_peek, h.begin());
+    bool first = true;
+    for(auto const& val: h) {
+        if(!first) {
+            std::cout << ", ";
+        } else {
+            first = false;
         }
-        std::cout << "\n";
+        if constexpr(std::is_same_v<typename VectorType::value_type, int8_t>) {
+            std::cout << static_cast<int>(val);
+        } else {
+            std::cout << val;
+        }
     }
+    std::cout << "\n";
 }
+} // namespace
 
 template <typename CBHandler,
           typename IBHandler,
@@ -68,17 +67,25 @@ BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
     CUDA_ERROR_CHECK(cudaStreamCreate(&_processing_stream));
     CUDA_ERROR_CHECK(cudaStreamCreate(&_d2h_copy_stream));
 
-    float f_low = _config.centre_frequency() - _config.bandwidth()/2.0f;
-    float f_high =  _config.centre_frequency() + _config.bandwidth()/2.0f;
-    float tsamp = _config.nchans() / _config.bandwidth();
-    auto it = std::max_element(_config.coherent_dms().begin(), _config.coherent_dms().end());
+    float f_low  = _config.centre_frequency() - _config.bandwidth() / 2.0f;
+    float f_high = _config.centre_frequency() + _config.bandwidth() / 2.0f;
+    float tsamp  = _config.nchans() / _config.bandwidth();
+    auto it      = std::max_element(_config.coherent_dms().begin(),
+                               _config.coherent_dms().end());
     float max_dm = *it;
     BOOST_LOG_TRIVIAL(debug) << "Constructing coherent dedisperser plan";
-    float max_dm_delay = CoherentDedisperser::get_dm_delay(f_low, f_high, max_dm);
-    CoherentDedisperser::createConfig(
-        _dedisperser_config,  _config.gulp_length_samps(), max_dm_delay, 
-        _config.nchans(), _config.npol(), _config.nantennas(), tsamp, 
-        f_low, _config.bandwidth(), _config.coherent_dms());
+    float max_dm_delay =
+        CoherentDedisperser::get_dm_delay(f_low, f_high, max_dm);
+    CoherentDedisperser::createConfig(_dedisperser_config,
+                                      _config.gulp_length_samps(),
+                                      max_dm_delay,
+                                      _config.nchans(),
+                                      _config.npol(),
+                                      _config.nantennas(),
+                                      tsamp,
+                                      f_low,
+                                      _config.bandwidth(),
+                                      _config.coherent_dms());
 
     BOOST_LOG_TRIVIAL(debug) << "Constructing delay and weights managers";
     _delay_manager.reset(new DelayManager(_config, _h2d_copy_stream));
@@ -86,8 +93,7 @@ BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
     _stats_manager.reset(new StatisticsCalculator(_config, _processing_stream));
     _transposer.reset(new Transposer(_config));
     _coherent_beamformer.reset(new CoherentBeamformer(_config));
-    _coherent_dedisperser.reset(
-        new CoherentDedisperser(_dedisperser_config));
+    _coherent_dedisperser.reset(new CoherentDedisperser(_dedisperser_config));
     _incoherent_beamformer.reset(new IncoherentBeamformer(_config));
     _dispenser.reset(new BufferedDispenser(_config, _processing_stream));
     _nbeamsets = _delay_manager->nbeamsets();
@@ -107,7 +113,6 @@ BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
     CUDA_ERROR_CHECK(cudaStreamDestroy(_processing_stream));
     CUDA_ERROR_CHECK(cudaStreamDestroy(_d2h_copy_stream));
     //_timer.show_all_timings();
-
 }
 
 template <typename CBHandler,
@@ -139,7 +144,7 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
     // Need to add the unix timestmap to the delay manager here
     // to fetch valid delays for this epoch.
     BOOST_LOG_TRIVIAL(debug) << "Checking for delay updates";
-    
+
     _timer.start("fetch delays");
     auto const& delays = _delay_manager->delays(_unix_timestamp);
     _timer.stop("fetch delays");
@@ -147,14 +152,14 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
     // Stays the same
     BOOST_LOG_TRIVIAL(debug)
         << "Calculating weights at unix time: " << _unix_timestamp;
-    
+
     _timer.start("calculate weights");
     auto const& weights = _weights_manager->weights(delays,
                                                     _unix_timestamp,
                                                     _delay_manager->epoch());
     _timer.stop("calculate weights");
-    //BOOST_LOG_TRIVIAL(info) << "Peaking weights at epoch " << std::setprecision(15) <<  _unix_timestamp;
-    //peek(weights, weights.size());
+    // BOOST_LOG_TRIVIAL(info) << "Peaking weights at epoch " <<
+    // std::setprecision(15) <<  _unix_timestamp; peek(weights, weights.size());
 
     BOOST_LOG_TRIVIAL(debug)
         << "Transposing input data from TAFTP to FTPA order";
@@ -163,29 +168,28 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
                            _ftpa_post_transpose,
                            _header.nantennas,
                            _processing_stream);
-    _timer.stop("transpose TAFTP to FTPA");                        
+    _timer.stop("transpose TAFTP to FTPA");
     _ftpa_dedispersed.like(_ftpa_post_transpose);
     // Stays the same
     BOOST_LOG_TRIVIAL(debug) << "Checking if channel statistics update request";
     _timer.start("calculate statistics");
     _stats_manager->calculate_statistics(_ftpa_post_transpose);
     _timer.stop("calculate statistics");
-    if (_call_count == 0)
-    {   
+    if(_call_count == 0) {
         _timer.start("update scalings");
         _stats_manager->update_scalings(_delay_manager->beamset_weights(),
                                         _delay_manager->nbeamsets());
         _timer.stop("update scalings");
     }
-    
-    //BOOST_LOG_TRIVIAL(debug) << "Peeking the statistics";
-    //peek(_stats_manager->statistics(), 64);
+
+    // BOOST_LOG_TRIVIAL(debug) << "Peeking the statistics";
+    // peek(_stats_manager->statistics(), 64);
 
     BOOST_LOG_TRIVIAL(debug)
         << "FTPA post transpose size: " << _ftpa_post_transpose.size();
 
-    //BOOST_LOG_TRIVIAL(debug) << "peeking _ftpa_post_transpose";
-    //peek(_ftpa_post_transpose);
+    // BOOST_LOG_TRIVIAL(debug) << "peeking _ftpa_post_transpose";
+    // peek(_ftpa_post_transpose);
 
     _timer.start("dispenser hoarding");
     _dispenser->hoard(_ftpa_post_transpose);
@@ -197,16 +201,15 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
         for(unsigned int freq_idx = 0; freq_idx < _config.nchans();
             ++freq_idx) {
             auto const& tpa_voltages = _dispenser->dispense(freq_idx);
-            _coherent_dedisperser->dedisperse(
-                tpa_voltages,
-                _ftpa_dedispersed,
-                freq_idx,
-                dm_idx);
+            _coherent_dedisperser->dedisperse(tpa_voltages,
+                                              _ftpa_dedispersed,
+                                              freq_idx,
+                                              dm_idx);
         }
         _timer.stop("coherent dedispersion");
 
-        //BOOST_LOG_TRIVIAL(debug) << "peeking _ftpa_dedispersed";
-        //peek(_ftpa_dedispersed);
+        // BOOST_LOG_TRIVIAL(debug) << "peeking _ftpa_dedispersed";
+        // peek(_ftpa_dedispersed);
         _timer.start("incoherent beamforming");
         _incoherent_beamformer->beamform(_ftpa_dedispersed,
                                          _tf_ib_raw,
@@ -218,8 +221,8 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
                                          _processing_stream);
         _timer.stop("incoherent beamforming");
 
-        //BOOST_LOG_TRIVIAL(debug) << "peeking _tf_ib_raw";
-        //peek(_tf_ib_raw);
+        // BOOST_LOG_TRIVIAL(debug) << "peeking _tf_ib_raw";
+        // peek(_tf_ib_raw);
 
         _timer.start("coherent beamforming");
         _coherent_beamformer->beamform(_ftpa_dedispersed,
@@ -233,8 +236,8 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
                                        _processing_stream);
         _timer.stop("coherent beamforming");
 
-        //BOOST_LOG_TRIVIAL(debug) << "peeking _btf_cbs";
-        //peek(_btf_cbs);
+        // BOOST_LOG_TRIVIAL(debug) << "peeking _btf_cbs";
+        // peek(_btf_cbs);
 
         _timer.start("coherent beam handler");
         _cb_handler(_btf_cbs, dm_idx);
@@ -258,7 +261,8 @@ bool BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
 operator()(HostVoltageVectorType const& taftp_on_host)
 {
     BOOST_LOG_NAMED_SCOPE("BeamformerPipeline::operator()");
-    BOOST_LOG_TRIVIAL(debug) << "Pipeline operator() called with data: \n" << taftp_on_host.describe();
+    BOOST_LOG_TRIVIAL(debug) << "Pipeline operator() called with data: \n"
+                             << taftp_on_host.describe();
 
     _taftp_from_host.like(taftp_on_host);
 
@@ -291,5 +295,3 @@ operator()(HostVoltageVectorType const& taftp_on_host)
     return false;
 }
 } // namespace skyweaver
-
-

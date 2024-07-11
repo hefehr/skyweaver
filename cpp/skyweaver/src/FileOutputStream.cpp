@@ -1,9 +1,27 @@
 #include "skyweaver/FileOutputStream.hpp"
 
+#include <filesystem>
+#include <iostream>
+#include <stdexcept>
 #include <iomanip>
 
 namespace skyweaver
 {
+
+namespace fs = std::filesystem;
+
+void create_directory(const fs::path& path) {
+    // Check if the directory already exists
+    if (!fs::exists(path)) {
+        // Directory does not exist, attempt to create it
+        if (!fs::create_directory(path)) {
+            throw std::runtime_error("Failed to create directory: " + path.string());
+        }
+    } else if (!fs::is_directory(path)) {
+        // Path exists but is not a directory
+        throw std::runtime_error("Path exists but is not a directory: " + path.string());
+    }
+}
 
 FileStream::File::File(std::string const& fname, std::size_t bytes)
     : _full_path(fname), _bytes_requested(bytes), _bytes_written(0)
@@ -67,11 +85,12 @@ FileStream::FileStream(std::string const& directory,
         throw std::runtime_error(
             "The number of bytes per file must be greater than zero");
     }
-    BOOST_LOG_TRIVIAL(info) << "Creating output file stream with parameters,\n"
+    BOOST_LOG_TRIVIAL(debug) << "Creating output file stream with parameters,\n"
                             << "Output directory: " << _directory << "\n"
                             << "Base filename: " << _base_filename << "\n"
                             << "Extension: " << _extension << "\n"
                             << "Number of bytes per file: " << _bytes_per_file;
+    create_directory(directory);
 }
 
 FileStream::~FileStream()

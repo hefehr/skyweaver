@@ -9,7 +9,8 @@ IncoherentDedispersionPipeline<InputType, OutputType, Handler>::
                                    Handler& handler)
     : _config(config), _handler(handler)
 {
-    BOOST_LOG_TRIVIAL(info) << "Preparing incoherent dedispersion pipeline";
+    BOOST_LOG_NAMED_SCOPE("IncoherentDedispersionPipeline")
+    BOOST_LOG_TRIVIAL(debug) << "Preparing incoherent dedispersion pipeline";
     auto& plan         = _config.ddplan();
     auto const& blocks = plan.blocks();
     _dedispersers.resize(blocks.size());
@@ -73,7 +74,7 @@ void IncoherentDedispersionPipeline<InputType, OutputType, Handler>::
     _output_buffers[block_idx].reference_dm(plan[block_idx].coherent_dm);
     _output_buffers[block_idx].frequencies({_config.centre_frequency()});
 
-    BOOST_LOG_TRIVIAL(info) << "Passing output buffer to handler: "
+    BOOST_LOG_TRIVIAL(debug) << "Passing output buffer to handler: "
                             << _output_buffers[block_idx].describe();
 
     _handler(_output_buffers[block_idx], block_idx);

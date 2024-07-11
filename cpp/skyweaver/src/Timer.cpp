@@ -12,19 +12,23 @@ void Timer::start(const std::string& functionName)
     _startTimes[functionName] = std::chrono::high_resolution_clock::now();
 }
 
-void Timer::stop(const std::string& functionName)
-{
+long int Timer::elapsed(const std::string& functionName) const {
     if(_startTimes.find(functionName) == _startTimes.end()) {
         throw std::runtime_error("Timer not started for function: " +
                                  functionName);
     }
-    auto endTime   = std::chrono::high_resolution_clock::now();
-    auto startTime = _startTimes[functionName];
-    _startTimes.erase(functionName);
-
+    auto now        = std::chrono::high_resolution_clock::now();
+    auto const& start_time = _startTimes.at(functionName);
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
-                        endTime - startTime)
+                        now - start_time)
                         .count();
+    return duration;
+}
+
+void Timer::stop(const std::string& functionName)
+{
+    auto duration = elapsed(functionName);
+    _startTimes.erase(functionName);
     _timingData[functionName].push_back(duration);
 }
 

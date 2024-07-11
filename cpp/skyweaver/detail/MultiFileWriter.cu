@@ -103,7 +103,7 @@ FileStream&
 MultiFileWriter<VectorType>::create_stream(VectorType const& stream_data,
                                            std::size_t stream_idx)
 {
-    BOOST_LOG_TRIVIAL(info) << "Creating stream based on stream prototype: "
+    BOOST_LOG_TRIVIAL(debug) << "Creating stream based on stream prototype: "
                             << stream_data.describe();
     // Here we round the file size to a multiple of the stream prototype
     std::size_t filesize =

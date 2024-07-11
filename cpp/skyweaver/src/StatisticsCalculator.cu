@@ -138,28 +138,6 @@ void StatisticsCalculator::calculate_statistics(
     BOOST_LOG_TRIVIAL(debug) << "Copied input levels to host";
 }
 
-void StatisticsCalculator::open_statistics_file()
-{
-    _stats_file.open(_config.statistics_file(),
-                     std::ios::out | std::ios::binary);
-    if(_stats_file.is_open()) {
-        BOOST_LOG_TRIVIAL(info)
-            << "Opened statistics file " << _config.statistics_file();
-    } else {
-        std::ostringstream error_message;
-        error_message << "Could not open file " << _config.statistics_file()
-                      << std::strerror(errno);
-        BOOST_LOG_TRIVIAL(error) << error_message.str();
-        throw std::runtime_error(error_message.str());
-    }
-}
-
-void StatisticsCalculator::write_statistics()
-{
-    _stats_file.write(reinterpret_cast<char const*>(_stats_h.data()),
-                      _stats_h.size() * sizeof(Statistics));
-}
-
 void StatisticsCalculator::update_scalings(
     ScalingVectorHType const& beamset_weights,
     int nbeamsets)

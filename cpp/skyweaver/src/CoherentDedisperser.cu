@@ -301,7 +301,7 @@ void get_dm_responses(CoherentDedisperserConfig& config,
                       double dm_prefactor,
                       thrust::device_vector<cufftComplex>& response)
 {
-    BOOST_LOG_TRIVIAL(info) << "Generating DM responses";
+    BOOST_LOG_TRIVIAL(debug) << "Generating DM responses";
     thrust::device_vector<int> indices(config.num_coarse_chans *
                                        config.fft_length);
     thrust::sequence(indices.begin(), indices.end());

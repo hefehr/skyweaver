@@ -1,3 +1,6 @@
+#ifndef SKYWEAVER_TIMER_HPP
+#define SKYWEAVER_TIMER_HPP
+
 #include <algorithm>
 #include <chrono>
 #include <iomanip>
@@ -32,6 +35,12 @@ class Timer
     void stop(const std::string& name);
 
     /**
+     * @brief Get the elapsed time since the stopwatch was 
+              started for the given name
+     */
+    long int elapsed(const std::string& name) const;
+
+    /**
      * @brief Show the timings for the given name
      * 
      * @param name The name of the timed scope
@@ -52,3 +61,5 @@ class Timer
 };
 
 } // namespace skyweaver
+
+#endif //SKYWEAVER_TIMER_HPP

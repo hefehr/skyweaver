@@ -100,16 +100,6 @@ class PipelineConfig
     void max_output_filesize(std::size_t);
 
     /**
-     * @brief      Get the file path for the statistics file
-     */
-    std::string const& statistics_file() const;
-
-    /**
-     * @brief      Set the file path for the statistics file
-     */
-    void statistics_file(std::string const&);
-
-    /**
      * @brief      Get the centre frequency for the subband to
      *             be processed by this instance.
      */
@@ -368,7 +358,6 @@ class PipelineConfig
 
     /* Other required files*/
     std::string _delay_file;
-    std::string _statistics_file;
 
     std::string _output_dir;
     std::size_t _max_output_filesize;

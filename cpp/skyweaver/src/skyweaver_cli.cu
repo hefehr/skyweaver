@@ -8,6 +8,7 @@
 #include "skyweaver/MultiFileWriter.cuh"
 #include "skyweaver/PipelineConfig.hpp"
 #include "skyweaver/StatisticsCalculator.cuh"
+#include "skyweaver/Timer.hpp"
 #include "skyweaver/logging.hpp"
 #include "thrust/device_vector.h"
 #include "thrust/host_vector.h"
@@ -68,11 +69,14 @@ std::ostream& operator<<(std::ostream& os, const std::vector<float>& vec)
 template <class Pipeline>
 void run_pipeline(Pipeline& pipeline, skyweaver::PipelineConfig& config)
 {
+    BOOST_LOG_NAMED_SCOPE("run_pipeline");
+    BOOST_LOG_TRIVIAL(debug) << "Executing pipeline";
     skyweaver::MultiFileReader file_reader(config);
     auto const& header         = file_reader.get_header();
     std::size_t input_elements = header.nantennas * config.nchans() *
                                  config.npol() * config.gulp_length_samps();
 
+    BOOST_LOG_TRIVIAL(debug) << "Building input buffer";
     typename Pipeline::HostVoltageVectorType taftp_input_voltage(
         {config.gulp_length_samps() / config.nsamples_per_heap(), // T
          header.nantennas,                                        // A
@@ -82,34 +86,55 @@ void run_pipeline(Pipeline& pipeline, skyweaver::PipelineConfig& config)
     taftp_input_voltage.frequencies(config.channel_frequencies());
     taftp_input_voltage.tsamp(header.obs_nchans / header.obs_bandwidth);
     taftp_input_voltage.dms({0.0});
-
+    BOOST_LOG_TRIVIAL(debug) << "Input buffer: " << taftp_input_voltage.describe();
     std::size_t input_bytes =
         taftp_input_voltage.size() *
         sizeof(typename decltype(taftp_input_voltage)::value_type);
     pipeline.init(header);
-
-    BOOST_LOG_TRIVIAL(info)
-        << "Total input size (bytes): " << file_reader.get_total_size();
+    std::size_t total_bytes = file_reader.get_total_size();
+    BOOST_LOG_TRIVIAL(info) << "Total input size (bytes): " << file_reader.get_total_size();
     // TODO: Add a parameter to PipelineConfig for start sample? time?
     // TODO: Add a parameter to PipelineConfig for nsamples? duration?
+    // TODO: Fix the issue where the output directory doesn't exist
+
+    skyweaver::Timer stopwatch;
+    stopwatch.start("processing_loop");
+    std::size_t processed_bytes = 0;
+    float data_time_elapsed = 0.0f;
+    float wall_time_elapsed = 0.0f;
+    float real_time_fraction = 0.0;
+    float percentage = 0.0f;
     while(!file_reader.eof()) {
+        percentage = 100.0 * static_cast<float>(processed_bytes) / total_bytes;
         std::streamsize nbytes_read =
             file_reader.read(reinterpret_cast<char*>(thrust::raw_pointer_cast(
                                  taftp_input_voltage.data())),
                              input_bytes);
         pipeline(taftp_input_voltage);
+        data_time_elapsed += config.gulp_length_samps() * taftp_input_voltage.tsamp();
+        wall_time_elapsed = stopwatch.elapsed("processing_loop") / 1e6;
+        real_time_fraction = data_time_elapsed / wall_time_elapsed;
+        processed_bytes += input_bytes;
+        BOOST_LOG_TRIVIAL(info) << "Progress: " << std::setprecision(6) 
+                                << percentage << "%, Data time: " << data_time_elapsed 
+                                << " s, Wall time: " << wall_time_elapsed << ", "
+                                << "Realtime fraction: " << real_time_fraction;
+
     }
 }
 
 template <typename BfTraits, bool enable_incoherent_dedispersion>
 void setup_pipeline(skyweaver::PipelineConfig& config)
 {
+    BOOST_LOG_NAMED_SCOPE("setup_pipeline");
+    BOOST_LOG_TRIVIAL(debug) << "Setting up the pipeline";
     // Update the config
     skyweaver::MultiFileReader file_reader(config);
     auto const& header = file_reader.get_header();
+    BOOST_LOG_TRIVIAL(debug) << "Validating headers and updating configuration";
     validate_header(header, config);
     update_config(config, header);
-
+    BOOST_LOG_TRIVIAL(debug) << "Creating pipeline handlers";
     using OutputType = typename BfTraits::QuantisedPowerType;
     skyweaver::MultiFileWriter<skyweaver::BTFPowersH<OutputType>> ib_handler(
         config,
@@ -187,15 +212,6 @@ int main(int argc, char** argv)
              po::value<std::string>()->required()->notifier(
                  [&config](std::string key) { config.delay_file(key); }),
              "File containing delay solutions")
-
-            // Output file for block statistics
-            ("stats-file",
-             po::value<std::string>()
-                 ->default_value(config.statistics_file())
-                 ->notifier([&config](std::string key) {
-                     config.statistics_file(key);
-                 }),
-             "Output file for block statistics")
 
             // Output directory where all results will be written
             ("output-dir",
@@ -338,13 +354,13 @@ int main(int argc, char** argv)
         BOOST_LOG_TRIVIAL(info)
             << "Input file count: " << config.input_files().size();
         BOOST_LOG_TRIVIAL(info) << "Delay file: " << config.delay_file();
-        BOOST_LOG_TRIVIAL(info) << "Stats file: " << config.statistics_file();
         BOOST_LOG_TRIVIAL(info) << "Output dir: " << config.output_dir();
         BOOST_LOG_TRIVIAL(info) << "Output level: " << config.output_level();
-        BOOST_LOG_TRIVIAL(info) << "Coherent DMs: " << config.coherent_dms();
         BOOST_LOG_TRIVIAL(info) << "Gulp size: " << config.gulp_length_samps();
+        BOOST_LOG_TRIVIAL(info) << "Stokes mode: " << config.stokes_mode();
         BOOST_LOG_TRIVIAL(info) << config.ddplan();
         if(config.enable_incoherent_dedispersion()) {
+            BOOST_LOG_TRIVIAL(info) << "Incoherent dedispersion enabled";
             if(config.stokes_mode() == "I") {
                 setup_pipeline<skyweaver::SingleStokesBeamformerTraits<
                                    skyweaver::StokesParameter::I>,
@@ -370,6 +386,7 @@ int main(int argc, char** argv)
                     "of I, Q, U, V or IQUV");
             }
         } else {
+            BOOST_LOG_TRIVIAL(info) << "Incoherent dedispersion disabled";
             if(config.stokes_mode() == "I") {
                 setup_pipeline<skyweaver::SingleStokesBeamformerTraits<
                                    skyweaver::StokesParameter::I>,

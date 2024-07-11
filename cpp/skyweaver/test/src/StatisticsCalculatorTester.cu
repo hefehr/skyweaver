@@ -111,7 +111,6 @@ StatisticsCalculatorTester::~StatisticsCalculatorTester()
 void StatisticsCalculatorTester::SetUp()
 {
     CUDA_ERROR_CHECK(cudaStreamCreate(&_stream));
-    _config.statistics_file("./statistics.bin");
 }
 
 void StatisticsCalculatorTester::TearDown()
@@ -198,9 +197,7 @@ TEST_F(StatisticsCalculatorTester, test_file_writer)
         {_config.nchans(), nsamples, _config.npol(), _config.nantennas()});
     FTPAVoltagesD<char2> ftpa_voltages = ftpa_voltages_h;
     StatisticsCalculator calculator(_config, _stream);
-    calculator.open_statistics_file();
     calculator.calculate_statistics(ftpa_voltages);
-    calculator.write_statistics();
     FPAStatsD<Statistics> stats = calculator.statistics();
 }
 

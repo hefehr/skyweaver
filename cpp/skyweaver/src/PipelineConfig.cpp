@@ -8,8 +8,7 @@ namespace skyweaver
 
 PipelineConfig::PipelineConfig()
     : _input_files({}), _check_input_contiguity(false), _dada_header_size(4096),
-      _delay_file("delays.swd"), _statistics_file("./statistics.bin"),
-      _output_dir("./"), _max_output_filesize(10000000000000),
+      _delay_file("delays.swd"), _output_dir("./"), _max_output_filesize(10000000000000),
       _output_file_prefix(""), _dedisp_max_delay_samps(0),
       _enable_incoherent_dedispersion(true), _cfreq(1284000000.0),
       _bw(13375000.0), _channel_frequencies_stale(true),
@@ -118,16 +117,6 @@ std::string const& PipelineConfig::output_file_prefix() const
 void PipelineConfig::output_file_prefix(std::string const& prefix)
 {
     _output_file_prefix = prefix;
-}
-
-void PipelineConfig::statistics_file(std::string const& filename)
-{
-    _statistics_file = filename;
-}
-
-std::string const& PipelineConfig::statistics_file() const
-{
-    return _statistics_file;
 }
 
 double PipelineConfig::centre_frequency() const

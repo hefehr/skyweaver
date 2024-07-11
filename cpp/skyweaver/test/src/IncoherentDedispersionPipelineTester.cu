@@ -23,10 +23,10 @@ void IncoherentDedispersionPipelineTester<Traits>::SetUp(){
     _config.centre_frequency(1284e6);
     _config.bandwidth(13375000.0);
     auto& plan = _config.ddplan();
-    plan.add_block(0.0f);
-    plan.add_block(10.0f);
-    plan.add_block(20.0f);
-    plan.add_block(30.0f);
+    plan.add_block(0.0f, 1);
+    plan.add_block(10.0f, 2);
+    plan.add_block(20.0f, 3);
+    plan.add_block(30.0f, 0.0, 60.0, 1.0, 1);
     plan.add_block(40.0f);
     plan.add_block(50.0f);
 }

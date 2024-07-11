@@ -19,14 +19,14 @@ IncoherentDedispersionPipeline<
     {
         _dedispersers[block_idx].reset(new DedisperserType(_config, blocks[block_idx].incoherent_dms));
         int max_delay = _dedispersers[block_idx]->max_delay();
-        BOOST_LOG_TRIVIAL(debug) << "Created dedisperser for DM = " << blocks[block_idx] << " (max_delay = " << max_delay << ")";
+        BOOST_LOG_TRIVIAL(debug) << "Created dedisperser for block = " << block_idx << " (max_delay = " << max_delay << ")";
         std::size_t dispatch_size = std::max(max_delay * 10, 8192);
         std::size_t batch_size = _config.nbeams() * _config.nchans();
         _agg_buffers[block_idx].reset(new AggBufferType(
             std::bind(&IncoherentDedispersionPipeline::agg_buffer_callback, 
                         this, std::placeholders::_1, block_idx), 
             dispatch_size, max_delay, batch_size));
-        BOOST_LOG_TRIVIAL(debug) << "Created aggregation buffer for DM = " << blocks[block_idx] 
+        BOOST_LOG_TRIVIAL(debug) << "Created aggregation buffer for block = " << block_idx
                                  << " (dispatch_size = " << dispatch_size << ", " 
                                  << "overlap_size = " << max_delay << ", "
                                  << "batch_size = " << batch_size << ")"; 

@@ -16,6 +16,7 @@ namespace skyweaver
  * @brief A class for handling writing of DescribedVectors
  * 
  */
+template <typename VectorType>
 class MultiFileWriter
 {
   public:

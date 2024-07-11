@@ -26,6 +26,16 @@
 
 namespace
 {
+
+std::string skyweaver_splash = R"(
+   ____ __                                           
+  / __// /__ __ __ _    __ ___  ___ _ _  __ ___  ____
+ _\ \ /  '_// // /| |/|/ // -_)/ _ `/| |/ // -_)/ __/
+/___//_/\_\ \_, / |__,__/ \__/ \_,_/ |___/ \__//_/   
+           /___/                                     
+
+)";
+
 const size_t ERROR_IN_COMMAND_LINE     = 1;
 const size_t SUCCESS                   = 0;
 const size_t ERROR_UNHANDLED_EXCEPTION = 2;
@@ -133,6 +143,8 @@ void setup_pipeline(skyweaver::PipelineConfig& config)
 
 int main(int argc, char** argv)
 {
+    std::cout << skyweaver_splash;
+
     try {
         skyweaver::PipelineConfig config;
         psrdada_cpp::set_log_level("warning");

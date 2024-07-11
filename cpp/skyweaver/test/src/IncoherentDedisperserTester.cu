@@ -59,13 +59,9 @@ TYPED_TEST(IncoherentDedisperserTester, ones_test)
     ASSERT_EQ(delays.size(), dms.size() * this->_config.channel_frequencies().size()) << "Delay vector has unexpected length";
     ASSERT_GT(dedisperser.max_delay(), 0);
     std::size_t nsamples = dedisperser.max_delay() * 2;
-
-
-
     thrust::host_vector<typename Traits::InputType> data(
         this->_config.nbeams() * nsamples * this->_config.nchans(), 
         value_traits<typename Traits::InputType>::one());
-
     TDBPowersH<typename Traits::OutputType> output;
     dedisperser.dedisperse(data, output);
     ASSERT_EQ(output.size(), (nsamples - dedisperser.max_delay()) * dms.size() * this->_config.nbeams());
@@ -86,6 +82,30 @@ TYPED_TEST(IncoherentDedisperserTester, too_few_samples_test)
         this->_config.nbeams() * dedisperser.max_delay() * this->_config.nchans());
     TDBPowersH<typename Traits::OutputType> output;
     EXPECT_THROW(dedisperser.dedisperse(data, output), std::runtime_error);
+}
+
+TYPED_TEST(IncoherentDedisperserTester, ones_test_wtscrunch)
+{
+    using Traits = TypeParam;
+    this->_config.bandwidth(32e6);
+    this->_config.centre_frequency(580e6);
+    std::size_t tscrunch = 2;
+    std::vector<float> dms = {0.0f, 10.0f, 20.0f, 30.0f, 40.0f};
+    IncoherentDedisperser dedisperser(this->_config, dms, tscrunch);
+    auto const& delays = dedisperser.delays();
+    ASSERT_EQ(delays.size(), dms.size() * this->_config.channel_frequencies().size()) << "Delay vector has unexpected length";
+    ASSERT_GT(dedisperser.max_delay(), 0);
+    std::size_t nsamples = dedisperser.max_delay() * 2 + dedisperser.max_delay();
+    thrust::host_vector<typename Traits::InputType> data(
+        this->_config.nbeams() * nsamples * this->_config.nchans(), 
+        value_traits<typename Traits::InputType>::one());
+    TDBPowersH<typename Traits::OutputType> output;
+    dedisperser.dedisperse(data, output);
+    ASSERT_EQ(output.size(), (nsamples - dedisperser.max_delay())/tscrunch * dms.size() * this->_config.nbeams());
+    for (auto const& val: output)
+    {
+        EXPECT_EQ(val, static_cast<typename Traits::OutputType>(value_traits<typename Traits::OutputType>::one() * std::sqrt(this->_config.nchans() * tscrunch)));
+    }
 }
 
 

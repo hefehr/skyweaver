@@ -30,9 +30,11 @@ struct DMDelay
 };
 
 IncoherentDedisperser::IncoherentDedisperser(PipelineConfig const& config, 
-                                             std::vector<float> const& dms)
+                                             std::vector<float> const& dms,
+                                             std::size_t tscrunch)
 : _config(config)
 , _dms(dms)
+, _tscrunch(tscrunch)
 , _delays(dms.size() * config.channel_frequencies().size())
 , _max_delay(0)
 , _scale_factor(1.0f)
@@ -41,8 +43,8 @@ IncoherentDedisperser::IncoherentDedisperser(PipelineConfig const& config,
 }
 
 IncoherentDedisperser::IncoherentDedisperser(PipelineConfig const& config, 
-                                             float dm)
-: IncoherentDedisperser(config, std::vector<float>(1, dm))
+                                             float dm, std::size_t tscrunch)
+: IncoherentDedisperser(config, std::vector<float>(1, dm), tscrunch)
 {
 }
 
@@ -66,7 +68,7 @@ void IncoherentDedisperser::prepare()
     }
     auto it = std::max_element(_delays.begin(), _delays.end());
     _max_delay = *it;
-    _scale_factor = std::sqrt(_config.nchans()); 
+    _scale_factor = std::sqrt(_config.nchans() * _tscrunch); 
 }
 
 std::vector<int> const& IncoherentDedisperser::delays() const
@@ -79,8 +81,6 @@ int IncoherentDedisperser::max_delay() const
     return _max_delay;
 }
 
-// Incoherent beamformer should have an option to output 8-bit data.
-
 template <typename InputVectorType, typename OutputVectorType>
 void IncoherentDedisperser::dedisperse<InputVectorType, OutputVectorType>(
     InputVectorType const& tfb_powers, OutputVectorType& tdb_powers)
@@ -92,37 +92,42 @@ void IncoherentDedisperser::dedisperse<InputVectorType, OutputVectorType>(
     const std::size_t nbeams   = _config.nbeams();
     const std::size_t ndms     = _dms.size();
     const std::size_t nsamples = tfb_powers.size() / (nbeams * nchans);
-    if (nsamples <= _max_delay)
-    {
+    const std::size_t bf       = nbeams * nchans;
+    if (nsamples <= _max_delay){
         throw std::runtime_error("Fewer than max_delay samples passed to dedisperse method");
     }
-    const std::size_t bf       = nbeams * nchans;
+    if ((nsamples - _max_delay) % _tscrunch != 0){
+        throw std::runtime_error("(nsamples - max_delay) must be a multiple of tscrunch;");
+    }
     tdb_powers.resize({
-        nsamples - _max_delay,
+        (nsamples - _max_delay) / _tscrunch,
         ndms,
         nbeams
     });
     AccumulatorVectorType powers(nbeams);
-    for (int t_idx = _max_delay; t_idx < nsamples; ++t_idx)
+    for (int t_idx = _max_delay; t_idx < nsamples; t_idx += _tscrunch)
     {
-        int t_output_offset = (t_idx - _max_delay) * nbeams * ndms;
+        int t_output_offset = (t_idx - _max_delay)/_tscrunch * nbeams * ndms;
         for (int dm_idx = 0; dm_idx < ndms; ++dm_idx)
         {
             int offset = nchans * dm_idx;
             std::fill(powers.begin(), powers.end(), value_traits<typename decltype(powers)::value_type>::zero());
-            for (int f_idx = 0; f_idx < nchans; ++f_idx)
+            for (int tsub_idx = 0; tsub_idx < _tscrunch; ++tsub_idx) 
             {
-                int idx = (t_idx - _delays[offset + f_idx]) * bf + f_idx * nbeams;
-                for (int b_idx = 0; b_idx < nbeams; ++b_idx)
+                for (int f_idx = 0; f_idx < nchans; ++f_idx)
                 {
-                    powers[b_idx] += tfb_powers[idx + b_idx];
+                    int idx = ((t_idx + tsub_idx) - _delays[offset + f_idx]) * bf + f_idx * nbeams;
+                    for (int b_idx = 0; b_idx < nbeams; ++b_idx)
+                    {
+                        powers[b_idx] += tfb_powers[idx + b_idx];
+                    }
                 }
+                int output_offset = t_output_offset + dm_idx * nbeams;
+                std::transform(powers.begin(), powers.end(), tdb_powers.begin() + output_offset, 
+                            [this](AccumulatorType const& value){
+                                return clamp<typename OutputVectorType::value_type>(value / _scale_factor);
+                            });
             }
-            int output_offset = t_output_offset + dm_idx * nbeams;
-            std::transform(powers.begin(), powers.end(), tdb_powers.begin() + output_offset, 
-                           [this](AccumulatorType const& value){
-                               return clamp<typename OutputVectorType::value_type>(value / _scale_factor);
-                           });
         }
     }
 }

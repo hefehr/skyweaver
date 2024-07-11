@@ -30,8 +30,8 @@ These should be async with respect to the handler
 class IncoherentDedisperser
 {
 public:
-    IncoherentDedisperser(PipelineConfig const& config, std::vector<float> const& dms);
-    IncoherentDedisperser(PipelineConfig const& config, float dm);
+    IncoherentDedisperser(PipelineConfig const& config, std::vector<float> const& dms, std::size_t tscrunch = 1);
+    IncoherentDedisperser(PipelineConfig const& config, float dm, std::size_t tscrunch = 1);
     ~IncoherentDedisperser();
     IncoherentDedisperser(IncoherentDedisperser const&) = delete;
     IncoherentDedisperser& operator=(IncoherentDedisperser const&) = delete;
@@ -48,6 +48,7 @@ private:
 
     PipelineConfig const& _config;
     std::vector<float> _dms;
+    std::size_t _tscrunch;
     int _max_delay;
     float _scale_factor;
     std::vector<int> _delays;

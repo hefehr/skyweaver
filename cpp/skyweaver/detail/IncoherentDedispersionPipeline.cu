@@ -17,10 +17,15 @@ IncoherentDedispersionPipeline<
     _output_buffers.resize(blocks.size());
     for (std::size_t block_idx=0; block_idx < blocks.size(); ++block_idx)
     {
-        _dedispersers[block_idx].reset(new DedisperserType(_config, blocks[block_idx].incoherent_dms));
+        _dedispersers[block_idx].reset(new DedisperserType(_config, blocks[block_idx].incoherent_dms, blocks[block_idx].tscrunch));
         int max_delay = _dedispersers[block_idx]->max_delay();
-        BOOST_LOG_TRIVIAL(debug) << "Created dedisperser for block = " << block_idx << " (max_delay = " << max_delay << ")";
+        BOOST_LOG_TRIVIAL(debug) << "Created dedisperser for block = " << block_idx 
+                                 << " (max_delay = " << max_delay 
+                                 << ", tscrunch = " << blocks[block_idx].tscrunch << ")";
         std::size_t dispatch_size = std::max(max_delay * 10, 8192);
+        // The dispatch size needs rounded to the next multiple of tscrunch
+        dispatch_size -= dispatch_size % blocks[block_idx].tscrunch;
+
         std::size_t batch_size = _config.nbeams() * _config.nchans();
         _agg_buffers[block_idx].reset(new AggBufferType(
             std::bind(&IncoherentDedispersionPipeline::agg_buffer_callback, 

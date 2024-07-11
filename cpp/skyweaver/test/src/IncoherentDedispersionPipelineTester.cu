@@ -82,7 +82,7 @@ TYPED_TEST(IncoherentDedispersionPipelineTester, operator_calls) {
     pipeline.init(header);
     auto const& dms = this->_config.coherent_dms();
     TFBPowersH<IType> input({8192, this->_config.nchans(), this->_config.nbeams()});
-    for (int ii = 0; ii < 2; ++ii){
+    for (int ii = 0; ii < 4; ++ii){
         for (int dm_idx = 0; dm_idx < dms.size(); ++dm_idx)
         {
             pipeline(input, dm_idx);

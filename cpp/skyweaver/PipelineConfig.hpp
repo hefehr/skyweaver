@@ -370,7 +370,6 @@ class PipelineConfig
     std::string _output_dir;
     std::size_t _max_output_filesize;
     std::string _output_file_prefix;
-    std::vector<float> _coherent_dms;
     std::size_t _dedisp_max_delay_samps; 
     bool _enable_incoherent_dedispersion;
     double _cfreq;

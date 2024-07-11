@@ -49,6 +49,17 @@ class Header
     void set(char const* key, T value);
 
     /**
+     * @brief      Set a value in the header from a container
+     *
+     * @param      key    An ASCII key (the name of the value to be set)
+     * @param[in]  values  The values to set
+     *
+     * @tparam     T      The type of value being set
+     */
+    template <template <typename, typename> class Container, typename T, typename A>
+    void set(char const* key, Container<T, A> const& values, std::size_t precision = 15);
+
+    /**
      * @brief      Clear a DADA header
      *
      * @details    Memsets the entire buffer to zero
@@ -64,5 +75,7 @@ class Header
 };
 
 } // namespace skyweaver
+
+#include "skyweaver/detail/Header.cpp"
 
 #endif // SKYWEAVER_HEADER_HPP

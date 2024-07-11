@@ -83,6 +83,16 @@ std::vector<DedispersionPlanBlock> const& DedispersionPlan::blocks() const
     return _blocks;
 }
 
+DedispersionPlanBlock& DedispersionPlan::operator[](std::size_t idx)
+{
+    return _blocks[idx];
+}
+
+DedispersionPlanBlock const & DedispersionPlan::operator[](std::size_t idx) const
+{
+    return _blocks[idx];
+}
+
 std::ostream& operator<<(std::ostream& stream, DedispersionPlanBlock const& block)
 {
     stream << "Coherent DM: " << block.coherent_dm << ", "

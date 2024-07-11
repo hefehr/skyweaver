@@ -101,6 +101,7 @@ struct DescribedVector {
       _vector(other._vector.begin(), other._vector.end()), 
       _dms(other._dms), _frequencies(other._frequencies), 
       _dms_stale(other._dms_stale), _tsamp(other._tsamp),
+      _utc_offset(other._utc_offset), _reference_dm(other._reference_dm),
       _frequencies_stale(other._frequencies_stale) {
     }
 
@@ -119,6 +120,7 @@ struct DescribedVector {
         _dms_stale = other._dms_stale;
         _tsamp = other._tsamp;
         _utc_offset = other._utc_offset;
+        _reference_dm = other._reference_dm;
     }
 
     auto& operator[](std::size_t idx)
@@ -298,12 +300,12 @@ struct DescribedVector {
         _dms[0] = dm;
     }
 
-    float reference_dm() const{
-        if (!_dms.empty()){
-            return _dms[0];
-        } else {
-            return 0.0f;
-        }
+    void reference_dm(float dm){
+       _reference_dm = dm;
+    }
+
+    float reference_dm() const {
+        return _reference_dm;
     }
 
     std::string dims_as_string() const
@@ -326,7 +328,7 @@ struct DescribedVector {
         stream << std::setprecision(15);
         stream << "  frequencies (Hz): " << _frequencies << "\n";
         stream << "  DMs (pc cm^-3): " << _dms << "\n";
-        stream << "  Reference DMs (pc cm^-3): " << reference_dm() << "\n";
+        stream << "  Coherent DM (pc cm^-3): " << reference_dm() << "\n";
         stream << "  Time resolution (s): " << _tsamp << "\n";
         stream << "  Time offset (s): " << _utc_offset << "\n";
         stream << std::setprecision(6);
@@ -341,6 +343,7 @@ struct DescribedVector {
     std::vector<Dimension> _dims;
     double _tsamp = 0.0;
     double _utc_offset = 0.0;
+    float _reference_dm = 0.0;
     VectorType _vector;
 };
 

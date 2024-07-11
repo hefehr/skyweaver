@@ -1,5 +1,6 @@
 #include "skyweaver/IncoherentDedisperser.cuh"
 #include "skyweaver/DescribedVector.hpp"
+#include "skyweaver/dedispersion_utils.cuh"
 #include "skyweaver/types.cuh"
 #include "thrust/host_vector.h"
 
@@ -8,26 +9,6 @@ namespace {
 }
 
 namespace skyweaver {
-
-/**
-Functor for calculating channel delays.
-Note all frequencies are Hz.
-*/
-struct DMDelay
-{
-    double _dm;
-    double _f_ref; // reference frequency Hz
-    double _tsamp; // sampling interval seconds
-
-    __host__ __device__
-    DMDelay(double dm, double f_ref, double tsamp)
-    : _dm(dm), _f_ref(f_ref), _tsamp(tsamp){}
-
-    __host__ __device__
-    int operator()(double const& freq){
-        return static_cast<int>((DM_CONSTANT * (1/(_f_ref * _f_ref) - 1/(freq * freq)) * _dm) / _tsamp + 0.5);
-    }
-};
 
 IncoherentDedisperser::IncoherentDedisperser(PipelineConfig const& config, 
                                              std::vector<float> const& dms,
@@ -63,7 +44,7 @@ void IncoherentDedisperser::prepare()
             _config.channel_frequencies().begin(),
              _config.channel_frequencies().end(),
             _delays.begin() + nchans * dm_idx,
-            DMDelay(_dms[dm_idx], _config.channel_frequencies().front(), tsamp)
+            DMSampleDelay(_dms[dm_idx], _config.channel_frequencies().front(), tsamp)
         );
     }
     auto it = std::max_element(_delays.begin(), _delays.end());

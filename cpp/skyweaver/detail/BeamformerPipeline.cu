@@ -191,12 +191,7 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
         _timer.start("coherent dedispersion");
         for(unsigned int freq_idx = 0; freq_idx < _config.nchans();
             ++freq_idx) {
-            BOOST_LOG_TRIVIAL(debug) << "{{{[[[<<< DM Idx: " << dm_idx
-                                     << " F Idx: " << freq_idx << " >>>]]]}}}";
-            BOOST_LOG_TRIVIAL(debug) << "Dispensing some voltages";
             auto const& tpa_voltages = _dispenser->dispense(freq_idx);
-            BOOST_LOG_TRIVIAL(debug) << "Attempting to segfault";
-
             _coherent_dedisperser->dedisperse(
                 tpa_voltages,
                 _ftpa_dedispersed,

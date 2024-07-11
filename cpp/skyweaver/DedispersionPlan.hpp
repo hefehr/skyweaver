@@ -27,6 +27,8 @@ public:
     void add_block(std::string str);
     std::vector<float> const& coherent_dms() const;
     std::vector<DedispersionPlanBlock> const& blocks() const;
+    DedispersionPlanBlock& operator[](std::size_t idx);
+    DedispersionPlanBlock const & operator[](std::size_t idx) const;
 
 private:
     std::vector<DedispersionPlanBlock> _blocks;

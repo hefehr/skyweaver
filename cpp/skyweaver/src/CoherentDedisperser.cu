@@ -181,7 +181,7 @@ void CoherentDedisperser::dedisperse(
                               static_cast<char>(__float2int_rn(val.y / N));
                           return char2_val;
                       });
-    d_ftpa_voltages_out.dms({config._h_dms[dm_idx]});
+    d_ftpa_voltages_out.reference_dm(config._h_dms[dm_idx]);
 }
 
 void CoherentDedisperser::multiply_by_chirp(

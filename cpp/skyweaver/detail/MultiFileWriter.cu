@@ -53,7 +53,6 @@ RECEIVER     L-band
 FREQ         1284000000.000000
 BW           856000000.000000
 TSAMP        4.7850467290
-DM           0.0
 STOKES       I
 
 NBIT         8
@@ -124,9 +123,16 @@ FileStream& MultiFileWriter<VectorType>::create_stream(VectorType const& stream_
             Header header_writer(bytes);
             header_writer.set<std::size_t>("NBEAM", stream_data.nbeams());
             header_writer.set<std::size_t>("NCHAN", stream_data.nchannels());
+            header_writer.set<std::size_t>("OBS_NCHAN", _header.obs_nchans);
+            header_writer.set<long double>("OBS_FREQUENCY", _header.obs_frequency);
+            header_writer.set<long double>("OBS_BW", _header.obs_bandwidth);
             header_writer.set<std::size_t>("NSAMP", stream_data.nsamples());
-            header_writer.set<std::size_t>("NDMS", stream_data.ndms());
-            header_writer.set<long double>("DM", static_cast<long double>(stream_data.reference_dm()));
+            if (stream_data.ndms())
+            {
+                header_writer.set<std::size_t>("NDMS", stream_data.ndms());
+                header_writer.set("DMS", stream_data.dms(), 3);
+            }
+            header_writer.set<long double>("COHERENT_DM", static_cast<long double>(stream_data.reference_dm()));
             header_writer.set<long double>("FREQ", _header.frequency);
             header_writer.set<long double>("BW", _header.bandwidth);
             header_writer.set<long double>("TSAMP", stream_data.tsamp() * 1e6);

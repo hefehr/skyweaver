@@ -52,6 +52,16 @@ void IncoherentDedispersionPipeline<InputType, OutputType, Handler>::agg_buffer_
     _dedispersers[block_idx]->dedisperse(buffer, _output_buffers[block_idx]);
     BOOST_LOG_TRIVIAL(debug) << "Dedispersion complete, calling handler";
     BOOST_LOG_TRIVIAL(debug) << _output_buffers[block_idx].vector().size();
+    auto const& plan = _config.ddplan();
+    // Set the correct tsamp on the block
+    _output_buffers[block_idx].tsamp(_output_buffers[block_idx].tsamp() * plan[block_idx].tscrunch);
+    // Set the correct DMs on the block
+    _output_buffers[block_idx].dms(plan[block_idx].incoherent_dms);
+    _output_buffers[block_idx].reference_dm(plan[block_idx].coherent_dm);
+    _output_buffers[block_idx].frequencies({_config.centre_frequency()});
+
+    BOOST_LOG_TRIVIAL(info) << "Passing output buffer to handler: " << _output_buffers[block_idx].describe();
+
     _handler(_output_buffers[block_idx], block_idx);
 }
 
@@ -73,6 +83,7 @@ template <typename InputType, typename OutputType, typename Handler>
 void IncoherentDedispersionPipeline<InputType, OutputType, Handler>::operator()(InputVectorType const& data, std::size_t dm_idx)
 {
     _output_buffers[dm_idx].metalike(data);
+    _output_buffers[dm_idx].tsamp(data.tsamp() * _config.ddplan()[dm_idx].tscrunch);
     _agg_buffers[dm_idx]->push_back(data.vector());
 }
 

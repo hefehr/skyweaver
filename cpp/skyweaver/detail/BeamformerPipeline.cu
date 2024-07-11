@@ -50,6 +50,7 @@ BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
       _ib_handler(ib_handler), _stats_handler(stats_handler),
       _unix_timestamp(0.0), _call_count(0)
 {
+    BOOST_LOG_NAMED_SCOPE("BeamformerPipeline::BeamformerPipeline");
     BOOST_LOG_TRIVIAL(debug) << "Constructing beanmformer pipeline";
     std::size_t nsamples = _config.gulp_length_samps();
     BOOST_LOG_TRIVIAL(debug)
@@ -101,10 +102,11 @@ template <typename CBHandler,
 BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
     ~BeamformerPipeline()
 {
+    BOOST_LOG_NAMED_SCOPE("BeamformerPipeline::~BeamformerPipeline");
     CUDA_ERROR_CHECK(cudaStreamDestroy(_h2d_copy_stream));
     CUDA_ERROR_CHECK(cudaStreamDestroy(_processing_stream));
     CUDA_ERROR_CHECK(cudaStreamDestroy(_d2h_copy_stream));
-    _timer.show_all_timings();
+    //_timer.show_all_timings();
 
 }
 
@@ -115,6 +117,7 @@ template <typename CBHandler,
 void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
     init(ObservationHeader const& header)
 {
+    BOOST_LOG_NAMED_SCOPE("BeamformerPipeline::init");
     BOOST_LOG_TRIVIAL(debug) << "Initialising beamformer pipeline";
     _header = header;
     _cb_handler.init(_header);
@@ -129,6 +132,8 @@ template <typename CBHandler,
 void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
     process()
 {
+    BOOST_LOG_NAMED_SCOPE("BeamformerPipeline::process");
+
     BOOST_LOG_TRIVIAL(debug) << "Executing beamforming pipeline";
 
     // Need to add the unix timestmap to the delay manager here
@@ -237,6 +242,7 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
 
         _timer.start("incoherent beam handler");
         _ib_handler(_tf_ib, dm_idx);
+        BOOST_LOG_TRIVIAL(info) << "Finished call to ib_handler";
         _timer.stop("incoherent beam handler");
     }
     _timer.start("statistics handler");
@@ -251,6 +257,7 @@ template <typename CBHandler,
 bool BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
 operator()(HostVoltageVectorType const& taftp_on_host)
 {
+    BOOST_LOG_NAMED_SCOPE("BeamformerPipeline::operator()");
     BOOST_LOG_TRIVIAL(debug) << "Pipeline operator() called with data: \n" << taftp_on_host.describe();
 
     _taftp_from_host.like(taftp_on_host);

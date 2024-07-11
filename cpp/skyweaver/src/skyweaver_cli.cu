@@ -8,6 +8,7 @@
 #include "skyweaver/PipelineConfig.hpp"
 #include "skyweaver/StatisticsCalculator.cuh"
 #include "skyweaver/DescribedVector.hpp"
+#include "skyweaver/logging.hpp"
 #include "thrust/host_vector.h"
 #include "thrust/device_vector.h"
 
@@ -71,6 +72,7 @@ void run_pipeline(Pipeline& pipeline, skyweaver::PipelineConfig& config){
         });
     taftp_input_voltage.frequencies(config.channel_frequencies());
     taftp_input_voltage.tsamp(header.obs_nchans / header.obs_bandwidth);
+    taftp_input_voltage.dms({0.0});
 
     std::size_t input_bytes = taftp_input_voltage.size() * sizeof(typename decltype(taftp_input_voltage)::value_type);
     pipeline.init(header);
@@ -258,7 +260,7 @@ int main(int argc, char** argv)
             // Logging options
             ("log-level",
              po::value<std::string>()->default_value("info")->notifier(
-                 [](std::string level) { psrdada_cpp::set_log_level(level); }),
+                 [](std::string level) { skyweaver::init_logging(level); }),
              "The logging level to use (debug, info, warning, error)");
 
         // set options allowed on command line
@@ -306,6 +308,7 @@ int main(int argc, char** argv)
         /**
          * All the application code goes here
          */
+        BOOST_LOG_NAMED_SCOPE("skyweaver_cli")
         BOOST_LOG_TRIVIAL(info)
             << "Initialising the skyweaver beamforming pipeline";
         if(config_file != "") {
@@ -320,7 +323,6 @@ int main(int argc, char** argv)
         BOOST_LOG_TRIVIAL(info) << "Coherent DMs: " << config.coherent_dms();
         BOOST_LOG_TRIVIAL(info) << "Gulp size: " << config.gulp_length_samps();
         BOOST_LOG_TRIVIAL(info) << config.ddplan();
-
         if (config.enable_incoherent_dedispersion())
         {
             if(config.stokes_mode() == "I") {

@@ -276,7 +276,7 @@ struct DescribedVector {
     DispersionMeasuresType const& dms() const {
         if (_dms_stale)
         {
-             throw std::runtime_error("Frequencies must be explicitly set before they can be used");
+             throw std::runtime_error("Dms must be explicitly set before they can be used");
          }
          return _dms;
     }
@@ -331,6 +331,7 @@ struct DescribedVector {
         stream << "  Coherent DM (pc cm^-3): " << reference_dm() << "\n";
         stream << "  Time resolution (s): " << _tsamp << "\n";
         stream << "  Time offset (s): " << _utc_offset << "\n";
+        stream << "  Stale frequencies: " << _frequencies_stale << "\n";
         stream << std::setprecision(6);
         return stream.str();
     }

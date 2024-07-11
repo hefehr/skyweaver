@@ -109,6 +109,7 @@ void CoherentDedisperser::dedisperse(
     unsigned int freq_idx,
     unsigned int dm_idx)
 {
+    BOOST_LOG_NAMED_SCOPE("CoherentDedisperser::dedisperse");
     d_fpa_spectra.resize(d_tpa_voltages_in.size(), {0.0f, 0.0f});
     d_tpa_voltages_temp.resize(d_tpa_voltages_in.size(), {0.0f, 0.0f});
     d_tpa_voltages_out_temp.resize(d_tpa_voltages_in.size(), {0.0f, 0.0f});

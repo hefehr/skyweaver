@@ -25,6 +25,8 @@
 #include <sys/types.h>
 #include <vector>
 #include <iomanip>
+#include <thread>
+#include <memory>
 
 #define BOOST_LOG_DYN_LINK 1
 
@@ -102,6 +104,8 @@ std::ostream& operator<<(std::ostream& os, const std::vector<float>& vec)
 template <class Pipeline>
 void run_pipeline(Pipeline& pipeline, skyweaver::PipelineConfig& config)
 {
+    using VoltageType = typename Pipeline::HostVoltageVectorType;
+
     BOOST_LOG_NAMED_SCOPE("run_pipeline");
     BOOST_LOG_TRIVIAL(debug) << "Executing pipeline";
     skyweaver::MultiFileReader file_reader(config);
@@ -109,20 +113,25 @@ void run_pipeline(Pipeline& pipeline, skyweaver::PipelineConfig& config)
     std::size_t input_elements = header.nantennas * config.nchans() *
                                  config.npol() * config.gulp_length_samps();
 
-    BOOST_LOG_TRIVIAL(debug) << "Allocating " << input_elements * sizeof(typename Pipeline::HostVoltageVectorType::value_type) << " byte input buffer";
-    typename Pipeline::HostVoltageVectorType taftp_input_voltage(
+    BOOST_LOG_TRIVIAL(debug) << "Allocating " << input_elements * sizeof(typename VoltageType::value_type) 
+                             << " byte input buffer";
+
+    std::unique_ptr<VoltageType> taftp_input_voltage_a = std::make_unique<VoltageType>();
+    taftp_input_voltage_a->resize(
         {config.gulp_length_samps() / config.nsamples_per_heap(), // T
          header.nantennas,                                        // A
          config.nchans(),                                         // F
          config.nsamples_per_heap(),                              // T
          config.npol()});
-    taftp_input_voltage.frequencies(config.channel_frequencies());
-    taftp_input_voltage.tsamp(header.obs_nchans / header.obs_bandwidth);
-    taftp_input_voltage.dms({0.0});
-    BOOST_LOG_TRIVIAL(debug) << "Input buffer: " << taftp_input_voltage.describe();
+    taftp_input_voltage_a->frequencies(config.channel_frequencies());
+    taftp_input_voltage_a->tsamp(header.obs_nchans / header.obs_bandwidth);
+    taftp_input_voltage_a->dms({0.0});
+    std::unique_ptr<VoltageType> taftp_input_voltage_b = std::make_unique<VoltageType>();
+    taftp_input_voltage_b->like(*taftp_input_voltage_a);
+    VoltageType const& taftp_input_voltage = *taftp_input_voltage_a;
+    BOOST_LOG_TRIVIAL(debug) << "Input buffer: " << taftp_input_voltage_a->describe();
     std::size_t input_bytes =
-        taftp_input_voltage.size() *
-        sizeof(typename decltype(taftp_input_voltage)::value_type);
+        taftp_input_voltage_a->size() * sizeof(typename VoltageType::value_type);
     pipeline.init(header);
     std::size_t total_bytes = file_reader.get_total_size();
     BOOST_LOG_TRIVIAL(info) << "Total input size (bytes): " << file_reader.get_total_size();
@@ -136,16 +145,34 @@ void run_pipeline(Pipeline& pipeline, skyweaver::PipelineConfig& config)
     float wall_time_elapsed = 0.0f;
     float real_time_fraction = 0.0;
     float percentage = 0.0f;
+    std::streamsize nbytes_read = 0;
+
+    // Populate buffer A
+    stopwatch.start("file read");
+    nbytes_read = file_reader.read(reinterpret_cast<char*>(
+        thrust::raw_pointer_cast(taftp_input_voltage_a->data())),
+                input_bytes);
+    stopwatch.stop("file read");
+    // A is full B is empty
     while(!file_reader.eof()) {
+        taftp_input_voltage_a.swap(taftp_input_voltage_b);
+        // B is full A is empty
+
+        // Here spawn a thread to read the next block to process
+        // Thread must write to buffer A
+        std::thread reader_thread([&]() {
+            nbytes_read = file_reader.read(reinterpret_cast<char*>(
+                thrust::raw_pointer_cast(taftp_input_voltage_a->data())),
+                                input_bytes);
+            BOOST_LOG_TRIVIAL(debug) << "read " << nbytes_read << " bytes from file"; 
+        });
+
         percentage = 100.0 * static_cast<float>(processed_bytes) / total_bytes;
-        stopwatch.start("file read");
-        std::streamsize nbytes_read =
-            file_reader.read(reinterpret_cast<char*>(thrust::raw_pointer_cast(
-                                 taftp_input_voltage.data())),
-                             input_bytes);
-        stopwatch.stop("file read");
-        pipeline(taftp_input_voltage);
-        data_time_elapsed += config.gulp_length_samps() * taftp_input_voltage.tsamp();
+        // Buffer B is full from the previous read and so is now ready to be processed
+        pipeline(*taftp_input_voltage_b);
+        // Buffer B is now finished processing and we can wait on the A read
+        reader_thread.join();
+        data_time_elapsed += config.gulp_length_samps() * taftp_input_voltage_a->tsamp();
         wall_time_elapsed = stopwatch.elapsed("processing_loop") / 1e6;
         real_time_fraction = data_time_elapsed / wall_time_elapsed;
         processed_bytes += input_bytes;

@@ -7,8 +7,9 @@ from __future__ import annotations
 import logging
 import textwrap
 import ctypes
-from typing import Self, Any
+from typing import Any
 from dataclasses import dataclass
+from typing_extensions import Self
 
 # 3rd party imports
 import h5py

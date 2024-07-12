@@ -6,6 +6,7 @@
 #include "skyweaver/IncoherentDedisperser.cuh"
 #include "skyweaver/ObservationHeader.hpp"
 #include "skyweaver/PipelineConfig.hpp"
+#include "skyweaver/Timer.hpp"
 
 #include <functional>
 #include <memory>
@@ -46,6 +47,7 @@ class IncoherentDedispersionPipeline
     AggBufferVector _agg_buffers;
     DedisperserVector _dedispersers;
     std::vector<OutputVectorType> _output_buffers;
+    Timer _timer;
 };
 
 } // namespace skyweaver

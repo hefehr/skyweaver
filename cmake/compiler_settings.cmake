@@ -6,7 +6,7 @@ if (NOT CMAKE_BUILD_TYPE)
 endif ()
 
 # Set compiler flags
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -fopenmp")
 
 set(ARCH "broadwell" CACHE STRING "target architecture (-march=native, x86-64), defautls to broadwell")
 

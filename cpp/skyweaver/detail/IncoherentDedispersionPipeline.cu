@@ -53,6 +53,7 @@ template <typename InputType, typename OutputType, typename Handler>
 IncoherentDedispersionPipeline<InputType, OutputType, Handler>::
     ~IncoherentDedispersionPipeline()
 {
+    _timer.show_all_timings();
 }
 
 template <typename InputType, typename OutputType, typename Handler>
@@ -62,7 +63,9 @@ void IncoherentDedispersionPipeline<InputType, OutputType, Handler>::
 {
     BOOST_LOG_TRIVIAL(debug)
         << "Agg buffer callback called for block_idx = " << block_idx;
+    _timer.start("incoherent dedispersion");
     _dedispersers[block_idx]->dedisperse(buffer, _output_buffers[block_idx]);
+    _timer.stop("incoherent dedispersion");
     BOOST_LOG_TRIVIAL(debug) << "Dedispersion complete, calling handler";
     BOOST_LOG_TRIVIAL(debug) << _output_buffers[block_idx].vector().size();
     auto const& plan = _config.ddplan();
@@ -76,8 +79,9 @@ void IncoherentDedispersionPipeline<InputType, OutputType, Handler>::
 
     BOOST_LOG_TRIVIAL(debug) << "Passing output buffer to handler: "
                             << _output_buffers[block_idx].describe();
-
+    _timer.start("file writing");
     _handler(_output_buffers[block_idx], block_idx);
+    _timer.stop("file writing");
 }
 
 template <typename InputType, typename OutputType, typename Handler>

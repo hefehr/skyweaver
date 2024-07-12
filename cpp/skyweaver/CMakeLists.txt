@@ -43,7 +43,7 @@ set(skyweaver_inc
 set(SKYWEAVER_LIBRARIES ${CMAKE_PROJECT_NAME} ${DEPENDENCY_LIBRARIES})
 # -- the main library target
 add_library(${CMAKE_PROJECT_NAME} ${skyweaver_src})
-target_link_libraries(${CMAKE_PROJECT_NAME} ${DEPENDENCY_LIBRARIES} -lcufft)
+target_link_libraries(${CMAKE_PROJECT_NAME} PUBLIC ${DEPENDENCY_LIBRARIES} ${CUDA_cufft_LIBRARY} OpenMP::OpenMP_CXX)
 target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>: ${CUDA_NVCC_FLAGS}>)
 
 IF (DEFINED SKYWEAVER_NANTENNAS)

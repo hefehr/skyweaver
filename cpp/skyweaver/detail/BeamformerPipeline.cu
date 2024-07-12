@@ -112,7 +112,7 @@ BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
     CUDA_ERROR_CHECK(cudaStreamDestroy(_h2d_copy_stream));
     CUDA_ERROR_CHECK(cudaStreamDestroy(_processing_stream));
     CUDA_ERROR_CHECK(cudaStreamDestroy(_d2h_copy_stream));
-    //_timer.show_all_timings();
+    _timer.show_all_timings();
 }
 
 template <typename CBHandler,
@@ -158,7 +158,7 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
                                                     _unix_timestamp,
                                                     _delay_manager->epoch());
     _timer.stop("calculate weights");
-    // BOOST_LOG_TRIVIAL(info) << "Peaking weights at epoch " <<
+    // BOOST_LOG_TRIVIAL(info) << "Peeking weights at epoch " <<
     // std::setprecision(15) <<  _unix_timestamp; peek(weights, weights.size());
 
     BOOST_LOG_TRIVIAL(debug)

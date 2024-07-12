@@ -1,0 +1,26 @@
+# Use the official Python 3.9 image from the Docker Hub
+FROM python:3.9-slim
+
+# Set the working directory in the container
+WORKDIR /app
+
+# Copy the requirements.txt file into the container
+COPY requirements.txt .
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libproj-dev \
+    proj-data \
+    proj-bin \
+    libgeos-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
+RUN pip install --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt \
+    && pip install --no-cache-dir mosaic@https://github.com/wchenastro/Mosaic/archive/refs/heads/master.zip#sha256=5d2a701fd151b26af26ef4f1acea3fae22dc9ff42a090e48838708a6af059242
+
+# Copy the rest of your application code into the container
+WORKDIR /usr/src/skyweaver
+COPY . .

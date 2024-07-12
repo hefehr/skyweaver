@@ -10,9 +10,11 @@
 #include "skyweaver/StatisticsCalculator.cuh"
 #include "skyweaver/Timer.hpp"
 #include "skyweaver/logging.hpp"
+#include "skyweaver/skyweaver_constants.hpp"
 #include "thrust/device_vector.h"
 #include "thrust/host_vector.h"
 
+#include <omp.h>
 #include <algorithm>
 #include <cerrno>
 #include <fstream>
@@ -22,6 +24,7 @@
 #include <string>
 #include <sys/types.h>
 #include <vector>
+#include <iomanip>
 
 #define BOOST_LOG_DYN_LINK 1
 
@@ -53,6 +56,36 @@ class NullHandler
         return false;
     };
 };
+
+const char * build_time = __DATE__ " " __TIME__;
+
+void display_constants() {
+    const int boxWidth = 53;
+    std::string border(boxWidth, '-');
+
+    auto print_str = [&](const std::string& label, std::string const& value) {
+        std::cout << "[ " << std::setw(boxWidth - 4 - value.size()) << std::left << label << value << " ]" << std::endl;
+    };
+    
+    auto print_int = [&](const std::string& label, int value) {
+        std::string value_str = std::to_string(value);
+        print_str(label, value_str);
+    };
+    
+    std::cout << border << std::endl;
+    print_str("Build date: ", build_time);
+    print_int("SKYWEAVER_NANTENNAS: ", SKYWEAVER_NANTENNAS);
+    print_int("SKYWEAVER_NCHANS: ", SKYWEAVER_NCHANS);
+    print_int("SKYWEAVER_NBEAMS: ", SKYWEAVER_NBEAMS);
+    print_int("SKYWEAVER_CB_TSCRUNCH: ", SKYWEAVER_CB_TSCRUNCH);
+    print_int("SKYWEAVER_CB_FSCRUNCH: ", SKYWEAVER_CB_FSCRUNCH);
+    print_int("SKYWEAVER_IB_TSCRUNCH: ", SKYWEAVER_IB_TSCRUNCH);
+    print_int("SKYWEAVER_IB_FSCRUNCH: ", SKYWEAVER_IB_FSCRUNCH);
+    print_int("SKYWEAVER_IB_SUBTRACTION: ", SKYWEAVER_IB_SUBTRACTION);
+    std::cout << border << std::endl;
+    std::cout << std::endl;
+}
+
 } // namespace
 
 // This patching of the << operator is required to allow
@@ -76,7 +109,7 @@ void run_pipeline(Pipeline& pipeline, skyweaver::PipelineConfig& config)
     std::size_t input_elements = header.nantennas * config.nchans() *
                                  config.npol() * config.gulp_length_samps();
 
-    BOOST_LOG_TRIVIAL(debug) << "Building input buffer";
+    BOOST_LOG_TRIVIAL(debug) << "Allocating " << input_elements * sizeof(typename Pipeline::HostVoltageVectorType::value_type) << " byte input buffer";
     typename Pipeline::HostVoltageVectorType taftp_input_voltage(
         {config.gulp_length_samps() / config.nsamples_per_heap(), // T
          header.nantennas,                                        // A
@@ -95,8 +128,7 @@ void run_pipeline(Pipeline& pipeline, skyweaver::PipelineConfig& config)
     BOOST_LOG_TRIVIAL(info) << "Total input size (bytes): " << file_reader.get_total_size();
     // TODO: Add a parameter to PipelineConfig for start sample? time?
     // TODO: Add a parameter to PipelineConfig for nsamples? duration?
-    // TODO: Fix the issue where the output directory doesn't exist
-
+    omp_set_num_threads(16);
     skyweaver::Timer stopwatch;
     stopwatch.start("processing_loop");
     std::size_t processed_bytes = 0;
@@ -106,10 +138,12 @@ void run_pipeline(Pipeline& pipeline, skyweaver::PipelineConfig& config)
     float percentage = 0.0f;
     while(!file_reader.eof()) {
         percentage = 100.0 * static_cast<float>(processed_bytes) / total_bytes;
+        stopwatch.start("file read");
         std::streamsize nbytes_read =
             file_reader.read(reinterpret_cast<char*>(thrust::raw_pointer_cast(
                                  taftp_input_voltage.data())),
                              input_bytes);
+        stopwatch.stop("file read");
         pipeline(taftp_input_voltage);
         data_time_elapsed += config.gulp_length_samps() * taftp_input_voltage.tsamp();
         wall_time_elapsed = stopwatch.elapsed("processing_loop") / 1e6;
@@ -121,6 +155,8 @@ void run_pipeline(Pipeline& pipeline, skyweaver::PipelineConfig& config)
                                 << "Realtime fraction: " << real_time_fraction;
 
     }
+    stopwatch.stop("processing_loop");
+    stopwatch.show_all_timings();
 }
 
 template <typename BfTraits, bool enable_incoherent_dedispersion>
@@ -169,6 +205,7 @@ void setup_pipeline(skyweaver::PipelineConfig& config)
 int main(int argc, char** argv)
 {
     std::cout << skyweaver_splash;
+    display_constants();
 
     try {
         skyweaver::PipelineConfig config;
@@ -293,6 +330,12 @@ int main(int argc, char** argv)
                      config.stokes_mode(stokes);
                  }),
              "The Stokes mode to use, can be either I, Q, U, V or IQUV")
+
+            // Logging options
+            ("nthreads",
+             po::value<std::size_t>()->default_value(16)->notifier(
+                 [](std::size_t nthreads) { omp_set_num_threads(nthreads); }),
+             "The number of threads to use for incoherent dedispersion")
 
             // Logging options
             ("log-level",

@@ -4,10 +4,10 @@ include_directories(${CUDA_TOOLKIT_INCLUDE})
 set(CUDA_HOST_COMPILER ${CMAKE_CXX_COMPILER})
 set(CUDA_PROPAGATE_HOST_FLAGS OFF)
 
-list(APPEND CUDA_NVCC_FLAGS --std=c++${CMAKE_CXX_STANDARD} --expt-extended-lambda --expt-relaxed-constexpr -Wno-deprecated-gpu-targets -Xcudafe="--diag_suppress=20012" -Xcudafe="--diag_suppress=20208")
+list(APPEND CUDA_NVCC_FLAGS --std=c++${CMAKE_CXX_STANDARD} --expt-extended-lambda --expt-relaxed-constexpr -Wno-deprecated-gpu-targets -Xcudafe="--diag_suppress=20012" -Xcudafe="--diag_suppress=20208" -Xcompiler="-fopenmp")
 #list(APPEND CUDA_NVCC_FLAGS_DEBUG -g -G -O2 -Xcompiler "-Wextra" --Werror all-warnings)
 list(APPEND CUDA_NVCC_FLAGS_DEBUG -g -G -O2)
-list(APPEND CUDA_NVCC_FLAGS_PROFILE --generate-line-info)
+list(APPEND CUDA_NVCC_FLAGS_PROFILE --generate-line-info -O3 -use_fast_math -restrict)
 list(APPEND CUDA_NVCC_FLAGS_RELEASE -O3 -use_fast_math -restrict)
 #list(APPEND CUDA_NVCC_FLAGS_RELEASE -gencode=arch=compute_61,code=sm_61) # Titan X Pascal
 #list(APPEND CUDA_NVCC_FLAGS_RELEASE -gencode=arch=compute_75,code=sm_75) # GeForce 2080
@@ -20,6 +20,7 @@ if(CUDA_VERSION GREATER_EQUAL 11.8)
     message(STATUS  "Enabling device specific (arch=89)")
     list(APPEND CUDA_NVCC_FLAGS_RELEASE -gencode=arch=compute_89,code=sm_89) # L40
     list(APPEND CUDA_NVCC_FLAGS_DEBUG -gencode=arch=compute_89,code=sm_89) # L40
+    list(APPEND CUDA_NVCC_FLAGS_PROFILE -gencode=arch=compute_89,code=sm_89) # L40
 endif(CUDA_VERSION GREATER_EQUAL 11.8)
 
 # There is some kind of bug here, as setting CMAKE_CUDA_ARCHITECTURES

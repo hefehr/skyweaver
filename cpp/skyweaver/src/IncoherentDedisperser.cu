@@ -84,33 +84,37 @@ void IncoherentDedisperser::dedisperse<InputVectorType, OutputVectorType>(
             "(nsamples - max_delay) must be a multiple of tscrunch;");
     }
     tdb_powers.resize({(nsamples - _max_delay) / _tscrunch, ndms, nbeams});
-    AccumulatorVectorType powers(nbeams);
-    for(int t_idx = _max_delay; t_idx < nsamples; t_idx += _tscrunch) {
-        int t_output_offset = (t_idx - _max_delay) / _tscrunch * nbeams * ndms;
-        for(int dm_idx = 0; dm_idx < ndms; ++dm_idx) {
-            int offset = nchans * dm_idx;
-            std::fill(
-                powers.begin(),
-                powers.end(),
-                value_traits<typename decltype(powers)::value_type>::zero());
-            for(int tsub_idx = 0; tsub_idx < _tscrunch; ++tsub_idx) {
-                for(int f_idx = 0; f_idx < nchans; ++f_idx) {
-                    int idx =
-                        ((t_idx + tsub_idx) - _delays[offset + f_idx]) * bf +
-                        f_idx * nbeams;
-                    for(int b_idx = 0; b_idx < nbeams; ++b_idx) {
-                        powers[b_idx] += tfb_powers[idx + b_idx];
-                    }
-                }
-                int output_offset = t_output_offset + dm_idx * nbeams;
-                std::transform(
+    #pragma omp parallel
+    {
+        AccumulatorVectorType powers(nbeams); // Once per thread
+        #pragma omp for
+        for(int t_idx = _max_delay; t_idx < nsamples; t_idx += _tscrunch) {
+            int t_output_offset = (t_idx - _max_delay) / _tscrunch * nbeams * ndms;
+            for(int dm_idx = 0; dm_idx < ndms; ++dm_idx) {
+                int offset = nchans * dm_idx;
+                std::fill(
                     powers.begin(),
                     powers.end(),
-                    tdb_powers.begin() + output_offset,
-                    [this](AccumulatorType const& value) {
-                        return clamp<typename OutputVectorType::value_type>(
-                            value / _scale_factor);
-                    });
+                    value_traits<typename decltype(powers)::value_type>::zero());
+                for(int tsub_idx = 0; tsub_idx < _tscrunch; ++tsub_idx) {
+                    for(int f_idx = 0; f_idx < nchans; ++f_idx) {
+                        int idx =
+                            ((t_idx + tsub_idx) - _delays[offset + f_idx]) * bf +
+                            f_idx * nbeams;
+                        for(int b_idx = 0; b_idx < nbeams; ++b_idx) {
+                            powers[b_idx] += tfb_powers[idx + b_idx];
+                        }
+                    }
+                    int output_offset = t_output_offset + dm_idx * nbeams;
+                    std::transform(
+                        powers.begin(),
+                        powers.end(),
+                        tdb_powers.begin() + output_offset,
+                        [this](AccumulatorType const& value) {
+                            return clamp<typename OutputVectorType::value_type>(
+                                value / _scale_factor);
+                        });
+                }
             }
         }
     }

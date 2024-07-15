@@ -2,6 +2,8 @@
 #define SKYWEAVER_AGGREGATIONBUFFER_CUH
 
 #include "thrust/host_vector.h"
+#include <thrust/mr/universal_memory_resource.h>
+#include <thrust/mr/allocator.h>
 
 #include <algorithm>
 #include <functional>
@@ -21,7 +23,9 @@ template <typename T>
 class AggregationBuffer
 {
   public:
-    typedef thrust::host_vector<T> BufferType;
+    typedef thrust::universal_host_pinned_memory_resource MemoryResource;
+    typedef thrust::mr::stateless_resource_allocator<T, MemoryResource> Allocator;
+    typedef thrust::host_vector<T, Allocator> BufferType;
     typedef std::function<void(BufferType const&)> DispatchCallback;
 
   public:

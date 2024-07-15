@@ -142,7 +142,7 @@ MultiFileWriter<VectorType>::create_stream(VectorType const& stream_data,
             header_writer.set<std::size_t>("NSAMP", stream_data.nsamples());
             if(stream_data.ndms()) {
                 header_writer.set<std::size_t>("NDMS", stream_data.ndms());
-                header_writer.set("DMS", stream_data.dms(), 3);
+                header_writer.set("DMS", stream_data.dms(), 7);
             }
             header_writer.set<long double>(
                 "COHERENT_DM",
@@ -221,7 +221,7 @@ bool MultiFileWriter<VectorType>::operator()(VectorType const& stream_data,
                         sizeof(typename VectorType::value_type));
     } else {
         _file_streams.at(stream_idx)
-            ->write(reinterpret_cast<char const*>(stream_data.data()),
+            ->write(reinterpret_cast<char const*>(thrust::raw_pointer_cast(stream_data.data())),
                     stream_data.size() *
                         sizeof(typename VectorType::value_type));
     }

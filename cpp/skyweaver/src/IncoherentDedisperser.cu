@@ -121,13 +121,13 @@ void IncoherentDedisperser::dedisperse<InputVectorType, OutputVectorType>(
 }
 
 // This is the set of explicitly supported template arguments
-template void IncoherentDedisperser::dedisperse<thrust::host_vector<int8_t>,
+template void IncoherentDedisperser::dedisperse<thrust::host_vector<int8_t, PinnedAllocator<int8_t>>,
                                                 TDBPowersH<int8_t>>(
-    thrust::host_vector<int8_t> const& tfb_powers,
+    thrust::host_vector<int8_t, PinnedAllocator<int8_t>> const& tfb_powers,
     TDBPowersH<int8_t>& tdb_powers);
-template void IncoherentDedisperser::dedisperse<thrust::host_vector<char4>,
+template void IncoherentDedisperser::dedisperse<thrust::host_vector<char4, PinnedAllocator<char4>>,
                                                 TDBPowersH<char4>>(
-    thrust::host_vector<char4> const& tfb_powers,
+    thrust::host_vector<char4, PinnedAllocator<char4>> const& tfb_powers,
     TDBPowersH<char4>& tdb_powers);
 
 } // namespace skyweaver

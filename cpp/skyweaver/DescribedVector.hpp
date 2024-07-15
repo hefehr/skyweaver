@@ -3,6 +3,8 @@
 
 #include "thrust/device_vector.h"
 #include "thrust/host_vector.h"
+#include <thrust/mr/universal_memory_resource.h>
+#include <thrust/mr/allocator.h>
 
 #include <initializer_list>
 #include <iomanip>
@@ -570,9 +572,14 @@ struct is_device_vector<
     DescribedVector<thrust::device_vector<T, Alloc>, Dims...>>: std::true_type {
 };
 
+using MemoryResource = thrust::universal_host_pinned_memory_resource;
+
+template <typename T>
+using PinnedAllocator = thrust::mr::stateless_resource_allocator<T, MemoryResource>;
+
 // Pipeline inputs
 template <typename T>
-using TAFTPVoltagesH = DescribedVector<thrust::host_vector<T>,
+using TAFTPVoltagesH = DescribedVector<thrust::host_vector<T, PinnedAllocator<T> >,
                                        TimeDim,
                                        AntennaDim,
                                        FreqDim,
@@ -587,7 +594,7 @@ using TAFTPVoltagesD = DescribedVector<thrust::device_vector<T>,
                                        PolnDim>;
 // Beamformer inputs
 template <typename T>
-using FTPAVoltagesH = DescribedVector<thrust::host_vector<T>,
+using FTPAVoltagesH = DescribedVector<thrust::host_vector<T, PinnedAllocator<T> >,
                                       FreqDim,
                                       TimeDim,
                                       PolnDim,
@@ -601,35 +608,35 @@ using FTPAVoltagesD = DescribedVector<thrust::device_vector<T>,
 // Coherent dedisperser inputs
 template <typename T>
 using TPAVoltagesH =
-    DescribedVector<thrust::host_vector<T>, TimeDim, PolnDim, AntennaDim>;
+    DescribedVector<thrust::host_vector<T, PinnedAllocator<T> >, TimeDim, PolnDim, AntennaDim>;
 template <typename T>
 using TPAVoltagesD =
     DescribedVector<thrust::device_vector<T>, TimeDim, PolnDim, AntennaDim>;
 // Coherent beamformer outputs
 template <typename T>
 using TFBPowersH =
-    DescribedVector<thrust::host_vector<T>, TimeDim, FreqDim, BeamDim>;
+    DescribedVector<thrust::host_vector<T, PinnedAllocator<T> >, TimeDim, FreqDim, BeamDim>;
 template <typename T>
 using TFBPowersD =
     DescribedVector<thrust::device_vector<T>, TimeDim, FreqDim, BeamDim>;
 // Incoherent beamformer outputs
 template <typename T>
 using BTFPowersH =
-    DescribedVector<thrust::host_vector<T>, BeamDim, TimeDim, FreqDim>;
+    DescribedVector<thrust::host_vector<T, PinnedAllocator<T> >, BeamDim, TimeDim, FreqDim>;
 template <typename T>
 using BTFPowersD =
     DescribedVector<thrust::device_vector<T>, BeamDim, TimeDim, FreqDim>;
 // Incoherent dedisperser outputs
 template <typename T>
 using TDBPowersH =
-    DescribedVector<thrust::host_vector<T>, TimeDim, DispersionDim, BeamDim>;
+    DescribedVector<thrust::host_vector<T, PinnedAllocator<T> >, TimeDim, DispersionDim, BeamDim>;
 template <typename T>
 using TDBPowersD =
     DescribedVector<thrust::device_vector<T>, TimeDim, DispersionDim, BeamDim>;
 // Statistics outputs
 template <typename T>
 using FPAStatsH =
-    DescribedVector<thrust::host_vector<T>, FreqDim, PolnDim, AntennaDim>;
+    DescribedVector<thrust::host_vector<T, PinnedAllocator<T> >, FreqDim, PolnDim, AntennaDim>;
 template <typename T>
 using FPAStatsD =
     DescribedVector<thrust::device_vector<T>, FreqDim, PolnDim, AntennaDim>;

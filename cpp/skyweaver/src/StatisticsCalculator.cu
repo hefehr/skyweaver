@@ -17,19 +17,19 @@ namespace skyweaver
 namespace kernel
 {
 
-__device__ void accumulate(double power,
+__device__ void accumulate(float power,
                            long long& n,
-                           double& M1,
-                           double& M2,
-                           double& M3,
-                           double& M4)
+                           float& M1,
+                           float& M2,
+                           float& M3,
+                           float& M4)
 {
     long long n1 = n;
     n++;
-    double delta    = power - M1;
-    double delta_n  = delta / n;
-    double delta_n2 = delta_n * delta_n;
-    double term1    = delta * delta_n * n1;
+    float delta    = power - M1;
+    float delta_n  = delta / n;
+    float delta_n2 = delta_n * delta_n;
+    float term1    = delta * delta_n * n1;
     M1 += delta_n;
     M4 += term1 * delta_n2 * (n * n - 3 * n + 3) + 6 * delta_n2 * M2 -
           4 * delta_n * M3;
@@ -65,13 +65,13 @@ __global__ void calculate_statistics(char2 const* __restrict__ ftpa_voltages,
     const int offset =
         channel_idx * tpa_size + pol_idx * nantennas + antenna_idx;
     const int stride = npol * nantennas;
-    double M1 = 0.0, M2 = 0.0, M3 = 0.0, M4 = 0.0;
+    float M1 = 0.0, M2 = 0.0, M3 = 0.0, M4 = 0.0;
     long long n = 0;
     for(int sample_idx = offset; sample_idx < (tpa_size + offset);
         sample_idx += stride) {
         char2 data = ftpa_voltages[sample_idx];
-        accumulate(static_cast<double>(data.x), n, M1, M2, M3, M4);
-        accumulate(static_cast<double>(data.y), n, M1, M2, M3, M4);
+        accumulate(static_cast<float>(data.x), n, M1, M2, M3, M4);
+        accumulate(static_cast<float>(data.y), n, M1, M2, M3, M4);
     }
 
     // Output is ordered in FPA order
@@ -80,8 +80,8 @@ __global__ void calculate_statistics(char2 const* __restrict__ ftpa_voltages,
     Statistics* output = &results[output_idx];
     output->mean       = M1;
     output->std        = sqrt(M2 / (n - 1.0));
-    output->skew       = sqrt((double)n) * M3 / pow(M2, 1.5);
-    output->kurtosis   = (double)n * M4 / (M2 * M2) - 3.0;
+    output->skew       = sqrt((float)n) * M3 / pow(M2, 1.5);
+    output->kurtosis   = (float)n * M4 / (M2 * M2) - 3.0;
 }
 
 } // namespace kernel

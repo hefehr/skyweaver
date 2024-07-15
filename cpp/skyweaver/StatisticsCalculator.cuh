@@ -12,10 +12,10 @@ namespace skyweaver
 {
 
 struct Statistics {
-    double mean     = 0.0f;
-    double std      = 0.0f;
-    double skew     = 0.0f;
-    double kurtosis = 0.0f;
+    float mean     = 0.0f;
+    float std      = 0.0f;
+    float skew     = 0.0f;
+    float kurtosis = 0.0f;
 };
 
 inline std::ostream& operator<<(std::ostream& stream, Statistics const& val)

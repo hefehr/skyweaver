@@ -235,6 +235,13 @@ class PipelineConfig
      */
     void gulp_length_samps(std::size_t);
 
+
+    float start_time() const;
+    void start_time(float);
+
+    float duration() const;
+    void duration(float);
+
     /**
      * Below are methods to get and set the power scaling and offset in the
      * beamformer these are tricky parameters that need to be set correctly for
@@ -368,6 +375,8 @@ class PipelineConfig
     double _bw;
     mutable bool _channel_frequencies_stale;
     std::size_t _gulp_length_samps;
+    float _start_time;
+    float _duration;
     std::size_t _total_nchans;
     std::string _stokes_mode;
     float _output_level;

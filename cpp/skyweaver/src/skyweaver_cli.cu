@@ -27,6 +27,7 @@
 #include <iomanip>
 #include <thread>
 #include <memory>
+#include <limits>
 
 #define BOOST_LOG_DYN_LINK 1
 
@@ -115,7 +116,7 @@ void run_pipeline(Pipeline& pipeline, skyweaver::PipelineConfig& config)
 
     BOOST_LOG_TRIVIAL(debug) << "Allocating " << input_elements * sizeof(typename VoltageType::value_type) 
                              << " byte input buffer";
-
+    double tsamp = header.obs_nchans / header.obs_bandwidth;
     std::unique_ptr<VoltageType> taftp_input_voltage_a = std::make_unique<VoltageType>();
     taftp_input_voltage_a->resize(
         {config.gulp_length_samps() / config.nsamples_per_heap(), // T
@@ -124,7 +125,7 @@ void run_pipeline(Pipeline& pipeline, skyweaver::PipelineConfig& config)
          config.nsamples_per_heap(),                              // T
          config.npol()});
     taftp_input_voltage_a->frequencies(config.channel_frequencies());
-    taftp_input_voltage_a->tsamp(header.obs_nchans / header.obs_bandwidth);
+    taftp_input_voltage_a->tsamp(tsamp);
     taftp_input_voltage_a->dms({0.0});
     std::unique_ptr<VoltageType> taftp_input_voltage_b = std::make_unique<VoltageType>();
     taftp_input_voltage_b->like(*taftp_input_voltage_a);
@@ -134,10 +135,28 @@ void run_pipeline(Pipeline& pipeline, skyweaver::PipelineConfig& config)
         taftp_input_voltage_a->size() * sizeof(typename VoltageType::value_type);
     pipeline.init(header);
     std::size_t total_bytes = file_reader.get_total_size();
-    BOOST_LOG_TRIVIAL(info) << "Total input size (bytes): " << file_reader.get_total_size();
-    // TODO: Add a parameter to PipelineConfig for start sample? time?
-    // TODO: Add a parameter to PipelineConfig for nsamples? duration?
-    omp_set_num_threads(16);
+    BOOST_LOG_TRIVIAL(info) << "Total input size (bytes): " << total_bytes;
+
+
+    // Set the start offsets and adjust the total bytes
+    std::size_t bytes_per_sample = header.nantennas * config.nchans() * config.npol() * sizeof(char2);
+    std::size_t bytes_per_second = (1.0f/tsamp) * bytes_per_sample;
+
+    std::size_t offset_nsamps = static_cast<std::size_t>(config.start_time()/tsamp);
+    offset_nsamps = (offset_nsamps / config.nsamples_per_heap()) * config.nsamples_per_heap();
+    std::size_t offset_nbytes = offset_nsamps * bytes_per_sample;
+    BOOST_LOG_TRIVIAL(info) << "Starting at " << config.start_time() << " seconds into the observation";
+    BOOST_LOG_TRIVIAL(debug) << "Offsetting to byte " << offset_nbytes << " of the input data";
+    file_reader.seekg(offset_nbytes, std::ios::beg);
+
+    float total_duration = total_bytes / bytes_per_second;
+    float remaining_duration = total_duration - config.start_time();
+    if ((config.duration() < std::numeric_limits<float>::infinity()) &&
+        (config.duration() > remaining_duration)){
+            BOOST_LOG_TRIVIAL(warning) << "Requested duration is longer than the remaining input length";
+        }
+    remaining_duration = std::min(remaining_duration, config.duration());
+
     skyweaver::Timer stopwatch;
     stopwatch.start("processing_loop");
     std::size_t processed_bytes = 0;
@@ -166,13 +185,12 @@ void run_pipeline(Pipeline& pipeline, skyweaver::PipelineConfig& config)
                                 input_bytes);
             BOOST_LOG_TRIVIAL(debug) << "read " << nbytes_read << " bytes from file"; 
         });
-
-        percentage = 100.0 * static_cast<float>(processed_bytes) / total_bytes;
         // Buffer B is full from the previous read and so is now ready to be processed
         pipeline(*taftp_input_voltage_b);
         // Buffer B is now finished processing and we can wait on the A read
         reader_thread.join();
         data_time_elapsed += config.gulp_length_samps() * taftp_input_voltage_a->tsamp();
+        percentage = std::min(100.0f * data_time_elapsed / remaining_duration, 100.0f);
         wall_time_elapsed = stopwatch.elapsed("processing_loop") / 1e6;
         real_time_fraction = data_time_elapsed / wall_time_elapsed;
         processed_bytes += input_bytes;
@@ -180,7 +198,9 @@ void run_pipeline(Pipeline& pipeline, skyweaver::PipelineConfig& config)
                                 << percentage << "%, Data time: " << data_time_elapsed 
                                 << " s, Wall time: " << wall_time_elapsed << ", "
                                 << "Realtime fraction: " << real_time_fraction;
-
+        if (data_time_elapsed >= config.duration()){
+            break;
+        }
     }
     stopwatch.stop("processing_loop");
     stopwatch.show_all_timings();
@@ -324,12 +344,26 @@ int main(int argc, char** argv)
              "(<coherent_dm>:<tscrunch>) "
              "or (<coherent_dm>)")
 
-                ("enable-incoherent-dedispersion",
-                 po::value<bool>()->default_value(true)->notifier(
-                     [&config](bool const& enable) {
-                         config.enable_incoherent_dedispersion(enable);
-                     }),
-                 "Turn on/off incoherent dedispersion after beamforming")
+            ("enable-incoherent-dedispersion",
+                po::value<bool>()->default_value(true)->notifier(
+                    [&config](bool const& enable) {
+                        config.enable_incoherent_dedispersion(enable);
+                    }),
+                "Turn on/off incoherent dedispersion after beamforming")
+
+            ("start-time",
+                po::value<float>()->default_value(0.0f)->notifier(
+                    [&config](float const& start_time) {
+                        config.start_time(start_time);
+                    }),
+                "Time since start of the data stream from which to start processing (seconds)")
+
+            ("duration",
+                po::value<float>()->default_value(std::numeric_limits<float>::infinity())->notifier(
+                    [&config](float const& duration) {
+                        config.duration(duration);
+                    }),
+                "Number of seconds of data to process")
 
             // Number of samples to read in each gulp
             ("gulp-size",
@@ -338,7 +372,7 @@ int main(int argc, char** argv)
                  ->notifier([&config](std::size_t const& gulp_size) {
                      // Round off to next multiple of 256
                      if(gulp_size % config.nsamples_per_heap() != 0) {
-                         BOOST_LOG_TRIVIAL(debug)
+                         BOOST_LOG_TRIVIAL(warning)
                              << "Rounding up gulp-size to next multiple of 256";
                          config.gulp_length_samps(
                              (gulp_size / config.nsamples_per_heap()) *

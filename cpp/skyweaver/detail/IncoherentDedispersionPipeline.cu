@@ -58,7 +58,7 @@ IncoherentDedispersionPipeline<InputType, OutputType, Handler>::
 
 template <typename InputType, typename OutputType, typename Handler>
 void IncoherentDedispersionPipeline<InputType, OutputType, Handler>::
-    agg_buffer_callback(typename InputVectorType::VectorType const& buffer,
+    agg_buffer_callback(typename InputVectorTypeH::VectorType const& buffer,
                         std::size_t block_idx)
 {
     BOOST_LOG_TRIVIAL(debug)

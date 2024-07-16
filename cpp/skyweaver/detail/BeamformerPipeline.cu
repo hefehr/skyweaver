@@ -48,7 +48,7 @@ BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
                        StatsHandler& stats_handler)
     : _config(config), _nbeamsets(0), _cb_handler(cb_handler),
       _ib_handler(ib_handler), _stats_handler(stats_handler),
-      _unix_timestamp(0.0), _call_count(0)
+      _unix_timestamp(0.0), _call_count(0), _utc_offset(0.0)
 {   
     if (_config.coherent_dms().empty())
     {
@@ -127,12 +127,13 @@ template <typename CBHandler,
           typename StatsHandler,
           typename BeamformerTraits>
 void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
-    init(ObservationHeader const& header)
+    init(ObservationHeader const& header, long double utc_offset)
 {
     NVTX_RANGE_PUSH("BeamformerPipeline initialisation");
     BOOST_LOG_NAMED_SCOPE("BeamformerPipeline::init");
     BOOST_LOG_TRIVIAL(debug) << "Initialising beamformer pipeline";
     _header = header;
+    _utc_offset = utc_offset;
     _cb_handler.init(_header);
     _ib_handler.init(_header);
     _stats_handler.init(_header);
@@ -322,7 +323,7 @@ operator()(HostVoltageVectorType const& taftp_on_host)
     _unix_timestamp =
         _header.utc_start +
         static_cast<long double>(_call_count * _sample_clock_tick_per_block) /
-            _header.sample_clock;
+            _header.sample_clock + _utc_offset;
     process();
     CUDA_ERROR_CHECK(cudaStreamSynchronize(_processing_stream));
     CUDA_ERROR_CHECK(cudaStreamSynchronize(_d2h_copy_stream));

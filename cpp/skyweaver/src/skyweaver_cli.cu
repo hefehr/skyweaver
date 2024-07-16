@@ -134,7 +134,7 @@ void run_pipeline(Pipeline& pipeline, skyweaver::PipelineConfig& config, skyweav
     BOOST_LOG_TRIVIAL(debug) << "Input buffer: " << taftp_input_voltage_a->describe();
     std::size_t input_bytes =
         taftp_input_voltage_a->size() * sizeof(typename VoltageType::value_type);
-    pipeline.init(header);
+    
     NVTX_RANGE_PUSH("Getting total file size");
     std::size_t total_bytes = file_reader.get_total_size();
     BOOST_LOG_TRIVIAL(info) << "Total input size (bytes): " << total_bytes;
@@ -143,9 +143,9 @@ void run_pipeline(Pipeline& pipeline, skyweaver::PipelineConfig& config, skyweav
     // Set the start offsets and adjust the total bytes
     std::size_t bytes_per_sample = header.nantennas * config.nchans() * config.npol() * sizeof(char2);
     std::size_t bytes_per_second = (1.0f/tsamp) * bytes_per_sample;
-
     std::size_t offset_nsamps = static_cast<std::size_t>(config.start_time()/tsamp);
     offset_nsamps = (offset_nsamps / config.nsamples_per_heap()) * config.nsamples_per_heap();
+    pipeline.init(header, offset_nsamps * tsamp);
     std::size_t offset_nbytes = offset_nsamps * bytes_per_sample;
     BOOST_LOG_TRIVIAL(info) << "Starting at " << config.start_time() << " seconds into the observation";
     BOOST_LOG_TRIVIAL(debug) << "Offsetting to byte " << offset_nbytes << " of the input data";

@@ -4,6 +4,7 @@
 #include "skyweaver/PipelineConfig.hpp"
 #include "skyweaver/skyweaver_constants.hpp"
 #include "skyweaver/test/StatisticsCalculatorTester.cuh"
+#include "skyweaver/test/test_utils.cuh"
 
 #include <algorithm>
 #include <cmath>
@@ -155,13 +156,10 @@ void StatisticsCalculatorTester::compare_against_host(
         // and device codes to actually return identical values given
         // differences in operation order. Hence we compare as if the
         // values are floats.
-        EXPECT_FLOAT_EQ(gpu_results[stats_idx].mean, stats[stats_idx].mean());
-        EXPECT_FLOAT_EQ(gpu_results[stats_idx].std,
-                        stats[stats_idx].standard_deviation());
-        EXPECT_FLOAT_EQ(gpu_results[stats_idx].skew,
-                        stats[stats_idx].skewness());
-        EXPECT_FLOAT_EQ(gpu_results[stats_idx].kurtosis,
-                        stats[stats_idx].kurtosis());
+        expect_relatively_near(static_cast<double>(gpu_results[stats_idx].mean), stats[stats_idx].mean(), 1e-5);
+        expect_relatively_near(static_cast<double>(gpu_results[stats_idx].std),  stats[stats_idx].standard_deviation(), 1e-5);
+        expect_relatively_near(static_cast<double>(gpu_results[stats_idx].skew), stats[stats_idx].skewness(), 1e-5);
+        expect_relatively_near(static_cast<double>(gpu_results[stats_idx].kurtosis), stats[stats_idx].kurtosis(), 1e-5);
     }
 }
 

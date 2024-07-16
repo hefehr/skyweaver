@@ -92,11 +92,8 @@ IF (DEFINED SKYWEAVER_IB_FSCRUNCH)
 ENDIF (DEFINED SKYWEAVER_IB_FSCRUNCH)
 
 IF (DEFINED USE_NVTX)
-    message(STATUS "Compiling with USE_NVTX = 1")
-    target_compile_definitions(${CMAKE_PROJECT_NAME} PUBLIC USE_NVTX=1)
-ELSE()
-    message(STATUS "Compiling with USE_NVTX = 0")
-    target_compile_definitions(${CMAKE_PROJECT_NAME} PUBLIC USE_NVTX=0)
+    message(STATUS "Compiling with USE_NVTX = " ${USE_NVTX})
+    target_compile_definitions(${CMAKE_PROJECT_NAME} PUBLIC USE_NVTX=${USE_NVTX})
 ENDIF (DEFINED USE_NVTX)
 
 # CLI applications

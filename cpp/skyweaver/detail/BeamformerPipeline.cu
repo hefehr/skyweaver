@@ -50,6 +50,10 @@ BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
       _ib_handler(ib_handler), _stats_handler(stats_handler),
       _unix_timestamp(0.0), _call_count(0)
 {   
+    if (_config.coherent_dms().empty())
+    {
+        throw std::runtime_error("No DDPlan set for pipeline");
+    }
     NVTX_RANGE_PUSH("BeamformerPipeline construction");
     BOOST_LOG_NAMED_SCOPE("BeamformerPipeline::BeamformerPipeline");
     BOOST_LOG_TRIVIAL(debug) << "Constructing beanmformer pipeline";

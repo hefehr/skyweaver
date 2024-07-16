@@ -173,12 +173,11 @@ TEST_F(StatisticsCalculatorTester, test_normal_dist)
     thrust::random::normal_distribution<float> dist(0.0f, 20.0f);
     FTPAVoltagesH<char2> ftpa_voltages_h(
         {_config.nchans(), nsamples, _config.npol(), _config.nantennas()});
-    thrust::generate(ftpa_voltages_h.begin(), ftpa_voltages_h.end(), [&] {
-        char2 val;
+    for (auto& val: ftpa_voltages_h)
+    {
         val.x = static_cast<int8_t>(std::clamp(dist(rng), -127.0f, 127.0f));
         val.y = static_cast<int8_t>(std::clamp(dist(rng), -127.0f, 127.0f));
-        return val;
-    });
+    }
     FTPAVoltagesD<char2> ftpa_voltages = ftpa_voltages_h;
     StatisticsCalculator calculator(_config, _stream);
     calculator.calculate_statistics(ftpa_voltages);

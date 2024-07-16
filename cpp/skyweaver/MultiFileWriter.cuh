@@ -66,6 +66,8 @@ class MultiFileWriter
     bool has_stream(std::size_t stream_idx);
     FileStream& create_stream(VectorType const& stream_data,
                               std::size_t stream_idx);
+    std::string get_output_dir(VectorType const& stream_data,
+                               std::size_t stream_idx);
     std::string get_basefilename(VectorType const& stream_data,
                                  std::size_t stream_idx);
     std::string get_extension(VectorType const& stream_data);

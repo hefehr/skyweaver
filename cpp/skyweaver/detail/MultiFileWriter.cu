@@ -113,8 +113,9 @@ MultiFileWriter<VectorType>::create_stream(VectorType const& stream_data,
         stream_data.size();
     BOOST_LOG_TRIVIAL(debug)
         << "Maximum allowed file size = " << filesize << " bytes (+header)";
+
     _file_streams[stream_idx] = std::make_unique<FileStream>(
-        _config.output_dir(),
+        get_output_dir(stream_data, stream_idx),
         get_basefilename(stream_data, stream_idx),
         get_extension(stream_data),
         filesize,
@@ -176,6 +177,21 @@ MultiFileWriter<VectorType>::create_stream(VectorType const& stream_data,
 }
 
 template <typename VectorType>
+std::string 
+MultiFileWriter<VectorType>::get_output_dir(VectorType const& stream_data,
+                                              std::size_t stream_idx)
+{
+    // Output directory format
+    // <utcstart>/<freq:%f.02>/<stream_id>
+    std::stringstream output_dir;
+    output_dir << _config.output_dir() << "/" 
+               << get_formatted_time(_header.utc_start) << "/"
+               << std::setprecision(9) << _header.frequency << "/" 
+               << stream_idx << "/";
+    return output_dir.str();
+}
+
+template <typename VectorType>
 std::string
 MultiFileWriter<VectorType>::get_basefilename(VectorType const& stream_data,
                                               std::size_t stream_idx)
@@ -186,10 +202,12 @@ MultiFileWriter<VectorType>::get_basefilename(VectorType const& stream_data,
     if(!_config.output_file_prefix().empty()) {
         base_filename << _config.output_file_prefix() << "_";
     }
-    base_filename << get_formatted_time(_header.utc_start) << "_stream"
+    base_filename << get_formatted_time(_header.utc_start) << "_"
                   << stream_idx << "_" << std::fixed << std::setprecision(3)
                   << std::setfill('0') << std::setw(9)
-                  << stream_data.reference_dm();
+                  << stream_data.reference_dm() << "_"
+                  << std::setfill('0') << std::setw(9)
+                  << _header.frequency;
     if(!_tag.empty()) {
         base_filename << "_" << _tag;
     }

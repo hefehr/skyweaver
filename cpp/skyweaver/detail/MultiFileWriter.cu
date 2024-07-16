@@ -186,8 +186,8 @@ MultiFileWriter<VectorType>::get_output_dir(VectorType const& stream_data,
     std::stringstream output_dir;
     output_dir << _config.output_dir() << "/" 
                << get_formatted_time(_header.utc_start) << "/"
-               << std::setprecision(9) << _header.frequency << "/" 
-               << stream_idx << "/";
+               << std::fixed << std::setprecision(0) << std::setfill('0') << std::setw(9) << _header.frequency << "/" 
+               << stream_idx;
     return output_dir.str();
 }
 
@@ -206,7 +206,7 @@ MultiFileWriter<VectorType>::get_basefilename(VectorType const& stream_data,
                   << stream_idx << "_" << std::fixed << std::setprecision(3)
                   << std::setfill('0') << std::setw(9)
                   << stream_data.reference_dm() << "_"
-                  << std::setfill('0') << std::setw(9)
+                  << std::setprecision(0) << std::setfill('0') << std::setw(9)
                   << _header.frequency;
     if(!_tag.empty()) {
         base_filename << "_" << _tag;

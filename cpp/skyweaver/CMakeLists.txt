@@ -43,7 +43,12 @@ set(skyweaver_inc
 set(SKYWEAVER_LIBRARIES ${CMAKE_PROJECT_NAME} ${DEPENDENCY_LIBRARIES})
 # -- the main library target
 add_library(${CMAKE_PROJECT_NAME} ${skyweaver_src})
-target_link_libraries(${CMAKE_PROJECT_NAME} PUBLIC ${DEPENDENCY_LIBRARIES} ${CUDA_cufft_LIBRARY} OpenMP::OpenMP_CXX)
+target_link_libraries(${CMAKE_PROJECT_NAME} 
+    PUBLIC 
+    ${DEPENDENCY_LIBRARIES} 
+    ${CUDA_cufft_LIBRARY} 
+    ${CUDA_NVTOOLSEXT_LIB} 
+    OpenMP::OpenMP_CXX)
 target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>: ${CUDA_NVCC_FLAGS}>)
 
 IF (DEFINED SKYWEAVER_NANTENNAS)
@@ -86,9 +91,22 @@ IF (DEFINED SKYWEAVER_IB_FSCRUNCH)
     target_compile_definitions(${CMAKE_PROJECT_NAME} PUBLIC SKYWEAVER_IB_FSCRUNCH=${SKYWEAVER_IB_FSCRUNCH})
 ENDIF (DEFINED SKYWEAVER_IB_FSCRUNCH)
 
+IF (DEFINED USE_NVTX)
+    message(STATUS "Compiling with USE_NVTX = 1")
+    target_compile_definitions(${CMAKE_PROJECT_NAME} PUBLIC USE_NVTX=1)
+ELSE()
+    message(STATUS "Compiling with USE_NVTX = 0")
+    target_compile_definitions(${CMAKE_PROJECT_NAME} PUBLIC USE_NVTX=0)
+ENDIF (DEFINED USE_NVTX)
+
 # CLI applications
 cuda_add_executable(skyweavercpp src/skyweaver_cli.cu)
-target_link_libraries(skyweavercpp ${SKYWEAVER_LIBRARIES} ${DEPENDENCY_LIBRARIES} -lcufft)
+target_link_libraries(skyweavercpp 
+    ${SKYWEAVER_LIBRARIES} 
+    ${DEPENDENCY_LIBRARIES} 
+    ${CUDA_cufft_LIBRARY} 
+    ${CUDA_NVTOOLSEXT_LIB} 
+    OpenMP::OpenMP_CXX)
 install(TARGETS skyweavercpp DESTINATION bin)
 
 #install (TARGETS ... DESTINATION bin)

@@ -1,6 +1,7 @@
 #include "cuda.h"
 #include "psrdada_cpp/cuda_utils.hpp"
 #include "skyweaver/BeamformerPipeline.cuh"
+#include "skyweaver/nvtx_utils.h"
 
 #include <cstdlib>
 #include <exception>
@@ -48,7 +49,8 @@ BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
     : _config(config), _nbeamsets(0), _cb_handler(cb_handler),
       _ib_handler(ib_handler), _stats_handler(stats_handler),
       _unix_timestamp(0.0), _call_count(0)
-{
+{   
+    NVTX_RANGE_PUSH("BeamformerPipeline construction");
     BOOST_LOG_NAMED_SCOPE("BeamformerPipeline::BeamformerPipeline");
     BOOST_LOG_TRIVIAL(debug) << "Constructing beanmformer pipeline";
     std::size_t nsamples = _config.gulp_length_samps();
@@ -99,6 +101,7 @@ BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
     _nbeamsets = _delay_manager->nbeamsets();
     BOOST_LOG_TRIVIAL(debug)
         << "Delay model contains " << _nbeamsets << " beamsets";
+    NVTX_RANGE_POP();
 }
 
 template <typename CBHandler,
@@ -122,12 +125,14 @@ template <typename CBHandler,
 void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
     init(ObservationHeader const& header)
 {
+    NVTX_RANGE_PUSH("BeamformerPipeline initialisation");
     BOOST_LOG_NAMED_SCOPE("BeamformerPipeline::init");
     BOOST_LOG_TRIVIAL(debug) << "Initialising beamformer pipeline";
     _header = header;
     _cb_handler.init(_header);
     _ib_handler.init(_header);
     _stats_handler.init(_header);
+    NVTX_RANGE_POP();
 }
 
 template <typename CBHandler,
@@ -137,30 +142,33 @@ template <typename CBHandler,
 void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
     process()
 {
+    NVTX_RANGE_PUSH("BeamformerPipeline process");
     BOOST_LOG_NAMED_SCOPE("BeamformerPipeline::process");
-
     BOOST_LOG_TRIVIAL(debug) << "Executing beamforming pipeline";
-
-    // Need to add the unix timestmap to the delay manager here
-    // to fetch valid delays for this epoch.
+    
+    NVTX_RANGE_PUSH("Fetch delays");
     BOOST_LOG_TRIVIAL(debug) << "Checking for delay updates";
-
     _timer.start("fetch delays");
     auto const& delays = _delay_manager->delays(_unix_timestamp);
     _timer.stop("fetch delays");
+    NVTX_RANGE_POP();
 
-    // Stays the same
+    NVTX_RANGE_PUSH("Generate weights");
     BOOST_LOG_TRIVIAL(debug)
         << "Calculating weights at unix time: " << _unix_timestamp;
-
     _timer.start("calculate weights");
     auto const& weights = _weights_manager->weights(delays,
                                                     _unix_timestamp,
                                                     _delay_manager->epoch());
     _timer.stop("calculate weights");
+    NVTX_RANGE_POP();
+
+
+
     // BOOST_LOG_TRIVIAL(info) << "Peeking weights at epoch " <<
     // std::setprecision(15) <<  _unix_timestamp; peek(weights, weights.size());
 
+    NVTX_RANGE_PUSH("Transpose");
     BOOST_LOG_TRIVIAL(debug)
         << "Transposing input data from TAFTP to FTPA order";
     _timer.start("transpose TAFTP to FTPA");
@@ -170,18 +178,22 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
                            _processing_stream);
     _timer.stop("transpose TAFTP to FTPA");
     _ftpa_dedispersed.like(_ftpa_post_transpose);
-    // Stays the same
+    NVTX_RANGE_POP();
+
+    NVTX_RANGE_PUSH("Calculate statistics");
     BOOST_LOG_TRIVIAL(debug) << "Checking if channel statistics update request";
     _timer.start("calculate statistics");
     _stats_manager->calculate_statistics(_ftpa_post_transpose);
     _timer.stop("calculate statistics");
+    NVTX_RANGE_POP();
+    NVTX_RANGE_PUSH("Update scalings");
     if(_call_count == 0) {
         _timer.start("update scalings");
         _stats_manager->update_scalings(_delay_manager->beamset_weights(),
                                         _delay_manager->nbeamsets());
         _timer.stop("update scalings");
     }
-
+    NVTX_RANGE_POP();
     // BOOST_LOG_TRIVIAL(debug) << "Peeking the statistics";
     // peek(_stats_manager->statistics(), 64);
 
@@ -190,26 +202,35 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
 
     // BOOST_LOG_TRIVIAL(debug) << "peeking _ftpa_post_transpose";
     // peek(_ftpa_post_transpose);
-
+    NVTX_RANGE_PUSH("Hoard timeseries");
     _timer.start("dispenser hoarding");
     _dispenser->hoard(_ftpa_post_transpose);
     _timer.stop("dispenser hoarding");
+    NVTX_RANGE_POP();
 
+    NVTX_RANGE_PUSH("Coherent dedispersion - beamforming loop");
     for(unsigned int dm_idx = 0; dm_idx < _config.coherent_dms().size();
         ++dm_idx) {
+        
+        NVTX_RANGE_PUSH("Coherent dedispersion - all channels");
         _timer.start("coherent dedispersion");
         for(unsigned int freq_idx = 0; freq_idx < _config.nchans();
             ++freq_idx) {
+            NVTX_RANGE_PUSH("Coherent dedispersion - one channels");
             auto const& tpa_voltages = _dispenser->dispense(freq_idx);
             _coherent_dedisperser->dedisperse(tpa_voltages,
                                               _ftpa_dedispersed,
                                               freq_idx,
                                               dm_idx);
+            NVTX_RANGE_POP();
         }
         _timer.stop("coherent dedispersion");
+        NVTX_RANGE_POP();
 
         // BOOST_LOG_TRIVIAL(debug) << "peeking _ftpa_dedispersed";
         // peek(_ftpa_dedispersed);
+
+        NVTX_RANGE_PUSH("Incoherent beamforming");
         _timer.start("incoherent beamforming");
         _incoherent_beamformer->beamform(_ftpa_dedispersed,
                                          _tf_ib_raw,
@@ -220,10 +241,12 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
                                          _nbeamsets,
                                          _processing_stream);
         _timer.stop("incoherent beamforming");
+        NVTX_RANGE_POP();
 
         // BOOST_LOG_TRIVIAL(debug) << "peeking _tf_ib_raw";
         // peek(_tf_ib_raw);
 
+        NVTX_RANGE_PUSH("Coherent beamforming");
         _timer.start("coherent beamforming");
         _coherent_beamformer->beamform(_ftpa_dedispersed,
                                        weights,
@@ -235,21 +258,30 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
                                        _nbeamsets,
                                        _processing_stream);
         _timer.stop("coherent beamforming");
+        NVTX_RANGE_POP();
 
         // BOOST_LOG_TRIVIAL(debug) << "peeking _btf_cbs";
         // peek(_btf_cbs);
 
+        NVTX_RANGE_PUSH("Coherent beamformer handler");
         _timer.start("coherent beam handler");
         _cb_handler(_btf_cbs, dm_idx);
         _timer.stop("coherent beam handler");
+        NVTX_RANGE_POP();
 
+        NVTX_RANGE_PUSH("Incoherent beamformer handler");
         _timer.start("incoherent beam handler");
         _ib_handler(_tf_ib, dm_idx);
         _timer.stop("incoherent beam handler");
+        NVTX_RANGE_POP();
     }
+    NVTX_RANGE_POP();
+    NVTX_RANGE_PUSH("Stats handler");
     _timer.start("statistics handler");
     _stats_handler(_stats_manager->statistics());
     _timer.stop("statistics handler");
+    NVTX_RANGE_POP();
+    NVTX_RANGE_POP();
 }
 
 template <typename CBHandler,

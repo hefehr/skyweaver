@@ -13,6 +13,7 @@
 #include "skyweaver/skyweaver_constants.hpp"
 #include "thrust/device_vector.h"
 #include "thrust/host_vector.h"
+#include "skyweaver/nvtx_utils.h"
 
 #include <omp.h>
 #include <algorithm>
@@ -103,40 +104,41 @@ std::ostream& operator<<(std::ostream& os, const std::vector<float>& vec)
 } // namespace std
 
 template <class Pipeline>
-void run_pipeline(Pipeline& pipeline, skyweaver::PipelineConfig& config)
+void run_pipeline(Pipeline& pipeline, skyweaver::PipelineConfig& config, skyweaver::MultiFileReader& file_reader, skyweaver::ObservationHeader const& header)
 {
     using VoltageType = typename Pipeline::HostVoltageVectorType;
 
     BOOST_LOG_NAMED_SCOPE("run_pipeline");
     BOOST_LOG_TRIVIAL(debug) << "Executing pipeline";
-    skyweaver::MultiFileReader file_reader(config);
-    auto const& header         = file_reader.get_header();
     std::size_t input_elements = header.nantennas * config.nchans() *
                                  config.npol() * config.gulp_length_samps();
-
     BOOST_LOG_TRIVIAL(debug) << "Allocating " << input_elements * sizeof(typename VoltageType::value_type) 
                              << " byte input buffer";
     double tsamp = header.obs_nchans / header.obs_bandwidth;
+    NVTX_RANGE_PUSH("Input buffer initialisation");
     std::unique_ptr<VoltageType> taftp_input_voltage_a = std::make_unique<VoltageType>();
     taftp_input_voltage_a->resize(
         {config.gulp_length_samps() / config.nsamples_per_heap(), // T
          header.nantennas,                                        // A
          config.nchans(),                                         // F
          config.nsamples_per_heap(),                              // T
-         config.npol()});
+         config.npol()});                                         // P
     taftp_input_voltage_a->frequencies(config.channel_frequencies());
     taftp_input_voltage_a->tsamp(tsamp);
     taftp_input_voltage_a->dms({0.0});
     std::unique_ptr<VoltageType> taftp_input_voltage_b = std::make_unique<VoltageType>();
     taftp_input_voltage_b->like(*taftp_input_voltage_a);
+    NVTX_RANGE_POP();
+
     VoltageType const& taftp_input_voltage = *taftp_input_voltage_a;
     BOOST_LOG_TRIVIAL(debug) << "Input buffer: " << taftp_input_voltage_a->describe();
     std::size_t input_bytes =
         taftp_input_voltage_a->size() * sizeof(typename VoltageType::value_type);
     pipeline.init(header);
+    NVTX_RANGE_PUSH("Getting total file size");
     std::size_t total_bytes = file_reader.get_total_size();
     BOOST_LOG_TRIVIAL(info) << "Total input size (bytes): " << total_bytes;
-
+    NVTX_RANGE_POP();
 
     // Set the start offsets and adjust the total bytes
     std::size_t bytes_per_sample = header.nantennas * config.nchans() * config.npol() * sizeof(char2);
@@ -212,8 +214,10 @@ void setup_pipeline(skyweaver::PipelineConfig& config)
     BOOST_LOG_NAMED_SCOPE("setup_pipeline");
     BOOST_LOG_TRIVIAL(debug) << "Setting up the pipeline";
     // Update the config
+    NVTX_RANGE_PUSH("File reader initialisation and header fetch");
     skyweaver::MultiFileReader file_reader(config);
     auto const& header = file_reader.get_header();
+    NVTX_RANGE_POP();
     BOOST_LOG_TRIVIAL(debug) << "Validating headers and updating configuration";
     validate_header(header, config);
     update_config(config, header);
@@ -236,7 +240,7 @@ void setup_pipeline(skyweaver::PipelineConfig& config)
                                       decltype(stats_handler),
                                       BfTraits>
             pipeline(config, dispersion_pipeline, ib_handler, stats_handler);
-        run_pipeline(pipeline, config);
+        run_pipeline(pipeline, config, file_reader, header);
     } else {
         skyweaver::MultiFileWriter<skyweaver::TFBPowersD<OutputType>>
             cb_file_writer(config, "cb");
@@ -245,7 +249,7 @@ void setup_pipeline(skyweaver::PipelineConfig& config)
                                       decltype(stats_handler),
                                       BfTraits>
             pipeline(config, cb_file_writer, ib_handler, stats_handler);
-        run_pipeline(pipeline, config);
+        run_pipeline(pipeline, config, file_reader, header);
     }
 }
 
@@ -449,6 +453,7 @@ int main(int argc, char** argv)
         /**
          * All the application code goes here
          */
+        NVTX_MARKER("Application start");
         BOOST_LOG_NAMED_SCOPE("skyweaver_cli")
         BOOST_LOG_TRIVIAL(info)
             << "Initialising the skyweaver beamforming pipeline";

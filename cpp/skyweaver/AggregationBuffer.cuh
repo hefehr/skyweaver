@@ -4,7 +4,7 @@
 #include "thrust/host_vector.h"
 #include <thrust/mr/universal_memory_resource.h>
 #include <thrust/mr/allocator.h>
-
+#include "skyweaver/DescribedVector.hpp"
 #include <algorithm>
 #include <functional>
 
@@ -23,9 +23,7 @@ template <typename T>
 class AggregationBuffer
 {
   public:
-    typedef thrust::universal_host_pinned_memory_resource MemoryResource;
-    typedef thrust::mr::stateless_resource_allocator<T, MemoryResource> Allocator;
-    typedef thrust::host_vector<T, Allocator> BufferType;
+    typedef thrust::host_vector<T, PinnedAllocator<T>> BufferType;
     typedef std::function<void(BufferType const&)> DispatchCallback;
 
   public:
@@ -37,12 +35,12 @@ class AggregationBuffer
      *                       in units of the batch size
      * @param overlap_size   The overlap between subsequent blocks of data in units of 
      *                       the batch size
-     * @param slot_size      The batch size
+     * @param batch_size      The batch size
      */
     AggregationBuffer(DispatchCallback callback,
                       std::size_t dispatch_size,
                       std::size_t overlap_size = 0,
-                      std::size_t slot_size    = 1);
+                      std::size_t batch_size    = 1);
     
     /**
      * @brief Destroy the Aggregation Buffer object
@@ -73,7 +71,7 @@ class AggregationBuffer
     DispatchCallback _callback;
     std::size_t _dispatch_size;
     std::size_t _overlap_size;
-    std::size_t _slot_size;
+    std::size_t _batch_size;
     BufferType _buffer;
     typename BufferType::iterator _buffer_iter;
 };

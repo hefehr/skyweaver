@@ -1,6 +1,7 @@
 #include "skyweaver/DescribedVector.hpp"
 #include "skyweaver/test/CoherentDedisperserTester.cuh"
 #include "skyweaver/test/test_utils.cuh"
+#include "skyweaver/dedispersion_utils.cuh"
 
 namespace skyweaver
 {
@@ -29,15 +30,15 @@ void CoherentDedisperserTester::SetUp()
     nantennas        = 64;
     nchans           = 64;
     npols            = 2;
-    double f_low     = 856.0;
-    double bridge_bw = 13.375;
+    double f_low     = 856.0e6;
+    double bridge_bw = 13.375e6;
     double tsamp     = 4096 / 856e6;
 
     double f1     = f_low;
-    double f2     = f_low + 856.0 / 4096;
+    double f2     = f_low + 856.0e6 / 4096;
     double max_dm = *(std::max_element(dms.begin(), dms.end()));
 
-    double max_dm_delay = CoherentDedisperser::get_dm_delay(f1, f2, max_dm);
+    double max_dm_delay = dm_delay(f1, f2, max_dm);
     max_delay_samps     = std::ceil(max_dm_delay / tsamp);
 
     BOOST_LOG_TRIVIAL(info)

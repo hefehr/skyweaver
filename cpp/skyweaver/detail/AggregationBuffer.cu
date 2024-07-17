@@ -26,9 +26,9 @@ AggregationBuffer<T>::AggregationBuffer(DispatchCallback callback,
                                         std::size_t overlap_size,
                                         std::size_t batch_size)
     : _callback(callback), _dispatch_size(dispatch_size),
-      _overlap_size(overlap_size), _slot_size(batch_size)
+      _overlap_size(overlap_size), _batch_size(batch_size)
 {
-    _buffer.resize((_dispatch_size + _overlap_size) * _slot_size, T{});
+    _buffer.resize((_dispatch_size + _overlap_size) * _batch_size, T{});
     reset();
 }
 
@@ -50,11 +50,11 @@ void AggregationBuffer<T>::push_back(
     typename Container<T, A>::const_iterator begin,
     std::size_t size)
 {
-    if(size % _slot_size != 0) {
+    if(size % _batch_size != 0) {
         throw std::runtime_error(
             "input size is not a multiple of the slot size");
     }
-    std::size_t nslots_to_copy = size / _slot_size;
+    std::size_t nslots_to_copy = size / _batch_size;
     // BOOST_LOG_TRIVIAL(debug) << "Agg: nslots_to_copy = " << nslots_to_copy;
     while(nslots_to_copy > 0) {
         std::size_t rslots = remaining_slots();
@@ -62,7 +62,7 @@ void AggregationBuffer<T>::push_back(
         if(nslots_to_copy <= rslots) {
             // BOOST_LOG_TRIVIAL(debug) << "Agg: filling slots";
             _buffer_iter = thrust::copy(begin,
-                                        begin + (nslots_to_copy * _slot_size),
+                                        begin + (nslots_to_copy * _batch_size),
                                         _buffer_iter);
             if(nslots_to_copy == rslots) {
                 // BOOST_LOG_TRIVIAL(debug) << "Agg: slots copied, dispatching";
@@ -72,7 +72,7 @@ void AggregationBuffer<T>::push_back(
         } else {
             // BOOST_LOG_TRIVIAL(debug) << "Agg: filling all slots";
             std::size_t copy_size =
-                static_cast<std::size_t>(rslots) * _slot_size;
+                static_cast<std::size_t>(rslots) * _batch_size;
             _buffer_iter = thrust::copy(begin, begin + copy_size, _buffer_iter);
             // BOOST_LOG_TRIVIAL(debug) << "Agg: all slots full, dispatching";
             dispatch();
@@ -89,7 +89,7 @@ void AggregationBuffer<T>::dispatch()
     _callback(_buffer);
     reset();
     if(_overlap_size > 0) {
-        _buffer_iter = thrust::copy(_buffer.end() - (_overlap_size * _slot_size),
+        _buffer_iter = thrust::copy(_buffer.end() - (_overlap_size * _batch_size),
                                  _buffer.end(),
                                  _buffer_iter);
     }
@@ -100,7 +100,7 @@ std::size_t AggregationBuffer<T>::remaining_slots() const
 {
     typename BufferType::const_iterator iter = _buffer_iter;
     typename BufferType::difference_type rslots =
-        std::distance(iter, _buffer.cend()) / _slot_size;
+        std::distance(iter, _buffer.cend()) / _batch_size;
     if(rslots < 0) {
         throw std::runtime_error("Iterator beyond end of buffer");
     }

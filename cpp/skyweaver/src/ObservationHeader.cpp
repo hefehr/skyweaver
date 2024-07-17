@@ -64,6 +64,7 @@ void update_config(PipelineConfig& config, ObservationHeader const& header)
 {
     config.bandwidth(header.bandwidth);
     config.centre_frequency(header.frequency);
+    // TO DO: might need to add other variables in the future.
 }
 
 std::string ObservationHeader::to_string() const

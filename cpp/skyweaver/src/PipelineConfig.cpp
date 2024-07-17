@@ -9,14 +9,13 @@ namespace skyweaver
 
 PipelineConfig::PipelineConfig()
     : _input_files({}), _check_input_contiguity(false), _dada_header_size(4096),
-      _delay_file("delays.swd"), _output_dir("./"), _max_output_filesize(10000000000000),
+      _delay_file(""), _output_dir("./"), _max_output_filesize(10000000000000),
       _output_file_prefix(""), _dedisp_max_delay_samps(0),
       _enable_incoherent_dedispersion(true), _cfreq(1284000000.0),
       _bw(13375000.0), _channel_frequencies_stale(true),
       _gulp_length_samps(4096), _start_time(0.0f), _duration(std::numeric_limits<float>::infinity()),
        _total_nchans(4096), _stokes_mode("I"),
-      _output_level(24.0f), _cb_power_scaling(0.0f), _cb_power_offset(0.0f),
-      _ib_power_scaling(0.0f), _ib_power_offset(0.0f)
+      _output_level(24.0f)
 {
 }
 
@@ -79,9 +78,9 @@ void PipelineConfig::read_input_file_list(std::string filename)
     while(std::getline(ifs, line)) {
         BOOST_LOG_TRIVIAL(debug) << line;
         boost::algorithm::trim(line);
-        if(line[0] == '#') {
+        if(line[0] == '#' || line.empty()) {
             // Line is a comment
-            BOOST_LOG_TRIVIAL(debug) << "is a comment";
+            BOOST_LOG_TRIVIAL(debug) << "is a comment or empty";
             continue;
         } else {
             _input_files.push_back(line);

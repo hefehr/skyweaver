@@ -48,6 +48,7 @@ void IncoherentDedisperser::prepare()
     }
     auto it       = std::max_element(_delays.begin(), _delays.end());
     _max_delay    = *it;
+    // if RFI rejection is enabled based on kurtosis file, this is no longer valid, unless we replace with random noise
     _scale_factor = std::sqrt(_config.nchans() * _tscrunch);
 }
 

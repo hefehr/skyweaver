@@ -59,28 +59,28 @@ IncoherentDedispersionPipeline<InputType, OutputType, Handler>::
 template <typename InputType, typename OutputType, typename Handler>
 void IncoherentDedispersionPipeline<InputType, OutputType, Handler>::
     agg_buffer_callback(typename InputVectorTypeH::VectorType const& buffer,
-                        std::size_t block_idx)
+                        std::size_t ref_dm_idx)
 {
     BOOST_LOG_TRIVIAL(debug)
-        << "Agg buffer callback called for block_idx = " << block_idx;
+        << "Agg buffer callback called for ref_dm_idx = " << ref_dm_idx;
     _timer.start("incoherent dedispersion");
-    _dedispersers[block_idx]->dedisperse(buffer, _output_buffers[block_idx]);
+    _dedispersers[ref_dm_idx]->dedisperse(buffer, _output_buffers[ref_dm_idx]);
     _timer.stop("incoherent dedispersion");
     BOOST_LOG_TRIVIAL(debug) << "Dedispersion complete, calling handler";
-    BOOST_LOG_TRIVIAL(debug) << _output_buffers[block_idx].vector().size();
+    BOOST_LOG_TRIVIAL(debug) << _output_buffers[ref_dm_idx].vector().size();
     auto const& plan = _config.ddplan();
     // Set the correct tsamp on the block
-    _output_buffers[block_idx].tsamp(_output_buffers[block_idx].tsamp() *
-                                     plan[block_idx].tscrunch);
+    _output_buffers[ref_dm_idx].tsamp(_output_buffers[ref_dm_idx].tsamp() *
+                                     plan[ref_dm_idx].tscrunch);
     // Set the correct DMs on the block
-    _output_buffers[block_idx].dms(plan[block_idx].incoherent_dms);
-    _output_buffers[block_idx].reference_dm(plan[block_idx].coherent_dm);
-    _output_buffers[block_idx].frequencies({_config.centre_frequency()});
+    _output_buffers[ref_dm_idx].dms(plan[ref_dm_idx].incoherent_dms);
+    _output_buffers[ref_dm_idx].reference_dm(plan[ref_dm_idx].coherent_dm);
+    _output_buffers[ref_dm_idx].frequencies({_config.centre_frequency()});
 
     BOOST_LOG_TRIVIAL(debug) << "Passing output buffer to handler: "
-                            << _output_buffers[block_idx].describe();
+                            << _output_buffers[ref_dm_idx].describe();
     _timer.start("file writing");
-    _handler(_output_buffers[block_idx], block_idx);
+    _handler(_output_buffers[ref_dm_idx], ref_dm_idx);
     _timer.stop("file writing");
 }
 
@@ -92,9 +92,9 @@ void IncoherentDedispersionPipeline<InputType, OutputType, Handler>::init(
     long double chbw   = _config.bandwidth() / _config.nchans();
     long double tsamp  = _config.cb_tscrunch() / chbw;
     std::vector<long double> dm_delays(_config.coherent_dms().size());
-    for(std::size_t dm_idx = 0; dm_idx < _config.coherent_dms().size();
-        ++dm_idx) {
-        dm_delays[dm_idx] = _dedispersers[dm_idx]->max_delay() * tsamp;
+    for(std::size_t ref_dm_idx = 0; ref_dm_idx < _config.coherent_dms().size();
+        ++ref_dm_idx) {
+        dm_delays[ref_dm_idx] = _dedispersers[ref_dm_idx]->max_delay() * tsamp;
     }
     _handler.init(header);
 }
@@ -102,12 +102,12 @@ void IncoherentDedispersionPipeline<InputType, OutputType, Handler>::init(
 template <typename InputType, typename OutputType, typename Handler>
 void IncoherentDedispersionPipeline<InputType, OutputType, Handler>::operator()(
     InputVectorType const& data,
-    std::size_t dm_idx)
+    std::size_t ref_dm_idx)
 {
-    _output_buffers[dm_idx].metalike(data);
-    _output_buffers[dm_idx].tsamp(data.tsamp() *
-                                  _config.ddplan()[dm_idx].tscrunch);
-    _agg_buffers[dm_idx]->push_back(data.vector());
+    _output_buffers[ref_dm_idx].metalike(data);
+    _output_buffers[ref_dm_idx].tsamp(data.tsamp() *
+                                  _config.ddplan()[ref_dm_idx].tscrunch);
+    _agg_buffers[ref_dm_idx]->push_back(data.vector());
 }
 
 } // namespace skyweaver

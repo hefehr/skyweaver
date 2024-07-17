@@ -53,7 +53,7 @@ double DelayManager::epoch() const
     return _header.start_epoch;
 }
 
-DelayManager::DelayVectorDType const& DelayManager::delays(double epoch)
+DelayManager::DelayVectorTypeD const& DelayManager::delays(double epoch)
 {
     // This function should return the delays in GPU memory
 
@@ -152,7 +152,7 @@ void DelayManager::read_next_model()
         << _delays_h.size() * sizeof(decltype(_delays_h)::value_type);
     safe_read(
         reinterpret_cast<char*>(thrust::raw_pointer_cast(_delays_h.data())),
-        nelements * sizeof(DelayVectorHType::value_type));
+        nelements * sizeof(DelayVectorTypeH::value_type));
 }
 
 std::size_t DelayManager::parse_beamsets()
@@ -220,8 +220,8 @@ std::size_t DelayManager::parse_beamsets()
     for(int ii = 0; ii < beamsets_weights.size(); ++ii) {
         thrust::copy(beamsets_weights[ii].begin(),
                      beamsets_weights[ii].end(),
-                     _weights_d.begin()) +
-            ii* _header.nantennas;
+                     _weights_d.begin() +
+            ii * _config.nantennas());
     }
     // Return the number of beamsets
     return beamsets_weights.size();

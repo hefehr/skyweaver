@@ -107,7 +107,7 @@ IncoherentBeamformer<BfTraits>::~IncoherentBeamformer()
 
 template <typename BfTraits>
 void IncoherentBeamformer<BfTraits>::beamform(
-    VoltageVectorType const& input,
+    VoltageVectorTypeD const& input,
     RawPowerVectorType& output_raw,
     PowerVectorType& output,
     ScalingVectorType const& output_scale,

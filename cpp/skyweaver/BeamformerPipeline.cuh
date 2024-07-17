@@ -28,8 +28,8 @@ template <typename CBHandler,
 class BeamformerPipeline
 {
   public:
-    using HostVoltageVectorType = TAFTPVoltagesH<char2>;
-    using VoltageVectorType     = TAFTPVoltagesD<char2>;
+    using VoltageVectorTypeH = TAFTPVoltagesH<char2>;
+    using VoltageVectorTypeD     = TAFTPVoltagesD<char2>;
     typedef thrust::device_vector<float> ChannelScaleVectorType;
     typedef long double TimeType;
     typedef CoherentBeamformer<BeamformerTraits> CoherentBeamformer;
@@ -65,7 +65,7 @@ class BeamformerPipeline
      *
      * @param      data  A RawBytes object wrapping the DADA data block
      */
-    bool operator()(HostVoltageVectorType const& data);
+    bool operator()(VoltageVectorTypeH const& data);
 
   private:
     void process();

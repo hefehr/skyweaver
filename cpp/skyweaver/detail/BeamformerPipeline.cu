@@ -64,7 +64,7 @@ BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
         throw std::runtime_error("Gulp size is not a multiple of "
                                  "the number of samples per heap");
     }
-    // Calculate the timestamp step per block
+    // Calculate the timestamp step per block (raw baseband tick rate)
     _sample_clock_tick_per_block = 2 * _config.total_nchans() * nsamples;
     BOOST_LOG_TRIVIAL(debug)
         << "Sample clock tick per block: " << _sample_clock_tick_per_block;
@@ -294,7 +294,7 @@ template <typename CBHandler,
           typename StatsHandler,
           typename BeamformerTraits>
 bool BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
-operator()(HostVoltageVectorType const& taftp_on_host)
+operator()(VoltageVectorTypeH const& taftp_on_host)
 {
     BOOST_LOG_NAMED_SCOPE("BeamformerPipeline::operator()");
     BOOST_LOG_TRIVIAL(debug) << "Pipeline operator() called with data: \n"

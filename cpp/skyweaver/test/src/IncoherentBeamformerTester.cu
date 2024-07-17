@@ -39,7 +39,7 @@ void IncoherentBeamformerTester<BfTraits>::TearDown()
 
 template <typename BfTraits>
 void IncoherentBeamformerTester<BfTraits>::beamformer_c_reference(
-    HostVoltageVectorType const& ftpa_voltages,
+    VoltageVectorTypeH const& ftpa_voltages,
     HostRawPowerVectorType& tf_powers_raw,
     HostPowerVectorType& tf_powers,
     int nchannels,
@@ -113,7 +113,7 @@ void IncoherentBeamformerTester<BfTraits>::compare_against_host(
     int ntimestamps,
     int nbeamsets)
 {
-    HostVoltageVectorType ftpa_voltages_host  = ftpa_voltages_gpu;
+    VoltageVectorTypeH ftpa_voltages_host     = ftpa_voltages_gpu;
     HostPowerVectorType tf_powers_cuda        = tf_powers_gpu;
     HostRawPowerVectorType tf_powers_raw_cuda = tf_powers_raw_gpu;
     HostScalingVectorType h_scaling_vector    = scaling_vector;
@@ -164,7 +164,7 @@ TYPED_TEST(IncoherentBeamformerTester, ib_representative_noise_test)
     std::size_t ntimestamps = 8192;
     std::size_t input_size =
         (ntimestamps * config.nantennas() * config.nchans() * config.npol());
-    typename IBT::HostVoltageVectorType ftpa_voltages_host(
+    typename IBT::VoltageVectorTypeH ftpa_voltages_host(
         {config.nchans(), ntimestamps, config.npol(), config.nantennas()});
     for(int ii = 0; ii < ftpa_voltages_host.size(); ++ii) {
         ftpa_voltages_host[ii].x =

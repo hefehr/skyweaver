@@ -47,7 +47,7 @@ class CoherentBeamformer
 {
   public:
     // FTPA order
-    typedef FTPAVoltagesD<char2> VoltageVectorType;
+    typedef FTPAVoltagesD<char2> VoltageVectorTypeD;
     // TFB order
     typedef TFBPowersD<typename BfTraits::QuantisedPowerType> PowerVectorType;
     typedef BTFPowersD<typename BfTraits::RawPowerType> RawPowerVectorType;
@@ -79,7 +79,7 @@ class CoherentBeamformer
      * @param      nbeamsets The number of beamsets being processed
      * @param[in]  stream    The CUDA stream to use for processing
      */
-    void beamform(VoltageVectorType const& input,
+    void beamform(VoltageVectorTypeD const& input,
                   WeightsVectorType const& weights,
                   ScalingVectorType const& scales,
                   ScalingVectorType const& offsets,

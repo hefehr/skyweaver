@@ -46,7 +46,7 @@ template <typename BfTraits>
 class IncoherentBeamformer
 {
   public:
-    typedef FTPAVoltagesD<char2> VoltageVectorType;
+    typedef FTPAVoltagesD<char2> VoltageVectorTypeD;
     // TF order
     typedef BTFPowersD<typename BfTraits::QuantisedPowerType> PowerVectorType;
     // TF order
@@ -81,7 +81,7 @@ class IncoherentBeamformer
      * delay model)
      * @param stream The CUDA stream to execute in
      */
-    void beamform(VoltageVectorType const& input,
+    void beamform(VoltageVectorTypeD const& input,
                   RawPowerVectorType& output_raw,
                   PowerVectorType& output,
                   ScalingVectorType const& output_scale,

@@ -164,14 +164,14 @@ void CoherentBeamformerTester<BfTraits>::compare_against_host(
 {
     VoltageVectorTypeH ftpa_voltages_host = ftpa_voltages_gpu;
     WeightsVectorTypeH fbpa_weights_host  = fbpa_weights_gpu;
-    HostPowerVectorType btf_powers_cuda      = btf_powers_gpu;
+    HostPowerVectorType btf_powers_cuda   = btf_powers_gpu;
     HostPowerVectorType btf_powers_host;
     btf_powers_host.like(btf_powers_gpu);
 
     HostScalingVectorType scales               = scales_gpu;
     HostScalingVectorType offsets              = offsets_gpu;
     HostScalingVectorType antenna_weights_host = antenna_weights;
-    MappingVectorTypeH beamset_mapping_host = beamset_mapping;
+    MappingVectorTypeH beamset_mapping_host    = beamset_mapping;
 
     beamformer_c_reference(
         ftpa_voltages_host,
@@ -246,8 +246,8 @@ TYPED_TEST(CoherentBeamformerTester, representative_noise_test)
 
     // Enable all antennas in all beamsets
     typename CBT::ScalingVectorTypeD beamset_weights(config.nantennas() *
-                                                              nbeamsets,
-                                                          1.0f);
+                                                         nbeamsets,
+                                                     1.0f);
 
     /**
     This currently causes tests to fail even though the weights are the same for
@@ -308,9 +308,8 @@ TYPED_TEST(CoherentBeamformerTester, representative_noise_test)
         fbpa_weights_host[ii].y = static_cast<int8_t>(std::lround(val.imag()));
     }
 
-    typename CBT::VoltageVectorTypeD ftpa_voltages_gpu =
-        ftpa_voltages_host;
-    typename CBT::WeightsVectorTypeD fbpa_weights_gpu = fbpa_weights_host;
+    typename CBT::VoltageVectorTypeD ftpa_voltages_gpu = ftpa_voltages_host;
+    typename CBT::WeightsVectorTypeD fbpa_weights_gpu  = fbpa_weights_host;
     typename CBT::PowerVectorTypeD tfb_powers_gpu;
 
     // Note that below even though this is for the IB we have to use the

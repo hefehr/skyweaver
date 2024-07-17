@@ -22,7 +22,7 @@ class CoherentBeamformerTester: public ::testing::Test
     typedef IncoherentBeamformer<BfTraits> IncoherentBeamformer;
     typedef CoherentBeamformer::VoltageVectorTypeD VoltageVectorTypeD;
     typedef FTPAVoltagesH<typename VoltageVectorTypeD::value_type>
-    VoltageVectorTypeH;
+        VoltageVectorTypeH;
     typedef CoherentBeamformer::PowerVectorTypeD PowerVectorTypeD;
     typedef TFBPowersH<typename PowerVectorTypeD::value_type>
         HostPowerVectorType;

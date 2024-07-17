@@ -1,6 +1,7 @@
 #include "cuda.h"
 #include "cufft.h"
 #include "skyweaver/CoherentDedisperser.cuh"
+#include "skyweaver/dedispersion_utils.cuh"
 
 #include <cmath>
 #include <cuda_runtime.h>
@@ -12,54 +13,56 @@
 #include <thrust/sequence.h>
 #include <thrust/transform.h>
 #include <vector>
-#include "skyweaver/dedispersion_utils.cuh"
 namespace skyweaver
 {
 
 void create_coherent_dedisperser_config(CoherentDedisperserConfig& config,
                                         PipelineConfig const& pipeline_config)
 {
-    float f_low  = pipeline_config.centre_frequency() - pipeline_config.bandwidth() / 2.0f;
-    float f_high = pipeline_config.centre_frequency() + pipeline_config.bandwidth() / 2.0f;
+    float f_low =
+        pipeline_config.centre_frequency() - pipeline_config.bandwidth() / 2.0f;
+    float f_high =
+        pipeline_config.centre_frequency() + pipeline_config.bandwidth() / 2.0f;
     float tsamp  = pipeline_config.nchans() / pipeline_config.bandwidth();
     auto it      = std::max_element(pipeline_config.coherent_dms().begin(),
-    pipeline_config.coherent_dms().end());
+                               pipeline_config.coherent_dms().end());
     float max_dm = *it;
     BOOST_LOG_TRIVIAL(debug) << "Constructing coherent dedisperser plan";
     float max_dm_delay =
         CoherentDedisperser::get_dm_delay(f_low, f_high, max_dm);
 
-    if (max_dm_delay * tsamp > 2 * pipeline_config.gulp_length_samps()) {
-        throw std::runtime_error("Gulp length must be at least 2 times the maximum DM delay");
+    if(max_dm_delay * tsamp > 2 * pipeline_config.gulp_length_samps()) {
+        throw std::runtime_error(
+            "Gulp length must be at least 2 times the maximum DM delay");
     }
-    
-    create_coherent_dedisperser_config(config,
-                                      pipeline_config.gulp_length_samps(),
-                                      max_dm_delay,
-                                      pipeline_config.nchans(),
-                                      pipeline_config.npol(),
-                                      pipeline_config.nantennas(),
-                                      tsamp,
-                                      f_low,
-                                      pipeline_config.bandwidth(),
-                                      pipeline_config.coherent_dms());
 
+    create_coherent_dedisperser_config(config,
+                                       pipeline_config.gulp_length_samps(),
+                                       max_dm_delay,
+                                       pipeline_config.nchans(),
+                                       pipeline_config.npol(),
+                                       pipeline_config.nantennas(),
+                                       tsamp,
+                                       f_low,
+                                       pipeline_config.bandwidth(),
+                                       pipeline_config.coherent_dms());
 }
 /*
-    * @brief      Create a new CoherentDedisperser object, mostly used only for testing
-    *
-    * @param      config  The config reference
-    */
+ * @brief      Create a new CoherentDedisperser object, mostly used only for
+ * testing
+ *
+ * @param      config  The config reference
+ */
 void create_coherent_dedisperser_config(CoherentDedisperserConfig& config,
-                                       std::size_t fft_length,
-                                       std::size_t overlap_samps,
-                                       std::size_t num_coarse_chans,
-                                       std::size_t npols,
-                                       std::size_t nantennas,
-                                       double tsamp,
-                                       double low_freq,
-                                       double bw,
-                                       std::vector<float> dms)
+                                        std::size_t fft_length,
+                                        std::size_t overlap_samps,
+                                        std::size_t num_coarse_chans,
+                                        std::size_t npols,
+                                        std::size_t nantennas,
+                                        double tsamp,
+                                        double low_freq,
+                                        double bw,
+                                        std::vector<float> dms)
 {
     config.fft_length       = fft_length;
     config.overlap_samps    = overlap_samps;
@@ -82,11 +85,10 @@ void create_coherent_dedisperser_config(CoherentDedisperserConfig& config,
         config._d_ism_responses[i].resize(num_coarse_chans * fft_length);
     }
 
-    thrust::transform(
-        config._d_dms.begin(),
-        config._d_dms.end(),
-        config._d_dm_prefactor.begin(),
-        DMPrefactor());
+    thrust::transform(config._d_dms.begin(),
+                      config._d_dms.end(),
+                      config._d_dm_prefactor.begin(),
+                      DMPrefactor());
 
     config.fine_chan_bw = config.coarse_chan_bw / config.fft_length;
 
@@ -95,7 +97,6 @@ void create_coherent_dedisperser_config(CoherentDedisperserConfig& config,
                          config._d_dm_prefactor[idx],
                          config._d_ism_responses[idx]);
     }
-    
 
     // data is FTPA order, we will loop over F, so we are left with TPA order.
     // Let's fuse PA to X, so TX order.

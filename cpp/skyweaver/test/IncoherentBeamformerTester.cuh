@@ -20,7 +20,8 @@ class IncoherentBeamformerTester: public ::testing::Test
     using BfTraitsType = BfTraits;
     typedef IncoherentBeamformer<BfTraits> IncoherentBeamformer;
     typedef IncoherentBeamformer::VoltageVectorTypeD VoltageVectorTypeD;
-    typedef FTPAVoltagesH<typename VoltageVectorTypeD::value_type> VoltageVectorTypeH;
+    typedef FTPAVoltagesH<typename VoltageVectorTypeD::value_type>
+        VoltageVectorTypeH;
     typedef IncoherentBeamformer::PowerVectorTypeD DevicePowerVectorType;
     typedef BTFPowersH<typename DevicePowerVectorType::value_type>
         HostPowerVectorType;

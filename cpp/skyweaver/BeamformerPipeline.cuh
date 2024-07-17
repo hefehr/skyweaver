@@ -28,10 +28,10 @@ template <typename CBHandler,
 class BeamformerPipeline
 {
   public:
-    using VoltageVectorTypeH = TAFTPVoltagesH<char2>;
-    using VoltageVectorTypeD = TAFTPVoltagesD<char2>;
-    using TimeType = long double;
-    using CoherentBeamformer = CoherentBeamformer<BeamformerTraits>;
+    using VoltageVectorTypeH   = TAFTPVoltagesH<char2>;
+    using VoltageVectorTypeD   = TAFTPVoltagesD<char2>;
+    using TimeType             = long double;
+    using CoherentBeamformer   = CoherentBeamformer<BeamformerTraits>;
     using IncoherentBeamformer = IncoherentBeamformer<BeamformerTraits>;
 
   public:

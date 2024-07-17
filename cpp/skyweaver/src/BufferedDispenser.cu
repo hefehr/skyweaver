@@ -26,8 +26,7 @@ BufferedDispenser::BufferedDispenser(PipelineConfig const& config,
     }
 }
 
-void BufferedDispenser::hoard(
-    FTPAVoltagesTypeD const& new_ftpa_voltages_in)
+void BufferedDispenser::hoard(FTPAVoltagesTypeD const& new_ftpa_voltages_in)
 {
     auto const& freqs = new_ftpa_voltages_in.frequencies();
     for(std::size_t i = 0; i < _config.nchans(); i++) {

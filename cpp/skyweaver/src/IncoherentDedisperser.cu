@@ -46,9 +46,10 @@ void IncoherentDedisperser::prepare()
                                      _config.channel_frequencies().front(),
                                      tsamp));
     }
-    auto it       = std::max_element(_delays.begin(), _delays.end());
-    _max_delay    = *it;
-    // if RFI rejection is enabled based on kurtosis file, this is no longer valid, unless we replace with random noise
+    auto it    = std::max_element(_delays.begin(), _delays.end());
+    _max_delay = *it;
+    // if RFI rejection is enabled based on kurtosis file, this is no longer
+    // valid, unless we replace with random noise
     _scale_factor = std::sqrt(_config.nchans() * _tscrunch);
 }
 
@@ -85,22 +86,24 @@ void IncoherentDedisperser::dedisperse<InputVectorType, OutputVectorType>(
             "(nsamples - max_delay) must be a multiple of tscrunch;");
     }
     tdb_powers.resize({(nsamples - _max_delay) / _tscrunch, ndms, nbeams});
-    #pragma omp parallel
+#pragma omp parallel
     {
         AccumulatorVectorType powers(nbeams); // Once per thread
-        #pragma omp for
+#pragma omp for
         for(int t_idx = _max_delay; t_idx < nsamples; t_idx += _tscrunch) {
-            int t_output_offset = (t_idx - _max_delay) / _tscrunch * nbeams * ndms;
+            int t_output_offset =
+                (t_idx - _max_delay) / _tscrunch * nbeams * ndms;
             for(int dm_idx = 0; dm_idx < ndms; ++dm_idx) {
                 int offset = nchans * dm_idx;
-                std::fill(
-                    powers.begin(),
-                    powers.end(),
-                    value_traits<typename decltype(powers)::value_type>::zero());
+                std::fill(powers.begin(),
+                          powers.end(),
+                          value_traits<
+                              typename decltype(powers)::value_type>::zero());
                 for(int tsub_idx = 0; tsub_idx < _tscrunch; ++tsub_idx) {
                     for(int f_idx = 0; f_idx < nchans; ++f_idx) {
                         int idx =
-                            ((t_idx + tsub_idx) - _delays[offset + f_idx]) * bf +
+                            ((t_idx + tsub_idx) - _delays[offset + f_idx]) *
+                                bf +
                             f_idx * nbeams;
                         for(int b_idx = 0; b_idx < nbeams; ++b_idx) {
                             powers[b_idx] += tfb_powers[idx + b_idx];
@@ -122,12 +125,14 @@ void IncoherentDedisperser::dedisperse<InputVectorType, OutputVectorType>(
 }
 
 // This is the set of explicitly supported template arguments
-template void IncoherentDedisperser::dedisperse<thrust::host_vector<int8_t, PinnedAllocator<int8_t>>,
-                                                TDBPowersH<int8_t>>(
+template void IncoherentDedisperser::dedisperse<
+    thrust::host_vector<int8_t, PinnedAllocator<int8_t>>,
+    TDBPowersH<int8_t>>(
     thrust::host_vector<int8_t, PinnedAllocator<int8_t>> const& tfb_powers,
     TDBPowersH<int8_t>& tdb_powers);
-template void IncoherentDedisperser::dedisperse<thrust::host_vector<char4, PinnedAllocator<char4>>,
-                                                TDBPowersH<char4>>(
+template void IncoherentDedisperser::dedisperse<
+    thrust::host_vector<char4, PinnedAllocator<char4>>,
+    TDBPowersH<char4>>(
     thrust::host_vector<char4, PinnedAllocator<char4>> const& tfb_powers,
     TDBPowersH<char4>& tdb_powers);
 

@@ -3,14 +3,14 @@
 
 #include "thrust/device_vector.h"
 #include "thrust/host_vector.h"
-#include <thrust/mr/universal_memory_resource.h>
-#include <thrust/mr/allocator.h>
 
 #include <initializer_list>
 #include <iomanip>
 #include <iostream>
 #include <numeric>
 #include <sstream>
+#include <thrust/mr/allocator.h>
+#include <thrust/mr/universal_memory_resource.h>
 #include <type_traits>
 #include <vector>
 
@@ -87,8 +87,9 @@ struct is_dv_copyable<DescribedVector<Container1<T, A1>, dims...>,
 };
 
 /**
- * @brief A class for holding vectors of specific dimension with associated metadata
- * 
+ * @brief A class for holding vectors of specific dimension with associated
+ * metadata
+ *
  * @tparam VectorType_ The container type used for storing the data
  * @tparam dims        The dimension types of the data
  */
@@ -101,7 +102,7 @@ struct DescribedVector {
 
     /**
      * @brief Construct a new Described Vector object
-     * 
+     *
      */
     DescribedVector()
         : _dms_stale(true), _frequencies_stale(true), _dims{dims...},
@@ -111,8 +112,9 @@ struct DescribedVector {
 
     /**
      * @brief Construct a new Described Vector object of specific size
-     * 
-     * @param sizes The sizes of the dimensions (must match the number of dimensions)
+     *
+     * @param sizes The sizes of the dimensions (must match the number of
+     * dimensions)
      */
     DescribedVector(std::initializer_list<std::size_t> sizes)
         : _dms_stale(true), _frequencies_stale(true), _sizes(sizes),
@@ -127,19 +129,21 @@ struct DescribedVector {
 
     /**
      * @brief Destroy the Described Vector object
-     * 
+     *
      */
     ~DescribedVector() {};
 
     /**
      * @brief Construct a new Described Vector object
-     * 
-     * @tparam OtherDescribedVector  The type of the vector that is being copied from
-     * @param other                  The instance of the vector that is being copied from
-     * 
-     * @details The type of the other vector is checked at compile time to assure it is 
-     *          copyable to the current vector. This allows for reuse of the implicit
-     *          H2D and D2H copy constructors of thrust vectors.
+     *
+     * @tparam OtherDescribedVector  The type of the vector that is being copied
+     * from
+     * @param other                  The instance of the vector that is being
+     * copied from
+     *
+     * @details The type of the other vector is checked at compile time to
+     * assure it is copyable to the current vector. This allows for reuse of the
+     * implicit H2D and D2H copy constructors of thrust vectors.
      */
     template <typename OtherDescribedVector,
               typename = std::enable_if_t<
@@ -156,7 +160,7 @@ struct DescribedVector {
 
     /**
      * @brief Resize the dimensions and set the metadata to match another vector
-     * 
+     *
      * @tparam OtherDescribedVector The type of the other vector
      * @param other                 The instance of the other vector
      */
@@ -171,7 +175,7 @@ struct DescribedVector {
 
     /**
      * @brief Set the metadata to match another vector
-     * 
+     *
      * @tparam OtherDescribedVector The type of the other vector
      * @param other                 The instance of the other vector
      */
@@ -189,29 +193,29 @@ struct DescribedVector {
 
     /**
      * @brief Get the data at an index
-     * 
+     *
      * @param idx     The index to fetch
-     * @return auto&  
-     * 
-     * @details Despite the dimensions being tracked, the indexing to the underlying 
-     *          data is linear (flat indexing).
+     * @return auto&
+     *
+     * @details Despite the dimensions being tracked, the indexing to the
+     * underlying data is linear (flat indexing).
      */
     auto& operator[](std::size_t idx) { return _vector[idx]; }
 
     /**
      * @brief Get the data at an index
-     * 
+     *
      * @param idx     The index to fetch
-     * @return auto&  
-     * 
-     * @details Despite the dimensions being tracked, the indexing to the underlying 
-     *          data is linear (flat indexing).
+     * @return auto&
+     *
+     * @details Despite the dimensions being tracked, the indexing to the
+     * underlying data is linear (flat indexing).
      */
     auto const& operator[](std::size_t idx) const { return _vector[idx]; }
 
     /**
      * @brief Resize the dimensions of the vector
-     * 
+     *
      * @param sizes The extents of each dimension
      */
     void resize(std::initializer_list<std::size_t> sizes)
@@ -222,7 +226,7 @@ struct DescribedVector {
 
     /**
      * @brief Resize the dimensions of the vector
-     * 
+     *
      * @param sizes The extents of each dimension
      */
     void resize(std::vector<std::size_t> const& sizes)
@@ -233,64 +237,65 @@ struct DescribedVector {
 
     /**
      * @brief Get the size of the underlying vector
-     * 
-     * @return std::size_t 
+     *
+     * @return std::size_t
      */
     std::size_t size() const { return _vector.size(); }
 
     /**
      * @brief Get a pointer-like object to the underlying data
-     * 
-     * @return auto 
+     *
+     * @return auto
      */
     auto data() noexcept { return _vector.data(); }
 
     /**
      * @brief Get a pointer-like object to the underlying data
-     * 
-     * @return auto 
+     *
+     * @return auto
      */
     const auto data() const noexcept { return _vector.data(); }
 
     /**
      * @brief Get an iterator that points to the start of the underlying data
-     * 
-     * @return auto 
+     *
+     * @return auto
      */
     auto begin() noexcept { return _vector.begin(); }
 
     /**
-     * @brief Get a const iterator that points to the start of the underlying data
-     * 
-     * @return auto 
+     * @brief Get a const iterator that points to the start of the underlying
+     * data
+     *
+     * @return auto
      */
     const auto begin() const noexcept { return _vector.begin(); }
 
     /**
      * @brief Get an iterator that points to the end of the underlying data
-     * 
-     * @return auto 
+     *
+     * @return auto
      */
     auto end() noexcept { return _vector.end(); }
 
     /**
      * @brief Get a const iterator that points to the end of the underlying data
-     * 
-     * @return auto 
+     *
+     * @return auto
      */
     const auto end() const noexcept { return _vector.end(); }
 
     /**
      * @brief Get a const reference to the underlying container
-     * 
-     * @return auto 
+     *
+     * @return auto
      */
     VectorType const& vector() const { return _vector; }
 
     /**
      * @brief Get a mutable reference to the underlying container
-     * 
-     * @return auto 
+     *
+     * @return auto
      */
     VectorType& vector() { return _vector; }
 
@@ -320,8 +325,8 @@ struct DescribedVector {
 
     /**
      * @brief Get the frequencies associated with any channels
-     * 
-     * @return FrequenciesType const& 
+     *
+     * @return FrequenciesType const&
      */
     FrequenciesType const& frequencies() const
     {
@@ -334,8 +339,8 @@ struct DescribedVector {
 
     /**
      * @brief Set the frequencies of the channels
-     * 
-     * @param freqs 
+     *
+     * @param freqs
      */
     void frequencies(FrequenciesType const& freqs)
     {
@@ -348,8 +353,8 @@ struct DescribedVector {
 
     /**
      * @brief Set the frequencies of the channels
-     * 
-     * @param freq 
+     *
+     * @param freq
      */
     void frequencies(typename FrequenciesType::value_type const& freq)
     {
@@ -362,97 +367,97 @@ struct DescribedVector {
 
     /**
      * @brief Return the number of frequency channels
-     * 
-     * @return std::size_t 
-     * 
+     *
+     * @return std::size_t
+     *
      * @details Repeated dimensions of the same type will be aggregated
      */
     std::size_t nchannels() const { return get_dim_extent<FreqDim>(); }
 
     /**
      * @brief Return the number of antennas
-     * 
-     * @return std::size_t 
-     *   
+     *
+     * @return std::size_t
+     *
      * @details Repeated dimensions of the same type will be aggregated
      */
     std::size_t nantennas() const { return get_dim_extent<AntennaDim>(); }
 
     /**
      * @brief Return the number of time samples
-     * 
-     * @return std::size_t 
-     * 
+     *
+     * @return std::size_t
+     *
      * @details Repeated dimensions of the same type will be aggregated
      */
     std::size_t nsamples() const { return get_dim_extent<TimeDim>(); }
 
     /**
      * @brief Return the number of beams
-     * 
-     * @return std::size_t 
-     * 
+     *
+     * @return std::size_t
+     *
      * @details Repeated dimensions of the same type will be aggregated
      */
     std::size_t nbeams() const { return get_dim_extent<BeamDim>(); }
 
     /**
      * @brief Return the number of polarisation dimensions
-     * 
-     * @return std::size_t 
-     * 
+     *
+     * @return std::size_t
+     *
      * @details Repeated dimensions of the same type will be aggregated.
-     * 
-     * @note The underlying data type may also encode the polarisation 
-     *       e.g. char4 for Stokes data. In this case the number of polarisations
-     *       reported by this method will be 1.
+     *
+     * @note The underlying data type may also encode the polarisation
+     *       e.g. char4 for Stokes data. In this case the number of
+     * polarisations reported by this method will be 1.
      */
     std::size_t npol() const { return get_dim_extent<PolnDim>(); }
 
     /**
      * @brief Return the number of DMs
-     * 
-     * @return std::size_t 
+     *
+     * @return std::size_t
      */
     std::size_t ndms() const { return get_dim_extent<DispersionDim>(); }
 
     /**
-     * @brief Set the time resolution of the data 
-     * 
+     * @brief Set the time resolution of the data
+     *
      * @param tsamp_ The time resolution in seconds
      */
     void tsamp(double tsamp_) { _tsamp = tsamp_; }
 
     /**
      * @brief Get the time resolution of the data
-     * 
-     * @return double 
+     *
+     * @return double
      */
     double tsamp() const { return _tsamp; }
 
     /**
      * @brief Get the latency of this data w.r.t. the stream
-     * 
-     * @return double 
-     * 
-     * @details This is intended to allow filter delays to be 
+     *
+     * @return double
+     *
+     * @details This is intended to allow filter delays to be
      *          propagated through the code. e.g. the DM delay
-     *          from incoherent dedispersion may be reflected 
+     *          from incoherent dedispersion may be reflected
      *          in this parameter.
      */
     double utc_offset() const { return _utc_offset; }
 
     /**
      * @brief Get the sizes of each of the dimensions
-     * 
-     * @return std::vector<std::size_t> const& 
+     *
+     * @return std::vector<std::size_t> const&
      */
     std::vector<std::size_t> const& extents() const { return _sizes; }
 
     /**
      * @brief Get the list of DMs
-     * 
-     * @return DispersionMeasuresType const& 
+     *
+     * @return DispersionMeasuresType const&
      */
     DispersionMeasuresType const& dms() const
     {
@@ -465,8 +470,8 @@ struct DescribedVector {
 
     /**
      * @brief Set the list of DMs
-     * 
-     * @param dms 
+     *
+     * @param dms
      */
     void dms(DispersionMeasuresType const& dms)
     {
@@ -480,8 +485,8 @@ struct DescribedVector {
 
     /**
      * @brief Set the DM of the data
-     * 
-     * @param dm 
+     *
+     * @param dm
      */
     void dms(typename DispersionMeasuresType::value_type const& dm)
     {
@@ -496,33 +501,33 @@ struct DescribedVector {
 
     /**
      * @brief Set the reference coherent DM of the channels
-     * 
+     *
      * @param dm The coherent DM to which the channels have been referenced
      */
     void reference_dm(float dm) { _reference_dm = dm; }
-    
+
     /**
      * @brief Get the reference coherent DM of the channels
-     * 
-     * @return float 
+     *
+     * @return float
      */
     float reference_dm() const { return _reference_dm; }
 
     /**
      * @brief Get the dimensions of the data as a string
-     * 
-     * @return std::string 
-     * 
-     * @details The dimensions are ordered slowest to fastest (e.g. TAFTP) 
-     *          where T [time] is the slowest dimension and P [poln.] is 
-     *          fastest dimension. 
+     *
+     * @return std::string
+     *
+     * @details The dimensions are ordered slowest to fastest (e.g. TAFTP)
+     *          where T [time] is the slowest dimension and P [poln.] is
+     *          fastest dimension.
      */
     std::string dims_as_string() const { return dimensions_to_string(_dims); }
 
     /**
      * @brief Return a string describing the vector in detail
-     * 
-     * @return std::string 
+     *
+     * @return std::string
      */
     std::string describe() const
     {
@@ -575,16 +580,18 @@ struct is_device_vector<
 using MemoryResource = thrust::universal_host_pinned_memory_resource;
 
 template <typename T>
-using PinnedAllocator = thrust::mr::stateless_resource_allocator<T, MemoryResource>;
+using PinnedAllocator =
+    thrust::mr::stateless_resource_allocator<T, MemoryResource>;
 
 // Pipeline inputs
 template <typename T>
-using TAFTPVoltagesH = DescribedVector<thrust::host_vector<T, PinnedAllocator<T> >,
-                                       TimeDim,
-                                       AntennaDim,
-                                       FreqDim,
-                                       TimeDim,
-                                       PolnDim>;
+using TAFTPVoltagesH =
+    DescribedVector<thrust::host_vector<T, PinnedAllocator<T>>,
+                    TimeDim,
+                    AntennaDim,
+                    FreqDim,
+                    TimeDim,
+                    PolnDim>;
 template <typename T>
 using TAFTPVoltagesD = DescribedVector<thrust::device_vector<T>,
                                        TimeDim,
@@ -594,11 +601,12 @@ using TAFTPVoltagesD = DescribedVector<thrust::device_vector<T>,
                                        PolnDim>;
 // Beamformer inputs
 template <typename T>
-using FTPAVoltagesH = DescribedVector<thrust::host_vector<T, PinnedAllocator<T> >,
-                                      FreqDim,
-                                      TimeDim,
-                                      PolnDim,
-                                      AntennaDim>;
+using FTPAVoltagesH =
+    DescribedVector<thrust::host_vector<T, PinnedAllocator<T>>,
+                    FreqDim,
+                    TimeDim,
+                    PolnDim,
+                    AntennaDim>;
 template <typename T>
 using FTPAVoltagesD = DescribedVector<thrust::device_vector<T>,
                                       FreqDim,
@@ -607,36 +615,46 @@ using FTPAVoltagesD = DescribedVector<thrust::device_vector<T>,
                                       AntennaDim>;
 // Coherent dedisperser inputs
 template <typename T>
-using TPAVoltagesH =
-    DescribedVector<thrust::host_vector<T, PinnedAllocator<T> >, TimeDim, PolnDim, AntennaDim>;
+using TPAVoltagesH = DescribedVector<thrust::host_vector<T, PinnedAllocator<T>>,
+                                     TimeDim,
+                                     PolnDim,
+                                     AntennaDim>;
 template <typename T>
 using TPAVoltagesD =
     DescribedVector<thrust::device_vector<T>, TimeDim, PolnDim, AntennaDim>;
 // Coherent beamformer outputs
 template <typename T>
-using TFBPowersH =
-    DescribedVector<thrust::host_vector<T, PinnedAllocator<T> >, TimeDim, FreqDim, BeamDim>;
+using TFBPowersH = DescribedVector<thrust::host_vector<T, PinnedAllocator<T>>,
+                                   TimeDim,
+                                   FreqDim,
+                                   BeamDim>;
 template <typename T>
 using TFBPowersD =
     DescribedVector<thrust::device_vector<T>, TimeDim, FreqDim, BeamDim>;
 // Incoherent beamformer outputs
 template <typename T>
-using BTFPowersH =
-    DescribedVector<thrust::host_vector<T, PinnedAllocator<T> >, BeamDim, TimeDim, FreqDim>;
+using BTFPowersH = DescribedVector<thrust::host_vector<T, PinnedAllocator<T>>,
+                                   BeamDim,
+                                   TimeDim,
+                                   FreqDim>;
 template <typename T>
 using BTFPowersD =
     DescribedVector<thrust::device_vector<T>, BeamDim, TimeDim, FreqDim>;
 // Incoherent dedisperser outputs
 template <typename T>
-using TDBPowersH =
-    DescribedVector<thrust::host_vector<T, PinnedAllocator<T> >, TimeDim, DispersionDim, BeamDim>;
+using TDBPowersH = DescribedVector<thrust::host_vector<T, PinnedAllocator<T>>,
+                                   TimeDim,
+                                   DispersionDim,
+                                   BeamDim>;
 template <typename T>
 using TDBPowersD =
     DescribedVector<thrust::device_vector<T>, TimeDim, DispersionDim, BeamDim>;
 // Statistics outputs
 template <typename T>
-using FPAStatsH =
-    DescribedVector<thrust::host_vector<T, PinnedAllocator<T> >, FreqDim, PolnDim, AntennaDim>;
+using FPAStatsH = DescribedVector<thrust::host_vector<T, PinnedAllocator<T>>,
+                                  FreqDim,
+                                  PolnDim,
+                                  AntennaDim>;
 template <typename T>
 using FPAStatsD =
     DescribedVector<thrust::device_vector<T>, FreqDim, PolnDim, AntennaDim>;

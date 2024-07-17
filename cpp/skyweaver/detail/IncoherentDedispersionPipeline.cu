@@ -71,14 +71,14 @@ void IncoherentDedispersionPipeline<InputType, OutputType, Handler>::
     auto const& plan = _config.ddplan();
     // Set the correct tsamp on the block
     _output_buffers[ref_dm_idx].tsamp(_output_buffers[ref_dm_idx].tsamp() *
-                                     plan[ref_dm_idx].tscrunch);
+                                      plan[ref_dm_idx].tscrunch);
     // Set the correct DMs on the block
     _output_buffers[ref_dm_idx].dms(plan[ref_dm_idx].incoherent_dms);
     _output_buffers[ref_dm_idx].reference_dm(plan[ref_dm_idx].coherent_dm);
     _output_buffers[ref_dm_idx].frequencies({_config.centre_frequency()});
 
     BOOST_LOG_TRIVIAL(debug) << "Passing output buffer to handler: "
-                            << _output_buffers[ref_dm_idx].describe();
+                             << _output_buffers[ref_dm_idx].describe();
     _timer.start("file writing");
     _handler(_output_buffers[ref_dm_idx], ref_dm_idx);
     _timer.stop("file writing");
@@ -106,7 +106,7 @@ void IncoherentDedispersionPipeline<InputType, OutputType, Handler>::operator()(
 {
     _output_buffers[ref_dm_idx].metalike(data);
     _output_buffers[ref_dm_idx].tsamp(data.tsamp() *
-                                  _config.ddplan()[ref_dm_idx].tscrunch);
+                                      _config.ddplan()[ref_dm_idx].tscrunch);
     _agg_buffers[ref_dm_idx]->push_back(data.vector());
 }
 

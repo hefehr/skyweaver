@@ -15,41 +15,41 @@ namespace skyweaver
 {
 /**
  * @brief A helper class to provide stopwatch functionality
- * 
+ *
  */
 class Timer
 {
   public:
     /**
      * @brief Start the stopwatch for the given name
-     * 
+     *
      * @param name The name of the timed scope
      */
     void start(const std::string& name);
 
     /**
      * @brief Stop the stopwatch for the given name
-     * 
+     *
      * @param name The name of the timed scope
      */
     void stop(const std::string& name);
 
     /**
-     * @brief Get the elapsed time since the stopwatch was 
+     * @brief Get the elapsed time since the stopwatch was
               started for the given name
      */
     long int elapsed(const std::string& name) const;
 
     /**
      * @brief Show the timings for the given name
-     * 
+     *
      * @param name The name of the timed scope
      */
     void show_timings(const std::string& name) const;
 
     /**
      * @brief Show the timings for all named scopes
-     * 
+     *
      */
     void show_all_timings() const;
 
@@ -62,4 +62,4 @@ class Timer
 
 } // namespace skyweaver
 
-#endif //SKYWEAVER_TIMER_HPP
+#endif // SKYWEAVER_TIMER_HPP

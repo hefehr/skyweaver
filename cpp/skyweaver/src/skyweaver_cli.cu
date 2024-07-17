@@ -10,25 +10,25 @@
 #include "skyweaver/StatisticsCalculator.cuh"
 #include "skyweaver/Timer.hpp"
 #include "skyweaver/logging.hpp"
+#include "skyweaver/nvtx_utils.h"
 #include "skyweaver/skyweaver_constants.hpp"
 #include "thrust/device_vector.h"
 #include "thrust/host_vector.h"
-#include "skyweaver/nvtx_utils.h"
 
-#include <omp.h>
 #include <algorithm>
 #include <cerrno>
 #include <fstream>
+#include <iomanip>
 #include <ios>
 #include <iostream>
+#include <limits>
+#include <memory>
+#include <omp.h>
 #include <sstream>
 #include <string>
 #include <sys/types.h>
-#include <vector>
-#include <iomanip>
 #include <thread>
-#include <memory>
-#include <limits>
+#include <vector>
 
 #define BOOST_LOG_DYN_LINK 1
 
@@ -61,21 +61,23 @@ class NullHandler
     };
 };
 
-const char * build_time = __DATE__ " " __TIME__;
+const char* build_time = __DATE__ " " __TIME__;
 
-void display_constants() {
+void display_constants()
+{
     const int boxWidth = 53;
     std::string border(boxWidth, '-');
 
     auto print_str = [&](const std::string& label, std::string const& value) {
-        std::cout << "[ " << std::setw(boxWidth - 4 - value.size()) << std::left << label << value << " ]" << std::endl;
+        std::cout << "[ " << std::setw(boxWidth - 4 - value.size()) << std::left
+                  << label << value << " ]" << std::endl;
     };
-    
+
     auto print_int = [&](const std::string& label, int value) {
         std::string value_str = std::to_string(value);
         print_str(label, value_str);
     };
-    
+
     std::cout << border << std::endl;
     print_str("Build date: ", build_time);
     print_int("SKYWEAVER_NANTENNAS: ", SKYWEAVER_NANTENNAS);
@@ -104,7 +106,10 @@ std::ostream& operator<<(std::ostream& os, const std::vector<float>& vec)
 } // namespace std
 
 template <class Pipeline>
-void run_pipeline(Pipeline& pipeline, skyweaver::PipelineConfig& config, skyweaver::MultiFileReader& file_reader, skyweaver::ObservationHeader const& header)
+void run_pipeline(Pipeline& pipeline,
+                  skyweaver::PipelineConfig& config,
+                  skyweaver::MultiFileReader& file_reader,
+                  skyweaver::ObservationHeader const& header)
 {
     using VoltageType = typename Pipeline::VoltageVectorTypeH;
 
@@ -112,11 +117,14 @@ void run_pipeline(Pipeline& pipeline, skyweaver::PipelineConfig& config, skyweav
     BOOST_LOG_TRIVIAL(debug) << "Executing pipeline";
     std::size_t input_elements = header.nantennas * config.nchans() *
                                  config.npol() * config.gulp_length_samps();
-    BOOST_LOG_TRIVIAL(debug) << "Allocating " << input_elements * sizeof(typename VoltageType::value_type) 
-                             << " byte input buffer";
+    BOOST_LOG_TRIVIAL(debug)
+        << "Allocating "
+        << input_elements * sizeof(typename VoltageType::value_type)
+        << " byte input buffer";
     double tsamp = header.obs_nchans / header.obs_bandwidth;
     NVTX_RANGE_PUSH("Input buffer initialisation");
-    std::unique_ptr<VoltageType> taftp_input_voltage_a = std::make_unique<VoltageType>();
+    std::unique_ptr<VoltageType> taftp_input_voltage_a =
+        std::make_unique<VoltageType>();
     taftp_input_voltage_a->resize(
         {config.gulp_length_samps() / config.nsamples_per_heap(), // T
          header.nantennas,                                        // A
@@ -126,53 +134,62 @@ void run_pipeline(Pipeline& pipeline, skyweaver::PipelineConfig& config, skyweav
     taftp_input_voltage_a->frequencies(config.channel_frequencies());
     taftp_input_voltage_a->tsamp(tsamp);
     taftp_input_voltage_a->dms({0.0});
-    std::unique_ptr<VoltageType> taftp_input_voltage_b = std::make_unique<VoltageType>();
+    std::unique_ptr<VoltageType> taftp_input_voltage_b =
+        std::make_unique<VoltageType>();
     taftp_input_voltage_b->like(*taftp_input_voltage_a);
     NVTX_RANGE_POP();
 
     VoltageType const& taftp_input_voltage = *taftp_input_voltage_a;
-    BOOST_LOG_TRIVIAL(debug) << "Input buffer: " << taftp_input_voltage_a->describe();
-    std::size_t input_bytes =
-        taftp_input_voltage_a->size() * sizeof(typename VoltageType::value_type);
-    
+    BOOST_LOG_TRIVIAL(debug)
+        << "Input buffer: " << taftp_input_voltage_a->describe();
+    std::size_t input_bytes = taftp_input_voltage_a->size() *
+                              sizeof(typename VoltageType::value_type);
+
     NVTX_RANGE_PUSH("Getting total file size");
     std::size_t total_bytes = file_reader.get_total_size();
     BOOST_LOG_TRIVIAL(info) << "Total input size (bytes): " << total_bytes;
     NVTX_RANGE_POP();
 
     // Set the start offsets and adjust the total bytes
-    std::size_t bytes_per_sample = header.nantennas * config.nchans() * config.npol() * sizeof(char2);
-    std::size_t bytes_per_second = (1.0f/tsamp) * bytes_per_sample;
-    std::size_t offset_nsamps = static_cast<std::size_t>(config.start_time()/tsamp);
-    offset_nsamps = (offset_nsamps / config.nsamples_per_heap()) * config.nsamples_per_heap();
+    std::size_t bytes_per_sample =
+        header.nantennas * config.nchans() * config.npol() * sizeof(char2);
+    std::size_t bytes_per_second = (1.0f / tsamp) * bytes_per_sample;
+    std::size_t offset_nsamps =
+        static_cast<std::size_t>(config.start_time() / tsamp);
+    offset_nsamps = (offset_nsamps / config.nsamples_per_heap()) *
+                    config.nsamples_per_heap();
     pipeline.init(header, offset_nsamps * tsamp);
     std::size_t offset_nbytes = offset_nsamps * bytes_per_sample;
-    BOOST_LOG_TRIVIAL(info) << "Starting at " << config.start_time() << " seconds into the observation";
-    BOOST_LOG_TRIVIAL(debug) << "Offsetting to byte " << offset_nbytes << " of the input data";
+    BOOST_LOG_TRIVIAL(info) << "Starting at " << config.start_time()
+                            << " seconds into the observation";
+    BOOST_LOG_TRIVIAL(debug)
+        << "Offsetting to byte " << offset_nbytes << " of the input data";
     file_reader.seekg(offset_nbytes, std::ios::beg);
 
-    float total_duration = total_bytes / bytes_per_second;
+    float total_duration     = total_bytes / bytes_per_second;
     float remaining_duration = total_duration - config.start_time();
-    if ((config.duration() < std::numeric_limits<float>::infinity()) &&
-        (config.duration() > remaining_duration)){
-            BOOST_LOG_TRIVIAL(warning) << "Requested duration is longer than the remaining input length";
-        }
+    if((config.duration() < std::numeric_limits<float>::infinity()) &&
+       (config.duration() > remaining_duration)) {
+        BOOST_LOG_TRIVIAL(warning)
+            << "Requested duration is longer than the remaining input length";
+    }
     remaining_duration = std::min(remaining_duration, config.duration());
 
     skyweaver::Timer stopwatch;
     stopwatch.start("processing_loop");
     std::size_t processed_bytes = 0;
-    float data_time_elapsed = 0.0f;
-    float wall_time_elapsed = 0.0f;
-    float real_time_fraction = 0.0;
-    float percentage = 0.0f;
+    float data_time_elapsed     = 0.0f;
+    float wall_time_elapsed     = 0.0f;
+    float real_time_fraction    = 0.0;
+    float percentage            = 0.0f;
     std::streamsize nbytes_read = 0;
 
     // Populate buffer A
     stopwatch.start("file read");
-    nbytes_read = file_reader.read(reinterpret_cast<char*>(
-        thrust::raw_pointer_cast(taftp_input_voltage_a->data())),
-                input_bytes);
+    nbytes_read =
+        file_reader.read(reinterpret_cast<char*>(thrust::raw_pointer_cast(
+                             taftp_input_voltage_a->data())),
+                         input_bytes);
     stopwatch.stop("file read");
     bool thread_error = false;
     // A is full B is empty
@@ -184,32 +201,38 @@ void run_pipeline(Pipeline& pipeline, skyweaver::PipelineConfig& config, skyweav
         // Thread must write to buffer A
         std::thread reader_thread([&]() {
             try {
-                nbytes_read = file_reader.read(reinterpret_cast<char*>(
-                    thrust::raw_pointer_cast(taftp_input_voltage_a->data())),
-                                    input_bytes);
-                BOOST_LOG_TRIVIAL(debug) << "read " << nbytes_read << " bytes from file"; 
-            } catch (std::runtime_error& e) {
-                BOOST_LOG_TRIVIAL(error) << "Error on input read: " << e.what(); 
+                nbytes_read = file_reader.read(
+                    reinterpret_cast<char*>(thrust::raw_pointer_cast(
+                        taftp_input_voltage_a->data())),
+                    input_bytes);
+                BOOST_LOG_TRIVIAL(debug)
+                    << "read " << nbytes_read << " bytes from file";
+            } catch(std::runtime_error& e) {
+                BOOST_LOG_TRIVIAL(error) << "Error on input read: " << e.what();
                 thread_error = true;
             }
         });
-        // Buffer B is full from the previous read and so is now ready to be processed
+        // Buffer B is full from the previous read and so is now ready to be
+        // processed
         pipeline(*taftp_input_voltage_b);
         // Buffer B is now finished processing and we can wait on the A read
         reader_thread.join();
-        if (thread_error) {
+        if(thread_error) {
             throw std::runtime_error("Error in input file read");
         }
-        data_time_elapsed += config.gulp_length_samps() * taftp_input_voltage_a->tsamp();
-        percentage = std::min(100.0f * data_time_elapsed / remaining_duration, 100.0f);
-        wall_time_elapsed = stopwatch.elapsed("processing_loop") / 1e6;
+        data_time_elapsed +=
+            config.gulp_length_samps() * taftp_input_voltage_a->tsamp();
+        percentage =
+            std::min(100.0f * data_time_elapsed / remaining_duration, 100.0f);
+        wall_time_elapsed  = stopwatch.elapsed("processing_loop") / 1e6;
         real_time_fraction = data_time_elapsed / wall_time_elapsed;
         processed_bytes += input_bytes;
-        BOOST_LOG_TRIVIAL(info) << "Progress: " << std::setprecision(6) 
-                                << percentage << "%, Data time: " << data_time_elapsed 
-                                << " s, Wall time: " << wall_time_elapsed << ", "
-                                << "Realtime fraction: " << real_time_fraction;
-        if (data_time_elapsed >= config.duration()){
+        BOOST_LOG_TRIVIAL(info)
+            << "Progress: " << std::setprecision(6) << percentage
+            << "%, Data time: " << data_time_elapsed
+            << " s, Wall time: " << wall_time_elapsed << ", "
+            << "Realtime fraction: " << real_time_fraction;
+        if(data_time_elapsed >= config.duration()) {
             break;
         }
     }
@@ -248,7 +271,10 @@ void setup_pipeline(skyweaver::PipelineConfig& config)
                                       decltype(ib_handler),
                                       decltype(stats_handler),
                                       BfTraits>
-            pipeline(config, incoherent_dispersion_pipeline, ib_handler, stats_handler);
+            pipeline(config,
+                     incoherent_dispersion_pipeline,
+                     ib_handler,
+                     stats_handler);
         run_pipeline(pipeline, config, file_reader, header);
     } else {
         skyweaver::MultiFileWriter<skyweaver::TFBPowersD<OutputType>>
@@ -357,26 +383,29 @@ int main(int argc, char** argv)
              "(<coherent_dm>:<tscrunch>) "
              "or (<coherent_dm>)")
 
-            ("enable-incoherent-dedispersion",
-                po::value<bool>()->default_value(true)->notifier(
-                    [&config](bool const& enable) {
-                        config.enable_incoherent_dedispersion(enable);
-                    }),
-                "Turn on/off incoherent dedispersion after beamforming")
+                ("enable-incoherent-dedispersion",
+                 po::value<bool>()->default_value(true)->notifier(
+                     [&config](bool const& enable) {
+                         config.enable_incoherent_dedispersion(enable);
+                     }),
+                 "Turn on/off incoherent dedispersion after beamforming")
 
-            ("start-time",
-                po::value<float>()->default_value(0.0f)->notifier(
-                    [&config](float const& start_time) {
-                        config.start_time(start_time);
-                    }),
-                "Time since start of the data stream from which to start processing (seconds)")
+                    ("start-time",
+                     po::value<float>()->default_value(0.0f)->notifier(
+                         [&config](float const& start_time) {
+                             config.start_time(start_time);
+                         }),
+                     "Time since start of the data stream from which to start "
+                     "processing (seconds)")
 
-            ("duration",
-                po::value<float>()->default_value(std::numeric_limits<float>::infinity())->notifier(
-                    [&config](float const& duration) {
-                        config.duration(duration);
-                    }),
-                "Number of seconds of data to process")
+                        ("duration",
+                         po::value<float>()
+                             ->default_value(
+                                 std::numeric_limits<float>::infinity())
+                             ->notifier([&config](float const& duration) {
+                                 config.duration(duration);
+                             }),
+                         "Number of seconds of data to process")
 
             // Number of samples to read in each gulp
             ("gulp-size",
@@ -398,8 +427,9 @@ int main(int argc, char** argv)
 
             // Stokes mode I, Q, U, V or IQUV
             ("stokes-mode",
-             po::value<std::string>()->default_value(config.stokes_mode())->notifier(
-                 [&config](std::string stokes) {
+             po::value<std::string>()
+                 ->default_value(config.stokes_mode())
+                 ->notifier([&config](std::string stokes) {
                      for(auto& c: stokes) c = (char)toupper(c);
                      config.stokes_mode(stokes);
                  }),

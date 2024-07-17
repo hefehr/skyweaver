@@ -50,4 +50,3 @@ struct DMPrefactor {
 } // namespace skyweaver
 
 #endif // SKYWEAVER_DEDISPERSION_UTILS_CUH
-

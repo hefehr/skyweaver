@@ -235,7 +235,6 @@ class PipelineConfig
      */
     void gulp_length_samps(std::size_t);
 
-
     float start_time() const;
     void start_time(float);
 

@@ -137,10 +137,10 @@ TEST_F(BeamformerPipelineTester, full_pipeline_test)
         IncoherentDedispersionPipeline<typename BfTraits::QuantisedPowerType,
                                        typename BfTraits::QuantisedPowerType,
                                        decltype(cb_handler)>;
-    using BPipelineType   = BeamformerPipeline<IDPipelineType,
-                                               decltype(ib_handler),
-                                               decltype(stats_handler),
-                                               BfTraits>;
+    using BPipelineType    = BeamformerPipeline<IDPipelineType,
+                                                decltype(ib_handler),
+                                                decltype(stats_handler),
+                                                BfTraits>;
     using InputVectorTypeH = typename BPipelineType::VoltageVectorTypeH;
 
     IDPipelineType dedispersion_pipeline(config, cb_handler);

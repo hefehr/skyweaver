@@ -1,21 +1,22 @@
 #ifndef SKYWEAVER_AGGREGATIONBUFFER_CUH
 #define SKYWEAVER_AGGREGATIONBUFFER_CUH
 
-#include "thrust/host_vector.h"
-#include <thrust/mr/universal_memory_resource.h>
-#include <thrust/mr/allocator.h>
 #include "skyweaver/DescribedVector.hpp"
+#include "thrust/host_vector.h"
+
 #include <algorithm>
 #include <functional>
+#include <thrust/mr/allocator.h>
+#include <thrust/mr/universal_memory_resource.h>
 
 namespace skyweaver
 {
 
 /**
  * @brief A class for handling buffering of time series
- * 
+ *
  * @tparam T The data type being buffered
- * 
+ *
  * @details The buffers are implemented on host RAM but can be pushed to
  *          using device_vectors.
  */
@@ -29,22 +30,23 @@ class AggregationBuffer
   public:
     /**
      * @brief Construct a new Aggregation Buffer object
-     * 
-     * @param callback       A callback to be executed on each release of the buffer
-     * @param dispatch_size  The number of samples in each release (minus the overlap) 
-     *                       in units of the batch size
-     * @param overlap_size   The overlap between subsequent blocks of data in units of 
-     *                       the batch size
+     *
+     * @param callback       A callback to be executed on each release of the
+     * buffer
+     * @param dispatch_size  The number of samples in each release (minus the
+     * overlap) in units of the batch size
+     * @param overlap_size   The overlap between subsequent blocks of data in
+     * units of the batch size
      * @param batch_size      The batch size
      */
     AggregationBuffer(DispatchCallback callback,
                       std::size_t dispatch_size,
                       std::size_t overlap_size = 0,
-                      std::size_t batch_size    = 1);
-    
+                      std::size_t batch_size   = 1);
+
     /**
      * @brief Destroy the Aggregation Buffer object
-     * 
+     *
      */
     ~AggregationBuffer();
 
@@ -53,9 +55,9 @@ class AggregationBuffer
 
     /**
      * @brief Push a block of data into the buffer
-     * 
+     *
      * @tparam Container The template type of the source container
-     * @tparam A         The allocator type of the source container 
+     * @tparam A         The allocator type of the source container
      */
     template <template <typename, typename> class Container, typename A>
     void push_back(Container<T, A> const&);

@@ -62,9 +62,10 @@ TYPED_TEST(IncoherentDedisperserTester, ones_test)
         << "Delay vector has unexpected length";
     ASSERT_GT(dedisperser.max_delay(), 0);
     std::size_t nsamples = dedisperser.max_delay() * 2;
-    thrust::host_vector<typename Traits::InputType, PinnedAllocator<typename Traits::InputType>> data(
-        this->_config.nbeams() * nsamples * this->_config.nchans(),
-        value_traits<typename Traits::InputType>::one());
+    thrust::host_vector<typename Traits::InputType,
+                        PinnedAllocator<typename Traits::InputType>>
+        data(this->_config.nbeams() * nsamples * this->_config.nchans(),
+             value_traits<typename Traits::InputType>::one());
     TDBPowersH<typename Traits::OutputType> output;
     dedisperser.dedisperse(data, output);
     ASSERT_EQ(output.size(),
@@ -84,9 +85,10 @@ TYPED_TEST(IncoherentDedisperserTester, too_few_samples_test)
     this->_config.centre_frequency(580e6);
     std::vector<float> dms = {0.0f, 10.0f, 20.0f, 30.0f, 40.0f};
     IncoherentDedisperser dedisperser(this->_config, dms);
-    thrust::host_vector<typename Traits::InputType, PinnedAllocator<typename Traits::InputType>> data(
-        this->_config.nbeams() * dedisperser.max_delay() *
-        this->_config.nchans());
+    thrust::host_vector<typename Traits::InputType,
+                        PinnedAllocator<typename Traits::InputType>>
+        data(this->_config.nbeams() * dedisperser.max_delay() *
+             this->_config.nchans());
     TDBPowersH<typename Traits::OutputType> output;
     EXPECT_THROW(dedisperser.dedisperse(data, output), std::runtime_error);
 }
@@ -106,9 +108,10 @@ TYPED_TEST(IncoherentDedisperserTester, ones_test_wtscrunch)
     ASSERT_GT(dedisperser.max_delay(), 0);
     std::size_t nsamples =
         dedisperser.max_delay() * 2 + dedisperser.max_delay();
-    thrust::host_vector<typename Traits::InputType, PinnedAllocator<typename Traits::InputType>> data(
-        this->_config.nbeams() * nsamples * this->_config.nchans(),
-        value_traits<typename Traits::InputType>::one());
+    thrust::host_vector<typename Traits::InputType,
+                        PinnedAllocator<typename Traits::InputType>>
+        data(this->_config.nbeams() * nsamples * this->_config.nchans(),
+             value_traits<typename Traits::InputType>::one());
     TDBPowersH<typename Traits::OutputType> output;
     dedisperser.dedisperse(data, output);
     ASSERT_EQ(output.size(),

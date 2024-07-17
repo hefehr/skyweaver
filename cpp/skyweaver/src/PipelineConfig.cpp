@@ -13,9 +13,9 @@ PipelineConfig::PipelineConfig()
       _output_file_prefix(""), _dedisp_max_delay_samps(0),
       _enable_incoherent_dedispersion(true), _cfreq(1284000000.0),
       _bw(13375000.0), _channel_frequencies_stale(true),
-      _gulp_length_samps(4096), _start_time(0.0f), _duration(std::numeric_limits<float>::infinity()),
-       _total_nchans(4096), _stokes_mode("I"),
-      _output_level(24.0f)
+      _gulp_length_samps(4096), _start_time(0.0f),
+      _duration(std::numeric_limits<float>::infinity()), _total_nchans(4096),
+      _stokes_mode("I"), _output_level(24.0f)
 {
 }
 

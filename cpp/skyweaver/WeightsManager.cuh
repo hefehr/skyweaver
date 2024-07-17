@@ -61,8 +61,8 @@ class WeightsManager
      * @return     A thrust device vector containing the generated weights
      */
     WeightsVectorTypeD const& weights(DelayVectorTypeD const& delays,
-                                     TimeType current_epoch,
-                                     TimeType delay_epoch);
+                                      TimeType current_epoch,
+                                      TimeType delay_epoch);
 
   private:
     PipelineConfig const& _config;

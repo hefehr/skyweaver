@@ -89,9 +89,10 @@ void AggregationBuffer<T>::dispatch()
     _callback(_buffer);
     reset();
     if(_overlap_size > 0) {
-        _buffer_iter = thrust::copy(_buffer.end() - (_overlap_size * _batch_size),
-                                 _buffer.end(),
-                                 _buffer_iter);
+        _buffer_iter =
+            thrust::copy(_buffer.end() - (_overlap_size * _batch_size),
+                         _buffer.end(),
+                         _buffer_iter);
     }
 }
 

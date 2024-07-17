@@ -22,7 +22,7 @@ class IncoherentDedispersionPipeline
     typedef AggregationBuffer<InputType> AggBufferType;
     typedef std::vector<std::unique_ptr<AggBufferType>> AggBufferVector;
     typedef TFBPowersD<InputType> InputVectorType;   // CoherentBeam Data
-    typedef TFBPowersH<InputType> InputVectorTypeH;   // CoherentBeam Data
+    typedef TFBPowersH<InputType> InputVectorTypeH;  // CoherentBeam Data
     typedef TDBPowersH<OutputType> OutputVectorType; // Dedispersered Data
     typedef IncoherentDedisperser DedisperserType;
     typedef std::vector<std::unique_ptr<DedisperserType>> DedisperserVector;
@@ -39,8 +39,9 @@ class IncoherentDedispersionPipeline
     void operator()(InputVectorType const& data, std::size_t ref_dm_idx);
 
   private:
-    void agg_buffer_callback(typename InputVectorTypeH::VectorType const& buffer,
-                             std::size_t ref_dm_idx);
+    void
+    agg_buffer_callback(typename InputVectorTypeH::VectorType const& buffer,
+                        std::size_t ref_dm_idx);
 
   private:
     PipelineConfig const& _config;

@@ -165,7 +165,7 @@ struct SingleStokesBeamformerTraits {
     static inline __host__ __device__ RawPowerType
     ib_subtract(RawPowerType const& power,
                 RawPowerType const& ib_power,
-                float const& ib_mutliplier, //127^2 as default
+                float const& ib_mutliplier, // 127^2 as default
                 float const& scale_factor)
     {
         return rintf((power - ib_power * ib_mutliplier) / scale_factor);

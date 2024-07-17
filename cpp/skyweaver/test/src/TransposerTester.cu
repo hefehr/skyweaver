@@ -101,10 +101,10 @@ TEST_P(TransposerTester, cycling_prime_test)
     std::size_t input_size = (ntimestamps * input_nantennas * _config.nchans() *
                               _config.nsamples_per_heap() * _config.npol());
     HostInputVoltageTypeD host_gpu_input({ntimestamps,
-                                         input_nantennas,
-                                         _config.nchans(),
-                                         _config.nsamples_per_heap(),
-                                         _config.npol()});
+                                          input_nantennas,
+                                          _config.nchans(),
+                                          _config.nsamples_per_heap(),
+                                          _config.npol()});
 
     for(int ii = 0; ii < input_size; ++ii) {
         host_gpu_input[ii].x = (ii % 113);

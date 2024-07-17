@@ -187,12 +187,11 @@ TYPED_TEST(IncoherentBeamformerTester, ib_representative_noise_test)
         typename IBT::ScalingVectorTypeD offset(
             config.nchans() / config.ib_fscrunch() * nbeamsets,
             ib_power_offset);
-        typename IBT::ScalingVectorTypeD beamset_weights(
-            config.nantennas() * nbeamsets,
-            1.0f);
+        typename IBT::ScalingVectorTypeD beamset_weights(config.nantennas() *
+                                                             nbeamsets,
+                                                         1.0f);
 
-        typename IBT::VoltageVectorTypeD ftpa_voltages_gpu =
-            ftpa_voltages_host;
+        typename IBT::VoltageVectorTypeD ftpa_voltages_gpu = ftpa_voltages_host;
         typename IBT::DevicePowerVectorType tf_powers_gpu;
         typename IBT::DeviceRawPowerVectorType tf_powers_raw_gpu;
         incoherent_beamformer.beamform(ftpa_voltages_gpu,

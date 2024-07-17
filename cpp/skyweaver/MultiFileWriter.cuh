@@ -14,18 +14,17 @@ namespace skyweaver
 {
 /**
  * @brief A class for handling writing of DescribedVectors
- * 
+ *
  */
 template <typename VectorType>
 class MultiFileWriter
 {
   public:
-
     /**
      * @brief Construct a new Multi File Writer object
-     * 
+     *
      * @param config  The pipeline configuration
-     * @param tag     A string tag to be added to the file name 
+     * @param tag     A string tag to be added to the file name
      *                (used to avoid clashing file names).
      */
     MultiFileWriter(PipelineConfig const& config, std::string tag = "");
@@ -33,31 +32,32 @@ class MultiFileWriter
 
     /**
      * @brief Destroy the Multi File Writer object
-     * 
+     *
      */
     ~MultiFileWriter();
 
     /**
      * @brief Initialise the writer
-     * 
+     *
      * @param header The observation header for the current observation
      */
     void init(ObservationHeader const& header);
 
     /**
      * @brief Write data to file(s)
-     * 
+     *
      * @param stream_data A DescribedVector instance
      * @param stream_idx  The index of the stream being written to
-     * @return true 
-     * @return false 
-     * 
-     * @details The MultiFileWriter supports an arbitrary number of output streams.
-     *          If the given stream index does not already have an output stream
-     *          one will be created. Stream indexes do not need to be contiguous.
-     * 
-     * @note The usecase for stream indexes is to allow different output files for
-     *       different DedispersionPlanBlocks (i.e. different outputs per coherent
+     * @return true
+     * @return false
+     *
+     * @details The MultiFileWriter supports an arbitrary number of output
+     * streams. If the given stream index does not already have an output stream
+     *          one will be created. Stream indexes do not need to be
+     * contiguous.
+     *
+     * @note The usecase for stream indexes is to allow different output files
+     * for different DedispersionPlanBlocks (i.e. different outputs per coherent
      *       DM).
      */
     bool operator()(VectorType const& stream_data, std::size_t stream_idx = 0);

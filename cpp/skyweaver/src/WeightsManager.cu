@@ -93,8 +93,9 @@ WeightsManager::WeightsManager(PipelineConfig const& config,
     : _config(config), _stream(stream)
 {
     BOOST_LOG_TRIVIAL(debug)
-        << "Constructing WeightsManager instance to hold weights for " << _config.nbeams()
-        << " beams and " << _config.nantennas() << " antennas";
+        << "Constructing WeightsManager instance to hold weights for "
+        << _config.nbeams() << " beams and " << _config.nantennas()
+        << " antennas";
     _weights.resize(_config.nbeams() * _config.nantennas() * _config.nchans());
     // This should be an implicit copy to the device
     BOOST_LOG_TRIVIAL(debug) << "Copying channel frequencies to the GPU";

@@ -100,16 +100,17 @@ DelayManager::DelayVectorTypeD const& DelayManager::delays(double epoch)
 
 bool DelayManager::validate_model(double epoch) const
 {
-    if (_model_header.nbeams > _config.nbeams())
-    {
-        throw std::runtime_error("Delay model contains too many beams for current skyweaver build");
+    if(_model_header.nbeams > _config.nbeams()) {
+        throw std::runtime_error(
+            "Delay model contains too many beams for current skyweaver build");
     }
     if((_model_header.nbeams != _valid_nbeams) ||
        (_model_header.nantennas != _valid_nantennas)) {
         throw std::runtime_error(
             "Variable delay model parameters are unsupported");
     }
-    return ((epoch >= _model_header.start_epoch) && (epoch <= _model_header.end_epoch));
+    return ((epoch >= _model_header.start_epoch) &&
+            (epoch <= _model_header.end_epoch));
 }
 
 void DelayManager::safe_read(char* buffer, std::size_t nbytes)
@@ -138,13 +139,14 @@ void DelayManager::read_next_model()
     safe_read(reinterpret_cast<char*>(&_model_header), sizeof(_model_header));
 
     BOOST_LOG_TRIVIAL(debug) << "Delay model read successful";
-    BOOST_LOG_TRIVIAL(debug)
-        << "Delay model parameters: " << "Nantennas = " << _model_header.nantennas
-        << ", " << "Nbeams = " << _model_header.nbeams << ", "
-        << "Start = " << _model_header.start_epoch << ", "
-        << "End = " << _model_header.end_epoch;
+    BOOST_LOG_TRIVIAL(debug) << "Delay model parameters: " << "Nantennas = "
+                             << _model_header.nantennas << ", "
+                             << "Nbeams = " << _model_header.nbeams << ", "
+                             << "Start = " << _model_header.start_epoch << ", "
+                             << "End = " << _model_header.end_epoch;
 
-    const std::size_t nelements = _model_header.nantennas * _model_header.nbeams;
+    const std::size_t nelements =
+        _model_header.nantennas * _model_header.nbeams;
     _delays_h.resize(nelements);
     // Read the weight, offset, rate tuples from the file
     BOOST_LOG_TRIVIAL(debug)
@@ -216,12 +218,12 @@ std::size_t DelayManager::parse_beamsets()
     // At this point we can copy the weights
     // and mappings to the GPU
     _beamset_map_d = beamset_map;
-    _weights_d.resize(beamsets_weights.size() * _config.nantennas(), 0.0f); // padding weights to max nantennas
+    _weights_d.resize(beamsets_weights.size() * _config.nantennas(),
+                      0.0f); // padding weights to max nantennas
     for(int ii = 0; ii < beamsets_weights.size(); ++ii) {
         thrust::copy(beamsets_weights[ii].begin(),
                      beamsets_weights[ii].end(),
-                     _weights_d.begin() +
-            ii * _config.nantennas());
+                     _weights_d.begin() + ii * _config.nantennas());
     }
     // Return the number of beamsets
     return beamsets_weights.size();

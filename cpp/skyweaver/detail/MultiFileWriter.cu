@@ -104,7 +104,7 @@ MultiFileWriter<VectorType>::create_stream(VectorType const& stream_data,
                                            std::size_t stream_idx)
 {
     BOOST_LOG_TRIVIAL(debug) << "Creating stream based on stream prototype: "
-                            << stream_data.describe();
+                             << stream_data.describe();
     // Here we round the file size to a multiple of the stream prototype
     std::size_t filesize =
         std::max(1ul,
@@ -177,17 +177,17 @@ MultiFileWriter<VectorType>::create_stream(VectorType const& stream_data,
 }
 
 template <typename VectorType>
-std::string 
+std::string
 MultiFileWriter<VectorType>::get_output_dir(VectorType const& stream_data,
-                                              std::size_t stream_idx)
+                                            std::size_t stream_idx)
 {
     // Output directory format
     // <utcstart>/<freq:%f.02>/<stream_id>
     std::stringstream output_dir;
-    output_dir << _config.output_dir() << "/" 
-               << get_formatted_time(_header.utc_start) << "/"
-               << std::fixed << std::setprecision(0) << std::setfill('0') << std::setw(9) << _header.frequency << "/" 
-               << stream_idx;
+    output_dir << _config.output_dir() << "/"
+               << get_formatted_time(_header.utc_start) << "/" << std::fixed
+               << std::setprecision(0) << std::setfill('0') << std::setw(9)
+               << _header.frequency << "/" << stream_idx;
     return output_dir.str();
 }
 
@@ -202,12 +202,11 @@ MultiFileWriter<VectorType>::get_basefilename(VectorType const& stream_data,
     if(!_config.output_file_prefix().empty()) {
         base_filename << _config.output_file_prefix() << "_";
     }
-    base_filename << get_formatted_time(_header.utc_start) << "_"
-                  << stream_idx << "_" << std::fixed << std::setprecision(3)
+    base_filename << get_formatted_time(_header.utc_start) << "_" << stream_idx
+                  << "_" << std::fixed << std::setprecision(3)
                   << std::setfill('0') << std::setw(9)
-                  << stream_data.reference_dm() << "_"
-                  << std::setprecision(0) << std::setfill('0') << std::setw(9)
-                  << _header.frequency;
+                  << stream_data.reference_dm() << "_" << std::setprecision(0)
+                  << std::setfill('0') << std::setw(9) << _header.frequency;
     if(!_tag.empty()) {
         base_filename << "_" << _tag;
     }
@@ -239,7 +238,8 @@ bool MultiFileWriter<VectorType>::operator()(VectorType const& stream_data,
                         sizeof(typename VectorType::value_type));
     } else {
         _file_streams.at(stream_idx)
-            ->write(reinterpret_cast<char const*>(thrust::raw_pointer_cast(stream_data.data())),
+            ->write(reinterpret_cast<char const*>(
+                        thrust::raw_pointer_cast(stream_data.data())),
                     stream_data.size() *
                         sizeof(typename VectorType::value_type));
     }

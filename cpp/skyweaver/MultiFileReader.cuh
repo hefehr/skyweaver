@@ -53,13 +53,13 @@ class skyweaver::MultiFileReader
     bool can_read(std::size_t bytes) const;
     std::streamsize read(char* raw_ptr, std::streamsize bytes);
     bool is_open() const;
-    std::size_t safe_read(std::ifstream& input_stream,  char* buffer, std::size_t nbytes);
+    std::size_t
+    safe_read(std::ifstream& input_stream, char* buffer, std::size_t nbytes);
 
     std::size_t get_total_size() const;
 
     skyweaver::ObservationHeader const& get_header() const;
     skyweaver::ObservationHeader const& get_current_header() const;
-
 
     template <typename T>
     friend MultiFileReader& operator>>(MultiFileReader& reader, T& value);

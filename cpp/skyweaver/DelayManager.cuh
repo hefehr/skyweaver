@@ -62,8 +62,8 @@ class DelayManager
      * fastest dimension is antenna. This is also how the vectors
      * are store on file.
      */
-    using DelayVectorTypeD = thrust::device_vector<DelayModel>;
-    using DelayVectorTypeH = thrust::host_vector<DelayModel>;
+    using DelayVectorTypeD          = thrust::device_vector<DelayModel>;
+    using DelayVectorTypeH          = thrust::host_vector<DelayModel>;
     using BeamsetWeightsVectorTypeD = thrust::device_vector<float>;
     using BeamsetMappingVectorTypeD = thrust::device_vector<int>;
 

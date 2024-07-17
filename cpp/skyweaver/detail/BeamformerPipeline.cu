@@ -49,9 +49,8 @@ BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
     : _config(config), _nbeamsets(0), _cb_handler(cb_handler),
       _ib_handler(ib_handler), _stats_handler(stats_handler),
       _unix_timestamp(0.0), _call_count(0), _utc_offset(0.0)
-{   
-    if (_config.coherent_dms().empty())
-    {
+{
+    if(_config.coherent_dms().empty()) {
         throw std::runtime_error("No DDPlan set for pipeline");
     }
     NVTX_RANGE_PUSH("BeamformerPipeline construction");
@@ -112,7 +111,7 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
     NVTX_RANGE_PUSH("BeamformerPipeline initialisation");
     BOOST_LOG_NAMED_SCOPE("BeamformerPipeline::init");
     BOOST_LOG_TRIVIAL(debug) << "Initialising beamformer pipeline";
-    _header = header;
+    _header     = header;
     _utc_offset = utc_offset;
     _cb_handler.init(_header);
     _ib_handler.init(_header);
@@ -130,7 +129,7 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
     NVTX_RANGE_PUSH("BeamformerPipeline process");
     BOOST_LOG_NAMED_SCOPE("BeamformerPipeline::process");
     BOOST_LOG_TRIVIAL(debug) << "Executing beamforming pipeline";
-    
+
     NVTX_RANGE_PUSH("Fetch delays");
     BOOST_LOG_TRIVIAL(debug) << "Checking for delay updates";
     _timer.start("fetch delays");
@@ -147,8 +146,6 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
                                                     _delay_manager->epoch());
     _timer.stop("calculate weights");
     NVTX_RANGE_POP();
-
-
 
     // BOOST_LOG_TRIVIAL(info) << "Peeking weights at epoch " <<
     // std::setprecision(15) <<  _unix_timestamp; peek(weights, weights.size());
@@ -195,7 +192,6 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
     NVTX_RANGE_PUSH("Coherent dedispersion - beamforming loop");
     for(unsigned int dm_idx = 0; dm_idx < _config.coherent_dms().size();
         ++dm_idx) {
-        
         NVTX_RANGE_PUSH("Coherent dedispersion - all channels");
         _timer.start("coherent dedispersion");
         for(unsigned int freq_idx = 0; freq_idx < _config.nchans();
@@ -302,7 +298,8 @@ operator()(VoltageVectorTypeH const& taftp_on_host)
     _unix_timestamp =
         _header.utc_start +
         static_cast<long double>(_call_count * _sample_clock_tick_per_block) /
-            _header.sample_clock + _utc_offset;
+            _header.sample_clock +
+        _utc_offset;
     process();
     CUDA_ERROR_CHECK(cudaStreamSynchronize(_processing_stream));
     CUDA_ERROR_CHECK(cudaStreamSynchronize(_d2h_copy_stream));

@@ -9,7 +9,9 @@
 #include <thrust/host_vector.h>
 using namespace skyweaver;
 
-std::size_t MultiFileReader::safe_read(std::ifstream& input_stream,  char* buffer, std::size_t nbytes)
+std::size_t MultiFileReader::safe_read(std::ifstream& input_stream,
+                                       char* buffer,
+                                       std::size_t nbytes)
 {
     BOOST_LOG_TRIVIAL(debug)
         << "At byte " << input_stream.tellg() << " of the input file";
@@ -38,7 +40,7 @@ MultiFileReader::MultiFileReader(PipelineConfig const& config)
                   "Size of char2 is not as expected");
 
     std::size_t _total_size = 0;
-    this->_dada_files             = config.input_files();
+    this->_dada_files       = config.input_files();
     this->_dada_header_size = config.dada_header_size();
     std::vector<char> header_bytes(_dada_header_size);
 
@@ -121,11 +123,11 @@ skyweaver::ObservationHeader const& MultiFileReader::get_current_header() const
     return headers[_current_file_idx];
 }
 
-
 void MultiFileReader::open()
 {
-    BOOST_LOG_TRIVIAL(debug) << "Opening file: " << _dada_files[_current_file_idx]
-                             << "of size: " << sizes[_current_file_idx];
+    BOOST_LOG_TRIVIAL(debug)
+        << "Opening file: " << _dada_files[_current_file_idx]
+        << "of size: " << sizes[_current_file_idx];
     _current_stream.open(_dada_files[_current_file_idx],
                          std::ifstream::in | std::ifstream::binary);
     if(_current_stream.good()) {
@@ -137,8 +139,9 @@ void MultiFileReader::open()
                                  _dada_files[_current_file_idx]);
     }
     _current_position = _dada_header_size;
-    _eof_flag           = false;
-    BOOST_LOG_TRIVIAL(debug) << "Current file: " << _dada_files[_current_file_idx];
+    _eof_flag         = false;
+    BOOST_LOG_TRIVIAL(debug)
+        << "Current file: " << _dada_files[_current_file_idx];
 }
 
 void MultiFileReader::open_next()
@@ -211,10 +214,11 @@ void MultiFileReader::seekg(long pos, std::ios_base::seekdir dir)
             BOOST_LOG_TRIVIAL(debug)
                 << "Current position: " << _current_stream.tellg();
             _current_position = targetPos;
-            _eof_flag           = false;
+            _eof_flag         = false;
             break;
         } else {
-            BOOST_LOG_TRIVIAL(debug) << "Seek is after file: " << _dada_files[i];
+            BOOST_LOG_TRIVIAL(debug)
+                << "Seek is after file: " << _dada_files[i];
         }
     }
     if(_current_position >= _total_size || targetPos >= _total_size) {
@@ -237,7 +241,8 @@ std::streamsize MultiFileReader::read(char* raw_ptr, std::streamsize bytes)
     while(bytes > 0) {
         BOOST_LOG_TRIVIAL(debug)
             << "Attempting to read " << bytes << " bytes starting from "
-            << _current_stream.tellg() << " of " << _dada_files[_current_file_idx];
+            << _current_stream.tellg() << " of "
+            << _dada_files[_current_file_idx];
 
         if(!_current_stream.is_open()) {
             std::stringstream ss;
@@ -280,7 +285,8 @@ bool MultiFileReader::eof() const
 
 bool MultiFileReader::good() const
 {
-    return _current_stream.good() && !_eof_flag && !_current_stream.bad() && !_current_stream.fail();
+    return _current_stream.good() && !_eof_flag && !_current_stream.bad() &&
+           !_current_stream.fail();
 }
 
 std::size_t MultiFileReader::tellg() const

@@ -52,7 +52,7 @@ class StatisticsCalculator
      * @param      config  The pipeline configuration.
      *
      * @detail     The passed pipeline configuration contains the names
-     * 
+     *
                  of the sem to connect to for the channel statistics
      */
     StatisticsCalculator(PipelineConfig const& config, cudaStream_t stream);

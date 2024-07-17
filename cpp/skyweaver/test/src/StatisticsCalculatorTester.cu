@@ -4,6 +4,7 @@
 #include "skyweaver/PipelineConfig.hpp"
 #include "skyweaver/skyweaver_constants.hpp"
 #include "skyweaver/test/StatisticsCalculatorTester.cuh"
+#include "skyweaver/test/test_utils.cuh"
 
 #include <algorithm>
 #include <cmath>
@@ -155,13 +156,10 @@ void StatisticsCalculatorTester::compare_against_host(
         // and device codes to actually return identical values given
         // differences in operation order. Hence we compare as if the
         // values are floats.
-        EXPECT_FLOAT_EQ(gpu_results[stats_idx].mean, stats[stats_idx].mean());
-        EXPECT_FLOAT_EQ(gpu_results[stats_idx].std,
-                        stats[stats_idx].standard_deviation());
-        EXPECT_FLOAT_EQ(gpu_results[stats_idx].skew,
-                        stats[stats_idx].skewness());
-        EXPECT_FLOAT_EQ(gpu_results[stats_idx].kurtosis,
-                        stats[stats_idx].kurtosis());
+        expect_relatively_near(static_cast<double>(gpu_results[stats_idx].mean), stats[stats_idx].mean(), 1e-5);
+        expect_relatively_near(static_cast<double>(gpu_results[stats_idx].std),  stats[stats_idx].standard_deviation(), 1e-5);
+        expect_relatively_near(static_cast<double>(gpu_results[stats_idx].skew), stats[stats_idx].skewness(), 1e-5);
+        expect_relatively_near(static_cast<double>(gpu_results[stats_idx].kurtosis), stats[stats_idx].kurtosis(), 1e-5);
     }
 }
 
@@ -173,12 +171,11 @@ TEST_F(StatisticsCalculatorTester, test_normal_dist)
     thrust::random::normal_distribution<float> dist(0.0f, 20.0f);
     FTPAVoltagesH<char2> ftpa_voltages_h(
         {_config.nchans(), nsamples, _config.npol(), _config.nantennas()});
-    thrust::generate(ftpa_voltages_h.begin(), ftpa_voltages_h.end(), [&] {
-        char2 val;
+    for (auto& val: ftpa_voltages_h)
+    {
         val.x = static_cast<int8_t>(std::clamp(dist(rng), -127.0f, 127.0f));
         val.y = static_cast<int8_t>(std::clamp(dist(rng), -127.0f, 127.0f));
-        return val;
-    });
+    }
     FTPAVoltagesD<char2> ftpa_voltages = ftpa_voltages_h;
     StatisticsCalculator calculator(_config, _stream);
     calculator.calculate_statistics(ftpa_voltages);

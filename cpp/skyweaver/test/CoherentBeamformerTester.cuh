@@ -20,8 +20,8 @@ class CoherentBeamformerTester: public ::testing::Test
     using BfTraitsType = BfTraits;
     typedef CoherentBeamformer<BfTraits> CoherentBeamformer;
     typedef IncoherentBeamformer<BfTraits> IncoherentBeamformer;
-    typedef CoherentBeamformer::VoltageVectorTypeD DeviceVoltageVectorType;
-    typedef FTPAVoltagesH<typename DeviceVoltageVectorType::value_type>
+    typedef CoherentBeamformer::VoltageVectorTypeD VoltageVectorTypeD;
+    typedef FTPAVoltagesH<typename VoltageVectorTypeD::value_type>
     VoltageVectorTypeH;
     typedef CoherentBeamformer::PowerVectorTypeD PowerVectorTypeD;
     typedef TFBPowersH<typename PowerVectorTypeD::value_type>
@@ -32,11 +32,11 @@ class CoherentBeamformerTester: public ::testing::Test
     typedef IncoherentBeamformer::RawPowerVectorTypeD RawIBPowerVectorTypeD;
     typedef BTFPowersH<typename RawIBPowerVectorTypeD::value_type>
         HostRawIBPowerVectorType;
-    typedef CoherentBeamformer::WeightsVectorType DeviceWeightsVectorType;
-    typedef thrust::host_vector<typename DeviceWeightsVectorType::value_type>
-        HostWeightsVectorType;
-    typedef CoherentBeamformer::ScalingVectorType DeviceScalingVectorType;
-    typedef thrust::host_vector<typename DeviceScalingVectorType::value_type>
+    typedef CoherentBeamformer::WeightsVectorTypeD WeightsVectorTypeD;
+    typedef thrust::host_vector<typename WeightsVectorTypeD::value_type>
+        WeightsVectorTypeH;
+    typedef CoherentBeamformer::ScalingVectorTypeD ScalingVectorTypeD;
+    typedef thrust::host_vector<typename ScalingVectorTypeD::value_type>
         HostScalingVectorType;
     typedef CoherentBeamformer::MappingVectorType DeviceMappingVectorType;
     typedef thrust::host_vector<typename DeviceMappingVectorType::value_type>
@@ -52,7 +52,7 @@ class CoherentBeamformerTester: public ::testing::Test
 
   protected:
     void beamformer_c_reference(VoltageVectorTypeH const& ftpa_voltages,
-                                HostWeightsVectorType const& fbpa_weights,
+                                WeightsVectorTypeH const& fbpa_weights,
                                 HostPowerVectorType& btf_powers,
                                 int nchannels,
                                 int tscrunch,
@@ -66,11 +66,11 @@ class CoherentBeamformerTester: public ::testing::Test
                                 float const* antenna_weights,
                                 int const* beamset_mapping);
 
-    void compare_against_host(DeviceVoltageVectorType const& ftpa_voltages_gpu,
-                              DeviceWeightsVectorType const& fbpa_weights_gpu,
-                              DeviceScalingVectorType const& scales_gpu,
-                              DeviceScalingVectorType const& offsets_gpu,
-                              DeviceScalingVectorType const& antenna_weights,
+    void compare_against_host(VoltageVectorTypeD const& ftpa_voltages_gpu,
+                              WeightsVectorTypeD const& fbpa_weights_gpu,
+                              ScalingVectorTypeD const& scales_gpu,
+                              ScalingVectorTypeD const& offsets_gpu,
+                              ScalingVectorTypeD const& antenna_weights,
                               DeviceMappingVectorType const& beamset_mapping,
                               PowerVectorTypeD& btf_powers_gpu,
                               int nsamples);

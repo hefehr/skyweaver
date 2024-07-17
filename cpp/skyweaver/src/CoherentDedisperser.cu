@@ -16,12 +16,41 @@
 namespace skyweaver
 {
 
-double CoherentDedisperser::get_dm_delay(double f1, double f2, double dm)
+void create_coherent_dedisperser_config(CoherentDedisperserConfig& config,
+                                        PipelineConfig const& pipeline_config)
 {
-    return ((1 / pow(f1 / 1000, 2.0)) - (1 / pow(f2 / 1000, 2.0))) * dm *
-           0.00415;
+    float f_low  = pipeline_config.centre_frequency() - pipeline_config.bandwidth() / 2.0f;
+    float f_high = pipeline_config.centre_frequency() + pipeline_config.bandwidth() / 2.0f;
+    float tsamp  = pipeline_config.nchans() / pipeline_config.bandwidth();
+    auto it      = std::max_element(pipeline_config.coherent_dms().begin(),
+    pipeline_config.coherent_dms().end());
+    float max_dm = *it;
+    BOOST_LOG_TRIVIAL(debug) << "Constructing coherent dedisperser plan";
+    float max_dm_delay =
+        CoherentDedisperser::get_dm_delay(f_low, f_high, max_dm);
+
+    if (max_dm_delay * tsamp > 2 * pipeline_config.gulp_length_samps()) {
+        throw std::runtime_error("Gulp length must be at least 2 times the maximum DM delay");
+    }
+    
+    create_coherent_dedisperser_config(config,
+                            pipeline_config.gulp_length_samps(),
+                                      max_dm_delay,
+                                      pipeline_config.nchans(),
+                                      pipeline_config.npol(),
+                                      pipeline_config.nantennas(),
+                                      tsamp,
+                                      f_low,
+                                      pipeline_config.bandwidth(),
+                                      pipeline_config.coherent_dms());
+
 }
-void CoherentDedisperser::createConfig(CoherentDedisperserConfig& config,
+/*
+    * @brief      Create a new CoherentDedisperser object, mostly used only for testing
+    *
+    * @param      config  The config reference
+    */
+void create_coherent_dedisperser_config(CoherentDedisperserConfig& config,
                                        std::size_t fft_length,
                                        std::size_t overlap_samps,
                                        std::size_t num_coarse_chans,
@@ -101,9 +130,12 @@ void CoherentDedisperser::createConfig(CoherentDedisperserConfig& config,
 
     BOOST_LOG_TRIVIAL(debug) << "FFT plan created";
 }
+double CoherentDedisperser::get_dm_delay(double f1, double f2, double dm)
+{
+    return ((1 / pow(f1 / 1000, 2.0)) - (1 / pow(f2 / 1000, 2.0))) * dm *
+           0.00415;
+}
 
-/**
- **/
 namespace
 {
 #define NCHANS_PER_BLOCK 128

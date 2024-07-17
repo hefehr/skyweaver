@@ -72,7 +72,7 @@ void WeightsManagerTester::calc_weights_c_reference(
 
 void WeightsManagerTester::compare_against_host(
     DelayVectorType const& delays,
-    WeightsVectorType const& weights,
+    WeightsVectorTypeD const& weights,
     TimeType current_epoch,
     TimeType delay_epoch)
 {

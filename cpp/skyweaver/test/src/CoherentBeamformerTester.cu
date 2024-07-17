@@ -42,7 +42,7 @@ void CoherentBeamformerTester<BfTraits>::TearDown()
 template <typename BfTraits>
 void CoherentBeamformerTester<BfTraits>::beamformer_c_reference(
     VoltageVectorTypeH const& ftpa_voltages,
-    HostWeightsVectorType const& fbpa_weights,
+    WeightsVectorTypeH const& fbpa_weights,
     HostPowerVectorType& btf_powers,
     int nchannels,
     int tscrunch,
@@ -153,17 +153,17 @@ void CoherentBeamformerTester<BfTraits>::beamformer_c_reference(
 
 template <typename BfTraits>
 void CoherentBeamformerTester<BfTraits>::compare_against_host(
-    DeviceVoltageVectorType const& ftpa_voltages_gpu,
-    DeviceWeightsVectorType const& fbpa_weights_gpu,
-    DeviceScalingVectorType const& scales_gpu,
-    DeviceScalingVectorType const& offsets_gpu,
-    DeviceScalingVectorType const& antenna_weights,
+    VoltageVectorTypeD const& ftpa_voltages_gpu,
+    WeightsVectorTypeD const& fbpa_weights_gpu,
+    ScalingVectorTypeD const& scales_gpu,
+    ScalingVectorTypeD const& offsets_gpu,
+    ScalingVectorTypeD const& antenna_weights,
     DeviceMappingVectorType const& beamset_mapping,
     PowerVectorTypeD& btf_powers_gpu,
     int nsamples)
 {
     VoltageVectorTypeH ftpa_voltages_host = ftpa_voltages_gpu;
-    HostWeightsVectorType fbpa_weights_host  = fbpa_weights_gpu;
+    WeightsVectorTypeH fbpa_weights_host  = fbpa_weights_gpu;
     HostPowerVectorType btf_powers_cuda      = btf_powers_gpu;
     HostPowerVectorType btf_powers_host;
     btf_powers_host.like(btf_powers_gpu);
@@ -234,10 +234,10 @@ TYPED_TEST(CoherentBeamformerTester, representative_noise_test)
     float scale_val  = (scale * std::sqrt(2 * dof) / config.output_level());
 
     // Set constant scales and offsets for all channels and beamsets
-    typename CBT::DeviceScalingVectorType cb_scales(
+    typename CBT::ScalingVectorTypeD cb_scales(
         config.nchans() / config.cb_fscrunch() * nbeamsets,
         scale_val);
-    typename CBT::DeviceScalingVectorType cb_offsets(
+    typename CBT::ScalingVectorTypeD cb_offsets(
         config.nchans() / config.cb_fscrunch() * nbeamsets,
         offset_val);
 
@@ -245,7 +245,7 @@ TYPED_TEST(CoherentBeamformerTester, representative_noise_test)
     typename CBT::DeviceMappingVectorType beamset_mapping(config.nbeams(), 0);
 
     // Enable all antennas in all beamsets
-    typename CBT::DeviceScalingVectorType beamset_weights(config.nantennas() *
+    typename CBT::ScalingVectorTypeD beamset_weights(config.nantennas() *
                                                               nbeamsets,
                                                           1.0f);
 
@@ -298,7 +298,7 @@ TYPED_TEST(CoherentBeamformerTester, representative_noise_test)
             static_cast<int8_t>(std::lround(normal_dist(generator)));
     }
 
-    typename CBT::HostWeightsVectorType fbpa_weights_host(weights_size);
+    typename CBT::WeightsVectorTypeH fbpa_weights_host(weights_size);
     for(int ii = 0; ii < fbpa_weights_host.size(); ++ii) {
         // Build complex weight as C * exp(i * theta).
         std::complex<double> val =
@@ -308,9 +308,9 @@ TYPED_TEST(CoherentBeamformerTester, representative_noise_test)
         fbpa_weights_host[ii].y = static_cast<int8_t>(std::lround(val.imag()));
     }
 
-    typename CBT::DeviceVoltageVectorType ftpa_voltages_gpu =
+    typename CBT::VoltageVectorTypeD ftpa_voltages_gpu =
         ftpa_voltages_host;
-    typename CBT::DeviceWeightsVectorType fbpa_weights_gpu = fbpa_weights_host;
+    typename CBT::WeightsVectorTypeD fbpa_weights_gpu = fbpa_weights_host;
     typename CBT::PowerVectorTypeD tfb_powers_gpu;
 
     // Note that below even though this is for the IB we have to use the
@@ -321,10 +321,10 @@ TYPED_TEST(CoherentBeamformerTester, representative_noise_test)
     float ib_power_offset = ib_scale * ib_dof;
     float ib_power_scaling =
         ib_scale * std::sqrt(2 * ib_dof) / config.output_level();
-    typename CBT::DeviceScalingVectorType ib_scales(
+    typename CBT::ScalingVectorTypeD ib_scales(
         config.nchans() / config.cb_fscrunch() * nbeamsets,
         ib_power_scaling);
-    typename CBT::DeviceScalingVectorType ib_offset(
+    typename CBT::ScalingVectorTypeD ib_offset(
         config.nchans() / config.cb_fscrunch() * nbeamsets,
         ib_power_offset);
     typename CBT::IBPowerVectorTypeD tf_powers_gpu;

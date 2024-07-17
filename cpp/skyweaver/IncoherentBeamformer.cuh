@@ -52,7 +52,7 @@ class IncoherentBeamformer
     // TF order
     typedef BTFPowersD<typename BfTraits::RawPowerType> RawPowerVectorTypeD;
     // TF order
-    typedef thrust::device_vector<float> ScalingVectorType;
+    typedef thrust::device_vector<float> ScalingVectorTypeD;
 
   public:
     /**
@@ -84,9 +84,9 @@ class IncoherentBeamformer
     void beamform(VoltageVectorTypeD const& input,
                   RawPowerVectorTypeD& output_raw,
                   PowerVectorTypeD& output,
-                  ScalingVectorType const& output_scale,
-                  ScalingVectorType const& output_offset,
-                  ScalingVectorType const& antenna_weights,
+                  ScalingVectorTypeD const& output_scale,
+                  ScalingVectorTypeD const& output_offset,
+                  ScalingVectorTypeD const& antenna_weights,
                   int nbeamsets,
                   cudaStream_t stream);
 

@@ -19,16 +19,16 @@ class IncoherentBeamformerTester: public ::testing::Test
   public:
     using BfTraitsType = BfTraits;
     typedef IncoherentBeamformer<BfTraits> IncoherentBeamformer;
-    typedef IncoherentBeamformer::VoltageVectorTypeD DeviceVoltageVectorType;
-    typedef FTPAVoltagesH<typename DeviceVoltageVectorType::value_type> VoltageVectorTypeH;
+    typedef IncoherentBeamformer::VoltageVectorTypeD VoltageVectorTypeD;
+    typedef FTPAVoltagesH<typename VoltageVectorTypeD::value_type> VoltageVectorTypeH;
     typedef IncoherentBeamformer::PowerVectorTypeD DevicePowerVectorType;
     typedef BTFPowersH<typename DevicePowerVectorType::value_type>
         HostPowerVectorType;
     typedef IncoherentBeamformer::RawPowerVectorTypeD DeviceRawPowerVectorType;
     typedef BTFPowersH<typename DeviceRawPowerVectorType::value_type>
         HostRawPowerVectorType;
-    typedef IncoherentBeamformer::ScalingVectorType DeviceScalingVectorType;
-    typedef thrust::host_vector<typename DeviceScalingVectorType::value_type>
+    typedef IncoherentBeamformer::ScalingVectorTypeD ScalingVectorTypeD;
+    typedef thrust::host_vector<typename ScalingVectorTypeD::value_type>
         HostScalingVectorType;
 
   protected:
@@ -53,12 +53,12 @@ class IncoherentBeamformerTester: public ::testing::Test
                                 HostScalingVectorType const& beamset_weights,
                                 int nbeamsets);
 
-    void compare_against_host(DeviceVoltageVectorType const& ftpa_voltages_gpu,
+    void compare_against_host(VoltageVectorTypeD const& ftpa_voltages_gpu,
                               DeviceRawPowerVectorType& tf_powers_raw_gpu,
                               DevicePowerVectorType& tf_powers_gpu,
-                              DeviceScalingVectorType const& scaling_vector,
-                              DeviceScalingVectorType const& offset_vector,
-                              DeviceScalingVectorType const& beamset_weights,
+                              ScalingVectorTypeD const& scaling_vector,
+                              ScalingVectorTypeD const& offset_vector,
+                              ScalingVectorTypeD const& beamset_weights,
                               int ntimestamps,
                               int nbeamsets);
 

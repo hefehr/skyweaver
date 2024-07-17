@@ -52,8 +52,8 @@ class CoherentBeamformer
     typedef TFBPowersD<typename BfTraits::QuantisedPowerType> PowerVectorTypeD;
     typedef BTFPowersD<typename BfTraits::RawPowerType> RawPowerVectorTypeD;
     // FBA order (assuming equal weight per polarisation)
-    typedef thrust::device_vector<char2> WeightsVectorType;
-    typedef thrust::device_vector<float> ScalingVectorType;
+    typedef thrust::device_vector<char2> WeightsVectorTypeD;
+    typedef thrust::device_vector<float> ScalingVectorTypeD;
     typedef thrust::device_vector<int> MappingVectorType;
 
   public:
@@ -80,9 +80,9 @@ class CoherentBeamformer
      * @param[in]  stream    The CUDA stream to use for processing
      */
     void beamform(VoltageVectorTypeD const& input,
-                  WeightsVectorType const& weights,
-                  ScalingVectorType const& scales,
-                  ScalingVectorType const& offsets,
+                  WeightsVectorTypeD const& weights,
+                  ScalingVectorTypeD const& scales,
+                  ScalingVectorTypeD const& offsets,
                   MappingVectorType const& beamset_mapping,
                   RawPowerVectorTypeD const& ib_powers,
                   PowerVectorTypeD& output,

@@ -3,7 +3,7 @@
 
 #include "skyweaver/DescribedVector.hpp"
 #include "skyweaver/skyweaver_constants.hpp"
-
+#include "skyweaver/PipelineConfig.hpp"
 #include <boost/log/trivial.hpp>
 #include <cufft.h>
 #include <psrdada_cpp/psrdadaheader.hpp>
@@ -54,21 +54,23 @@ void get_dm_responses(CoherentDedisperserConfig& config,
                       double dm_prefactor,
                       thrust::device_vector<cufftComplex>& responses);
 
+void create_coherent_dedisperser_config(CoherentDedisperserConfig& config,
+                        PipelineConfig const& pipeline_config);
+void create_coherent_dedisperser_config(CoherentDedisperserConfig& config,
+                       std::size_t fft_length,
+                       std::size_t overlap_samps,
+                       std::size_t num_coarse_chans,
+                       std::size_t npols,
+                       std::size_t nantennas,
+                       double tsamp,
+                       double low_freq,
+                       double bw,
+                       std::vector<float> dms);
 class CoherentDedisperser
 {
   public:
-    static void createConfig(CoherentDedisperserConfig& config,
-                             std::size_t fft_length,
-                             std::size_t overlap_samps,
-                             std::size_t num_coarse_chans,
-                             std::size_t npols,
-                             std::size_t nantennas,
-                             double tsamp,
-                             double low_freq,
-                             double bw,
-                             std::vector<float> dms);
-    static double
-    get_dm_delay(double f1, double f2, double dm); // f1 and f2 in MHz
+    
+    static double get_dm_delay(double f1, double f2, double dm); // f1 and f2 in MHz
     CoherentDedisperser(CoherentDedisperserConfig& config): config(config) {}
     ~CoherentDedisperser() {};
     void dedisperse(TPAVoltagesD<char2> const& d_tpa_voltages_in,

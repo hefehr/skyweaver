@@ -15,7 +15,7 @@ class WeightsManagerTester: public ::testing::Test
 {
   public:
     typedef WeightsManager::DelayVectorType DelayVectorType;
-    typedef WeightsManager::WeightsVectorType WeightsVectorType;
+    typedef WeightsManager::WeightsVectorTypeD WeightsVectorTypeD;
     typedef WeightsManager::TimeType TimeType;
 
   protected:
@@ -40,7 +40,7 @@ class WeightsManagerTester: public ::testing::Test
                              int ntsteps);
 
     void compare_against_host(DelayVectorType const& delays,
-                              WeightsVectorType const& weights,
+                              WeightsVectorTypeD const& weights,
                               TimeType current_epoch,
                               TimeType delay_epoch);
 

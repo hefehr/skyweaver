@@ -45,7 +45,7 @@ void CoherentDedisperserTester::SetUp()
         << "Max dm delay per subband is: " << max_dm_delay
         << " seconds which is about " << max_delay_samps << " samples.";
 
-    CoherentDedisperser::createConfig(dedisp_config,
+    create_coherent_dedisperser_config(dedisp_config,
                                       fft_length,
                                       max_delay_samps,
                                       nchans,

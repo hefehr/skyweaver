@@ -104,12 +104,12 @@ void IncoherentBeamformerTester<BfTraits>::beamformer_c_reference(
 
 template <typename BfTraits>
 void IncoherentBeamformerTester<BfTraits>::compare_against_host(
-    DeviceVoltageVectorType const& ftpa_voltages_gpu,
+    VoltageVectorTypeD const& ftpa_voltages_gpu,
     DeviceRawPowerVectorType& tf_powers_raw_gpu,
     DevicePowerVectorType& tf_powers_gpu,
-    DeviceScalingVectorType const& scaling_vector,
-    DeviceScalingVectorType const& offset_vector,
-    DeviceScalingVectorType const& beamset_weights,
+    ScalingVectorTypeD const& scaling_vector,
+    ScalingVectorTypeD const& offset_vector,
+    ScalingVectorTypeD const& beamset_weights,
     int ntimestamps,
     int nbeamsets)
 {
@@ -181,17 +181,17 @@ TYPED_TEST(IncoherentBeamformerTester, ib_representative_noise_test)
         ib_scale * std::sqrt(2 * ib_dof) / config.output_level();
 
     for(int nbeamsets = 1; nbeamsets < 5; ++nbeamsets) {
-        typename IBT::DeviceScalingVectorType scales(
+        typename IBT::ScalingVectorTypeD scales(
             config.nchans() / config.ib_fscrunch() * nbeamsets,
             ib_power_scaling);
-        typename IBT::DeviceScalingVectorType offset(
+        typename IBT::ScalingVectorTypeD offset(
             config.nchans() / config.ib_fscrunch() * nbeamsets,
             ib_power_offset);
-        typename IBT::DeviceScalingVectorType beamset_weights(
+        typename IBT::ScalingVectorTypeD beamset_weights(
             config.nantennas() * nbeamsets,
             1.0f);
 
-        typename IBT::DeviceVoltageVectorType ftpa_voltages_gpu =
+        typename IBT::VoltageVectorTypeD ftpa_voltages_gpu =
             ftpa_voltages_host;
         typename IBT::DevicePowerVectorType tf_powers_gpu;
         typename IBT::DeviceRawPowerVectorType tf_powers_raw_gpu;

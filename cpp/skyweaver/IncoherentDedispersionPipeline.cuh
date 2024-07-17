@@ -36,11 +36,11 @@ class IncoherentDedispersionPipeline
     IncoherentDedispersionPipeline&
     operator=(IncoherentDedispersionPipeline const&) = delete;
     void init(ObservationHeader const& header);
-    void operator()(InputVectorType const& data, std::size_t dm_idx);
+    void operator()(InputVectorType const& data, std::size_t ref_dm_idx);
 
   private:
     void agg_buffer_callback(typename InputVectorTypeH::VectorType const& buffer,
-                             std::size_t dm_idx);
+                             std::size_t ref_dm_idx);
 
   private:
     PipelineConfig const& _config;

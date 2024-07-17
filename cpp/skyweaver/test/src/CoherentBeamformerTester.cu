@@ -41,7 +41,7 @@ void CoherentBeamformerTester<BfTraits>::TearDown()
 
 template <typename BfTraits>
 void CoherentBeamformerTester<BfTraits>::beamformer_c_reference(
-    HostVoltageVectorType const& ftpa_voltages,
+    VoltageVectorTypeH const& ftpa_voltages,
     HostWeightsVectorType const& fbpa_weights,
     HostPowerVectorType& btf_powers,
     int nchannels,
@@ -162,7 +162,7 @@ void CoherentBeamformerTester<BfTraits>::compare_against_host(
     DevicePowerVectorType& btf_powers_gpu,
     int nsamples)
 {
-    HostVoltageVectorType ftpa_voltages_host = ftpa_voltages_gpu;
+    VoltageVectorTypeH ftpa_voltages_host = ftpa_voltages_gpu;
     HostWeightsVectorType fbpa_weights_host  = fbpa_weights_gpu;
     HostPowerVectorType btf_powers_cuda      = btf_powers_gpu;
     HostPowerVectorType btf_powers_host;
@@ -286,7 +286,7 @@ TYPED_TEST(CoherentBeamformerTester, representative_noise_test)
     std::size_t weights_size =
         config.nantennas() * config.nchans() * config.nbeams();
 
-    typename CBT::HostVoltageVectorType ftpa_voltages_host(
+    typename CBT::VoltageVectorTypeH ftpa_voltages_host(
         {config.nchans(),
          ntimestamps * config.nsamples_per_heap(),
          config.npol(),

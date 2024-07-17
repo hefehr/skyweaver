@@ -198,7 +198,7 @@ CoherentBeamformer<BfTraits>::~CoherentBeamformer()
 
 template <typename BfTraits>
 void CoherentBeamformer<BfTraits>::beamform(
-    VoltageVectorType const& input,
+    VoltageVectorTypeD const& input,
     WeightsVectorType const& weights,
     ScalingVectorType const& output_scale,
     ScalingVectorType const& output_offset,

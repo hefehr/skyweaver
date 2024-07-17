@@ -20,9 +20,9 @@ class CoherentBeamformerTester: public ::testing::Test
     using BfTraitsType = BfTraits;
     typedef CoherentBeamformer<BfTraits> CoherentBeamformer;
     typedef IncoherentBeamformer<BfTraits> IncoherentBeamformer;
-    typedef CoherentBeamformer::VoltageVectorType DeviceVoltageVectorType;
+    typedef CoherentBeamformer::VoltageVectorTypeD DeviceVoltageVectorType;
     typedef FTPAVoltagesH<typename DeviceVoltageVectorType::value_type>
-        HostVoltageVectorType;
+    VoltageVectorTypeH;
     typedef CoherentBeamformer::PowerVectorType DevicePowerVectorType;
     typedef TFBPowersH<typename DevicePowerVectorType::value_type>
         HostPowerVectorType;
@@ -51,7 +51,7 @@ class CoherentBeamformerTester: public ::testing::Test
     ~CoherentBeamformerTester();
 
   protected:
-    void beamformer_c_reference(HostVoltageVectorType const& ftpa_voltages,
+    void beamformer_c_reference(VoltageVectorTypeH const& ftpa_voltages,
                                 HostWeightsVectorType const& fbpa_weights,
                                 HostPowerVectorType& btf_powers,
                                 int nchannels,

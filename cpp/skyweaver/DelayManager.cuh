@@ -62,10 +62,10 @@ class DelayManager
      * fastest dimension is antenna. This is also how the vectors
      * are store on file.
      */
-    typedef thrust::device_vector<DelayModel> DelayVectorDType;
-    typedef thrust::host_vector<DelayModel> DelayVectorHType;
-    typedef thrust::device_vector<float> BeamsetWeightsVectorType;
-    typedef thrust::device_vector<int> BeamsetMappingVectorType;
+    using DelayVectorTypeD = thrust::device_vector<DelayModel>;
+    using DelayVectorTypeH = thrust::host_vector<DelayModel>;
+    using BeamsetWeightsVectorType = thrust::device_vector<float>;
+    using BeamsetMappingVectorType = thrust::device_vector<int>;
 
   public:
     /**
@@ -87,7 +87,7 @@ class DelayManager
      *
      * @return A device vector containing the current delays
      */
-    DelayVectorDType const& delays(double epoch);
+    DelayVectorTypeD const& delays(double epoch);
 
     /**
      * @brief Return the UNIX epoch of the current delay model
@@ -135,8 +135,8 @@ class DelayManager
     std::size_t _valid_nbeamsets;
     DelayModelHeader _header;
     std::ifstream _input_stream;
-    DelayVectorHType _delays_h;
-    DelayVectorDType _delays_d;
+    DelayVectorTypeH _delays_h;
+    DelayVectorTypeD _delays_d;
     // The _weights_d array is stored flat to
     // avoid having to use pointer arrays.
     // The format is (nbeamsets, nantennas)

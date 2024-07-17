@@ -19,9 +19,8 @@ class IncoherentBeamformerTester: public ::testing::Test
   public:
     using BfTraitsType = BfTraits;
     typedef IncoherentBeamformer<BfTraits> IncoherentBeamformer;
-    typedef IncoherentBeamformer::VoltageVectorType DeviceVoltageVectorType;
-    typedef FTPAVoltagesH<typename DeviceVoltageVectorType::value_type>
-        HostVoltageVectorType;
+    typedef IncoherentBeamformer::VoltageVectorTypeD DeviceVoltageVectorType;
+    typedef FTPAVoltagesH<typename DeviceVoltageVectorType::value_type> VoltageVectorTypeH;
     typedef IncoherentBeamformer::PowerVectorType DevicePowerVectorType;
     typedef BTFPowersH<typename DevicePowerVectorType::value_type>
         HostPowerVectorType;
@@ -41,7 +40,7 @@ class IncoherentBeamformerTester: public ::testing::Test
     ~IncoherentBeamformerTester();
 
   protected:
-    void beamformer_c_reference(HostVoltageVectorType const& ftpa_voltages,
+    void beamformer_c_reference(VoltageVectorTypeH const& ftpa_voltages,
                                 HostRawPowerVectorType& tf_powers_raw,
                                 HostPowerVectorType& tf_powers,
                                 int nchannels,

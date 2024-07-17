@@ -32,7 +32,7 @@ class WeightsManager
     typedef double FreqType;
     typedef thrust::device_vector<FreqType> FreqVectorType;
     typedef double TimeType;
-    typedef DelayManager::DelayVectorDType DelayVectorType;
+    typedef DelayManager::DelayVectorTypeD DelayVectorType;
 
   public:
     /**

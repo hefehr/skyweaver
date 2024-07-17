@@ -41,7 +41,7 @@ struct DMSampleDelay {
 };
 
 struct DMPrefactor {
-    __host__ __device__ int operator()(double const& dm)
+    __host__ __device__ double operator()(double const& dm)
     {
         return -1.0f * two_pi<double> * dm_const_hz_s<double> * dm;
     }
@@ -50,3 +50,4 @@ struct DMPrefactor {
 } // namespace skyweaver
 
 #endif // SKYWEAVER_DEDISPERSION_UTILS_CUH
+

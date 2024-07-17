@@ -26,20 +26,28 @@ void CoherentDedisperserTester::SetUp()
     dms.push_back(0);
     dms.push_back(1000);
     fft_length = 1024;
+    double tsamp     = 4096 / 856e6;
+
     // dms.push_back(200);
     nantennas        = 64;
     nchans           = 64;
     npols            = 2;
-    double f_low     = 856.0e6;
-    double bridge_bw = 13.375e6;
-    double tsamp     = 4096 / 856e6;
+    double f_low     = 856.0 * 1e6;
+    double bridge_bw = 13.375 *  1e6;
 
     double f1     = f_low;
-    double f2     = f_low + 856.0e6 / 4096;
-    double max_dm = *(std::max_element(dms.begin(), dms.end()));
+    double f2     = f_low + 856.0 * 1e6 / 4096;
 
-    double max_dm_delay = dm_delay(f1, f2, max_dm);
+
+    double max_dm = *(std::max_element(dms.begin(), dms.end()));
+    BOOST_LOG_TRIVIAL(info) << "Max DM: " << max_dm;
+    BOOST_LOG_TRIVIAL(info) << "tsamp: " << tsamp;
+    BOOST_LOG_TRIVIAL(info) << "f_low: " << f_low;
+    BOOST_LOG_TRIVIAL(info) << "f1: " << f1;
+    BOOST_LOG_TRIVIAL(info) << "f2: " << f2;
+    double max_dm_delay = dm_delay(f1 , f2 , max_dm);
     max_delay_samps     = std::ceil(max_dm_delay / tsamp);
+
 
     BOOST_LOG_TRIVIAL(info)
         << "Max dm delay per subband is: " << max_dm_delay

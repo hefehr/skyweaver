@@ -234,12 +234,12 @@ void setup_pipeline(skyweaver::PipelineConfig& config)
         skyweaver::IncoherentDedispersionPipeline<OutputType,
                                                   OutputType,
                                                   decltype(cb_file_writer)>
-            dispersion_pipeline(config, cb_file_writer);
-        skyweaver::BeamformerPipeline<decltype(dispersion_pipeline),
+            incoherent_dispersion_pipeline(config, cb_file_writer);
+        skyweaver::BeamformerPipeline<decltype(incoherent_dispersion_pipeline),
                                       decltype(ib_handler),
                                       decltype(stats_handler),
                                       BfTraits>
-            pipeline(config, dispersion_pipeline, ib_handler, stats_handler);
+            pipeline(config, incoherent_dispersion_pipeline, ib_handler, stats_handler);
         run_pipeline(pipeline, config, file_reader, header);
     } else {
         skyweaver::MultiFileWriter<skyweaver::TFBPowersD<OutputType>>
@@ -260,7 +260,7 @@ int main(int argc, char** argv)
 
     try {
         skyweaver::PipelineConfig config;
-        psrdada_cpp::set_log_level("warning");
+        skyweaver::init_logging("warning");
         /**
          * Define and parse the program options
          */
@@ -389,7 +389,7 @@ int main(int argc, char** argv)
 
             // Stokes mode I, Q, U, V or IQUV
             ("stokes-mode",
-             po::value<std::string>()->default_value("I")->notifier(
+             po::value<std::string>()->default_value(config.stokes_mode())->notifier(
                  [&config](std::string stokes) {
                      for(auto& c: stokes) c = (char)toupper(c);
                      config.stokes_mode(stokes);

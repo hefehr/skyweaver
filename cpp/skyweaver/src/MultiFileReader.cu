@@ -9,12 +9,13 @@
 #include <thrust/host_vector.h>
 using namespace skyweaver;
 
-void MultiFileReader::safe_read(std::ifstream& input_stream,  char* buffer, std::size_t nbytes)
+std::size_t MultiFileReader::safe_read(std::ifstream& input_stream,  char* buffer, std::size_t nbytes)
 {
     BOOST_LOG_TRIVIAL(debug)
         << "At byte " << input_stream.tellg() << " of the input file";
     BOOST_LOG_TRIVIAL(debug) << "Safe reading " << nbytes << " bytes";
-    std::size_t nbytes_read = input_stream.read(buffer, nbytes);
+    input_stream.read(buffer, nbytes);
+    std::size_t nbytes_read = input_stream.gcount();
     if(input_stream.eof()) {
         // Reached the end of the delay model file
         // TODO: Decide what the behaviour should be here.

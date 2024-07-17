@@ -17,19 +17,19 @@ namespace skyweaver
 namespace kernel
 {
 
-__device__ void accumulate(float power,
+__device__ void accumulate(double power,
                            long long& n,
-                           float& M1,
-                           float& M2,
-                           float& M3,
-                           float& M4)
+                           double& M1,
+                           double& M2,
+                           double& M3,
+                           double& M4)
 {
     long long n1 = n;
     n++;
-    float delta    = power - M1;
-    float delta_n  = delta / n;
-    float delta_n2 = delta_n * delta_n;
-    float term1    = delta * delta_n * n1;
+    double delta    = power - M1;
+    double delta_n  = delta / n;
+    double delta_n2 = delta_n * delta_n;
+    double term1    = delta * delta_n * n1;
     M1 += delta_n;
     M4 += term1 * delta_n2 * (n * n - 3 * n + 3) + 6 * delta_n2 * M2 -
           4 * delta_n * M3;
@@ -65,23 +65,23 @@ __global__ void calculate_statistics(char2 const* __restrict__ ftpa_voltages,
     const int offset =
         channel_idx * tpa_size + pol_idx * nantennas + antenna_idx;
     const int stride = npol * nantennas;
-    float M1 = 0.0, M2 = 0.0, M3 = 0.0, M4 = 0.0;
+    double M1 = 0.0, M2 = 0.0, M3 = 0.0, M4 = 0.0;
     long long n = 0;
     for(int sample_idx = offset; sample_idx < (tpa_size + offset);
         sample_idx += stride) {
         char2 data = ftpa_voltages[sample_idx];
-        accumulate(static_cast<float>(data.x), n, M1, M2, M3, M4);
-        accumulate(static_cast<float>(data.y), n, M1, M2, M3, M4);
+        accumulate(static_cast<double>(data.x), n, M1, M2, M3, M4);
+        accumulate(static_cast<double>(data.y), n, M1, M2, M3, M4);
     }
 
     // Output is ordered in FPA order
     int output_idx =
         channel_idx * npol * nantennas + pol_idx * nantennas + antenna_idx;
     Statistics* output = &results[output_idx];
-    output->mean       = M1;
-    output->std        = sqrt(M2 / (n - 1.0));
-    output->skew       = sqrt((float)n) * M3 / pow(M2, 1.5);
-    output->kurtosis   = (float)n * M4 / (M2 * M2) - 3.0;
+    output->mean       = static_cast<float>(M1);
+    output->std        = static_cast<float>(sqrt(M2 / (n - 1.0)));
+    output->skew       = static_cast<float>(sqrt((double)n) * M3 / pow(M2, 1.5));
+    output->kurtosis   = static_cast<float>((double)n * M4 / (M2 * M2) - 3.0);
 }
 
 } // namespace kernel
@@ -167,109 +167,63 @@ void StatisticsCalculator::update_scalings(
     _ib_scaling_d.resize(reduced_nchans_ib * nbeamsets);
     _ib_scaling_h.resize(reduced_nchans_ib * nbeamsets);
 
+    const std::uint32_t pa = _config.npol() * _config.nantennas();
+    const std::uint32_t a = _config.nantennas();
+
     for(std::uint32_t beamset_idx = 0; beamset_idx < nbeamsets; ++beamset_idx) {
-        const float effective_nantennas = std::accumulate(
-            &beamset_weights[_config.nantennas() * beamset_idx],
-            &beamset_weights[_config.nantennas() * (beamset_idx + 1)],
-            0.0f);
 
-        // define function
-        auto get_offset_cb = [&](float x, Statistics const& y) {
-            float scale =
-                std::pow(weights_amp * y.std *
-                             std::sqrt(static_cast<float>(effective_nantennas)),
-                         2);
-            float dof = 2 * _config.cb_tscrunch() * _config.cb_fscrunch() *
-                        _config.npol();
-            return x + (scale * dof);
-        };
+        // For each frequency channel we average the std estimates then calculate the
+        // offsets and scalings.
+        for (int f_idx = 0; f_idx < _config.nchans(); ++f_idx)
+        {   
+            float sum = 0.0f;
+            float count = 0.0f;
+            for (int p_idx = 0; p_idx < _config.npol(); ++p_idx)
+            {
+                for (int a_idx = 0; a_idx < _config.nantennas(); ++a_idx)
+                {
+                    const float weight = beamset_weights[_config.nantennas() * beamset_idx + a_idx];
+                    sum += weight * _stats_h[f_idx * pa + p_idx * a + a_idx].std;
+                    count += weight;
+                }
+            }
+            const float avg_std = sum / count;
+            BOOST_LOG_TRIVIAL(info) << "Channel " << f_idx;
+            BOOST_LOG_TRIVIAL(info) << "Averaged standard deviation = " << avg_std;
+            float const effective_nantennas = count / _config.npol();
 
-        auto get_scale_cb = [&](float x, Statistics const& y) {
-            float scale =
-                std::pow(weights_amp * y.std *
-                             std::sqrt(static_cast<float>(effective_nantennas)),
-                         2);
-            float dof = 2 * _config.cb_tscrunch() * _config.cb_fscrunch() *
-                        _config.npol();
-            return x + (scale * std::sqrt(2 * dof) / _config.output_level());
-        };
+            // CB OFFSET
+            {
+                float scale = std::pow(weights_amp * avg_std * std::sqrt(effective_nantennas), 2);
+                float dof = 2 * _config.cb_tscrunch() * _config.npol();
+                _cb_offsets_h[f_idx] = scale * dof;
+                BOOST_LOG_TRIVIAL(info) << "CB offset = " << _cb_offsets_h[f_idx];
+            }   
 
-        auto get_offset_ib = [&](float x, Statistics const& y) {
-            float scale = std::pow(y.std, 2);
-            float dof   = 2 * _config.ib_tscrunch() * _config.ib_fscrunch() *
-                        effective_nantennas * _config.npol();
-            return x + (scale * dof);
-        };
+            // CB SCALE
+            {
+                float scale = std::pow(weights_amp * avg_std * std::sqrt(effective_nantennas), 2);
+                float dof = 2 * _config.cb_tscrunch() * _config.npol();
+                _cb_scaling_h[f_idx] = scale * std::sqrt(2 * dof) / _config.output_level();
+                BOOST_LOG_TRIVIAL(info) << "CB scaling = " << _cb_scaling_h[f_idx] ;
+            } 
+            
+            // IB OFFSET
+            {
+                float scale = std::pow(avg_std, 2);
+                float dof = 2 * _config.ib_tscrunch() * effective_nantennas * _config.npol();
+                _ib_offsets_h[f_idx] = scale * dof;
+                BOOST_LOG_TRIVIAL(info) << "IB offset = " << _ib_offsets_h[f_idx] ;
+            }   
 
-        auto get_scale_ib = [&](float x, Statistics const& y) {
-            float scale = std::pow(y.std, 2);
-            float dof   = 2 * _config.ib_tscrunch() * _config.ib_fscrunch() *
-                        effective_nantennas * _config.npol();
-            return x + (scale * std::sqrt(2 * dof) / _config.output_level());
-        };
+            // IB SCALE
+            {
+                float scale = std::pow(avg_std, 2);
+                float dof = 2 * _config.ib_tscrunch() * effective_nantennas * _config.npol();
+                _ib_scaling_h[f_idx] = scale * std::sqrt(2 * dof) / _config.output_level();
+                BOOST_LOG_TRIVIAL(info) << "IB scaling = " << _ib_scaling_h[f_idx] ;
+            } 
 
-        // CB scaling and  offsets
-        // Note: we use effective_nantennas below instead of the
-        // _config.nantennas() because we want scaling factors that are valid
-        // for valid data. Using the _config.nantnnas() would skew the stats.
-        const int scale_factor =
-            _config.cb_fscrunch() * _config.npol() * effective_nantennas;
-
-        for(std::uint32_t out_chan_idx = 0; out_chan_idx < reduced_nchans_cb;
-            ++out_chan_idx) {
-            const std::uint32_t oidx =
-                beamset_idx * reduced_nchans_cb + out_chan_idx;
-            const std::uint32_t f_idx = _config.cb_fscrunch() * out_chan_idx;
-            const std::uint32_t pa    = _config.npol() * _config.nantennas();
-            const std::uint32_t start_idx = f_idx * pa;
-            const std::uint32_t end_idx = (f_idx + _config.cb_fscrunch()) * pa;
-            _cb_offsets_h[oidx]         = std::accumulate(&_stats_h[start_idx],
-                                                  &_stats_h[end_idx],
-                                                  0.0f,
-                                                  get_offset_cb) /
-                                  scale_factor;
-            _cb_scaling_h[oidx] = std::accumulate(&_stats_h[start_idx],
-                                                  &_stats_h[end_idx],
-                                                  0.0f,
-                                                  get_scale_cb) /
-                                  scale_factor;
-            BOOST_LOG_TRIVIAL(debug)
-                << "Coherent beam power offset (beamset " << beamset_idx
-                << "): " << _cb_offsets_h[oidx];
-            BOOST_LOG_TRIVIAL(debug)
-                << "Coherent beam power scaling (beamset " << beamset_idx
-                << "): " << _cb_scaling_h[oidx];
-        }
-
-        // scaling for incoherent beamformer
-        for(std::uint32_t out_chan_idx = 0; out_chan_idx < reduced_nchans_ib;
-            ++out_chan_idx) {
-            const std::uint32_t oidx =
-                beamset_idx * reduced_nchans_ib + out_chan_idx;
-            const std::uint32_t f_idx = _config.ib_fscrunch() * out_chan_idx;
-            const std::uint32_t pa    = _config.npol() * _config.nantennas();
-            const std::uint32_t start_idx = f_idx * pa;
-            const std::uint32_t end_idx = (f_idx + _config.ib_fscrunch()) * pa;
-            _ib_offsets_h[oidx]         = std::accumulate(&_stats_h[start_idx],
-                                                  &_stats_h[end_idx],
-                                                  0.0f,
-                                                  get_offset_ib) /
-                                  scale_factor;
-            _ib_scaling_h[oidx] = std::accumulate(&_stats_h[start_idx],
-                                                  &_stats_h[end_idx],
-                                                  0.0f,
-                                                  get_scale_ib) /
-                                  scale_factor;
-            BOOST_LOG_TRIVIAL(debug)
-                << "Incoherent beam power offset (beamset " << beamset_idx
-                << "): "
-                << _ib_offsets_h[beamset_idx * reduced_nchans_ib +
-                                 out_chan_idx];
-            BOOST_LOG_TRIVIAL(debug)
-                << "Incoherent beam power scaling (beamset " << beamset_idx
-                << "): "
-                << _ib_scaling_h[beamset_idx * reduced_nchans_ib +
-                                 out_chan_idx];
         }
     }
     // At this stage, all scaling vectors are available on the host and

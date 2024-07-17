@@ -99,6 +99,8 @@ TEST_F(BeamformerPipelineTester, instantiate)
 {
     using BfTraits = SingleStokesBeamformerTraits<StokesParameter::I>;
     PipelineConfig config;
+    config.ddplan().add_block(0.0f, 1);
+    config.output_dir("/tmp/");
     config.delay_file("data/test_delays.bin");
     NullHandler cb_handler;
     NullHandler ib_handler;
@@ -113,6 +115,7 @@ TEST_F(BeamformerPipelineTester, full_pipeline_test)
 {
     using BfTraits = SingleStokesBeamformerTraits<StokesParameter::I>;
     PipelineConfig config;
+    config.ddplan().add_block(0.0f, 1);
     config.output_dir("/tmp/");
     config.delay_file("data/test_delays.bin");
     ObservationHeader header;

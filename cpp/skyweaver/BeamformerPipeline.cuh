@@ -58,7 +58,7 @@ class BeamformerPipeline
      *
      * @param      header  A RawBytes object wrapping the DADA header block
      */
-    void init(ObservationHeader const& header);
+    void init(ObservationHeader const& header, long double utc_offset = 0.0);
 
     /**
      * @brief      Process the data in a DADA data buffer
@@ -110,6 +110,7 @@ class BeamformerPipeline
     long double _unix_timestamp;
     std::size_t _sample_clock_tick_per_block;
     std::size_t _call_count;
+    long double _utc_offset;
 
     // Trackers
     Timer _timer;

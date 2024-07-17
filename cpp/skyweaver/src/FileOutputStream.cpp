@@ -4,17 +4,18 @@
 #include <iostream>
 #include <stdexcept>
 #include <iomanip>
+#include <sys/stat.h>
 
 namespace skyweaver
 {
 
 namespace fs = std::filesystem;
 
-void create_directory(const fs::path& path) {
+void create_directories(const fs::path& path) {
     // Check if the directory already exists
     if (!fs::exists(path)) {
         // Directory does not exist, attempt to create it
-        if (!fs::create_directory(path)) {
+        if (!fs::create_directories(path)) {
             throw std::runtime_error("Failed to create directory: " + path.string());
         }
     } else if (!fs::is_directory(path)) {
@@ -90,7 +91,9 @@ FileStream::FileStream(std::string const& directory,
                             << "Base filename: " << _base_filename << "\n"
                             << "Extension: " << _extension << "\n"
                             << "Number of bytes per file: " << _bytes_per_file;
-    create_directory(directory);
+    // Can make this a cli arg if needed
+    umask(0022);
+    create_directories(directory);
 }
 
 FileStream::~FileStream()

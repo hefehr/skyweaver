@@ -28,13 +28,13 @@ class skyweaver::MultiFileReader
 
   private:
     PipelineConfig const& _config;
-    std::vector<std::string> files;
+    std::vector<std::string> _dada_files;
     std::vector<std::size_t> sizes;
     std::vector<ObservationHeader> headers;
     std::ifstream _current_stream;
     int _current_file_idx;
     std::size_t _current_position;
-    bool eofFlag;
+    bool _eof_flag;
     std::size_t _dada_header_size;
     std::size_t _total_size;
     bool _is_open;
@@ -56,10 +56,13 @@ class skyweaver::MultiFileReader
     bool can_read(std::size_t bytes) const;
     std::streamsize read(char* raw_ptr, std::streamsize bytes);
     bool is_open() const;
+    std::size_t safe_read(std::ifstream& input_stream,  char* buffer, std::size_t nbytes);
 
     std::size_t get_total_size() const;
 
     skyweaver::ObservationHeader const& get_header() const;
+    skyweaver::ObservationHeader const& get_current_header() const;
+
 
     template <typename T>
     friend MultiFileReader& operator>>(MultiFileReader& reader, T& value);

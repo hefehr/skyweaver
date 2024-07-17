@@ -92,12 +92,10 @@ WeightsManager::WeightsManager(PipelineConfig const& config,
                                cudaStream_t stream)
     : _config(config), _stream(stream)
 {
-    std::size_t nbeams    = _config.nbeams();
-    std::size_t nantennas = _config.nantennas();
     BOOST_LOG_TRIVIAL(debug)
-        << "Constructing WeightsManager instance to hold weights for " << nbeams
-        << " beams and " << nantennas << " antennas";
-    _weights.resize(nbeams * nantennas * _config.nchans());
+        << "Constructing WeightsManager instance to hold weights for " << _config.nbeams()
+        << " beams and " << _config.nantennas() << " antennas";
+    _weights.resize(_config.nbeams() * _config.nantennas() * _config.nchans());
     // This should be an implicit copy to the device
     BOOST_LOG_TRIVIAL(debug) << "Copying channel frequencies to the GPU";
     _channel_frequencies = _config.channel_frequencies();

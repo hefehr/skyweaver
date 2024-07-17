@@ -42,8 +42,8 @@ __global__ void split_transpose_k(char2 const* __restrict__ input,
 class Transposer
 {
   public:
-    typedef TAFTPVoltagesD<char2> InputVoltageType;
-    typedef FTPAVoltagesD<char2> OutputVoltageType;
+    typedef TAFTPVoltagesD<char2> InputVoltageTypeD;
+    typedef FTPAVoltagesD<char2> OutputVoltageTypeD;
 
   public:
     /**
@@ -63,8 +63,8 @@ class Transposer
      * @param[in]  input_nantennas The number of antennas in the input data
      * @param[in]  stream          The cuda stream to use
      */
-    void transpose(InputVoltageType const& taftp_voltages,
-                   OutputVoltageType& ftpa_voltages,
+    void transpose(InputVoltageTypeD const& taftp_voltages,
+                   OutputVoltageTypeD& ftpa_voltages,
                    std::size_t input_nantennas,
                    cudaStream_t stream);
 

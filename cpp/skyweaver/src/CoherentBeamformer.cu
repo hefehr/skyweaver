@@ -184,11 +184,8 @@ CoherentBeamformer<BfTraits>::CoherentBeamformer(PipelineConfig const& config)
 {
     BOOST_LOG_TRIVIAL(debug) << "Constructing CoherentBeamformer instance";
     _size_per_sample = _config.npol() * _config.nantennas() * _config.nchans();
-    _expected_weights_size =
-        _config.nbeams() * _config.nantennas() * _config.nchans();
     BOOST_LOG_TRIVIAL(debug) << "Size per sample: " << _size_per_sample;
-    BOOST_LOG_TRIVIAL(debug)
-        << "Expected weights size: " << _expected_weights_size;
+
 }
 
 template <typename BfTraits>
@@ -203,8 +200,8 @@ void CoherentBeamformer<BfTraits>::beamform(
     ScalingVectorType const& output_scale,
     ScalingVectorType const& output_offset,
     MappingVectorType const& beamset_mapping,
-    RawPowerVectorType const& ib_powers,
-    PowerVectorType& output,
+    RawPowerVectorTypeD const& ib_powers,
+    PowerVectorTypeD& output,
     int nbeamsets,
     cudaStream_t stream)
 {
@@ -238,7 +235,10 @@ void CoherentBeamformer<BfTraits>::beamform(
                    _config.nbeams()});
     output.metalike(input);
     output.tsamp(input.tsamp() * _config.cb_tscrunch());
-    assert(weights.size() == _expected_weights_size);
+    std::size_t  expected_weights_size = _config.nbeams() * _config.nantennas() * _config.nchans();
+    if(weights.size() != expected_weights_size) {
+        throw std::runtime_error("Unexpected size of weights vector");
+    }
     dim3 grid(nsamples /
                   (SKYWEAVER_CB_NWARPS_PER_BLOCK * _config.cb_tscrunch()),
               _config.nchans() / _config.cb_fscrunch(),

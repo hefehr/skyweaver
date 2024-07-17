@@ -139,7 +139,7 @@ void StatisticsCalculator::calculate_statistics(
 }
 
 void StatisticsCalculator::update_scalings(
-    ScalingVectorHType const& beamset_weights,
+    ScalingVectorTypeH const& beamset_weights,
     int nbeamsets)
 {
     // At this stage we have the standard deviations of each channel
@@ -273,31 +273,31 @@ void StatisticsCalculator::dump_scalings(
     writer.close();
 }
 
-StatisticsCalculator::StatisticsVectorDType const&
+StatisticsCalculator::StatisticsVectorTypeD const&
 StatisticsCalculator::statistics() const
 {
     return _stats_d;
 }
 
-StatisticsCalculator::ScalingVectorDType const&
+StatisticsCalculator::ScalingVectorTypeD const&
 StatisticsCalculator::cb_offsets() const
 {
     return _cb_offsets_d;
 }
 
-StatisticsCalculator::ScalingVectorDType const&
+StatisticsCalculator::ScalingVectorTypeD const&
 StatisticsCalculator::cb_scaling() const
 {
     return _cb_scaling_d;
 }
 
-StatisticsCalculator::ScalingVectorDType const&
+StatisticsCalculator::ScalingVectorTypeD const&
 StatisticsCalculator::ib_offsets() const
 {
     return _ib_offsets_d;
 }
 
-StatisticsCalculator::ScalingVectorDType const&
+StatisticsCalculator::ScalingVectorTypeD const&
 StatisticsCalculator::ib_scaling() const
 {
     return _ib_scaling_d;

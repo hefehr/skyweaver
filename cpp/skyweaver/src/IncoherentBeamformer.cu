@@ -108,8 +108,8 @@ IncoherentBeamformer<BfTraits>::~IncoherentBeamformer()
 template <typename BfTraits>
 void IncoherentBeamformer<BfTraits>::beamform(
     VoltageVectorTypeD const& input,
-    RawPowerVectorType& output_raw,
-    PowerVectorType& output,
+    RawPowerVectorTypeD& output_raw,
+    PowerVectorTypeD& output,
     ScalingVectorType const& output_scale,
     ScalingVectorType const& output_offset,
     ScalingVectorType const& antenna_weights,
@@ -166,9 +166,9 @@ void IncoherentBeamformer<BfTraits>::beamform(
         thrust::raw_pointer_cast(output_offset.data());
     float const* antenna_weights_ptr =
         thrust::raw_pointer_cast(antenna_weights.data());
-    typename PowerVectorType::value_type* tf_powers_ptr =
+    typename PowerVectorTypeD::value_type* tf_powers_ptr =
         thrust::raw_pointer_cast(output.data());
-    typename RawPowerVectorType::value_type* tf_powers_raw_ptr =
+    typename RawPowerVectorTypeD::value_type* tf_powers_raw_ptr =
         thrust::raw_pointer_cast(output_raw.data());
     BOOST_LOG_TRIVIAL(debug) << "Executing incoherent beamforming kernel";
     BOOST_LOG_TRIVIAL(debug) << "Nbeamsets = " << nbeamsets;

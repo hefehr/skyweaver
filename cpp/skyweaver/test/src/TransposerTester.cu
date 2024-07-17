@@ -27,8 +27,8 @@ void TransposerTester::TearDown()
     CUDA_ERROR_CHECK(cudaStreamDestroy(_stream));
 }
 
-void TransposerTester::transpose_c_reference(HostInputVoltageType const& input,
-                                             HostOutputVoltageType& output,
+void TransposerTester::transpose_c_reference(HostInputVoltageTypeD const& input,
+                                             HostOutputVoltageTypeD& output,
                                              std::size_t input_nantennas,
                                              std::size_t output_nantennas,
                                              std::size_t nchans,
@@ -72,14 +72,14 @@ void TransposerTester::transpose_c_reference(HostInputVoltageType const& input,
 }
 
 void TransposerTester::compare_against_host(
-    DeviceInputVoltageType const& gpu_input,
-    DeviceOutputVoltageType const& gpu_output,
+    DeviceInputVoltageTypeD const& gpu_input,
+    DeviceOutputVoltageTypeD const& gpu_output,
     std::size_t input_nantennas,
     std::size_t ntimestamps)
 {
-    HostInputVoltageType host_input = gpu_input;
-    HostOutputVoltageType host_output;
-    HostOutputVoltageType cuda_output = gpu_output;
+    HostInputVoltageTypeD host_input = gpu_input;
+    HostOutputVoltageTypeD host_output;
+    HostOutputVoltageTypeD cuda_output = gpu_output;
     transpose_c_reference(host_input,
                           host_output,
                           input_nantennas,
@@ -100,7 +100,7 @@ TEST_P(TransposerTester, cycling_prime_test)
     std::size_t input_nantennas = params.nantennas;
     std::size_t input_size = (ntimestamps * input_nantennas * _config.nchans() *
                               _config.nsamples_per_heap() * _config.npol());
-    HostInputVoltageType host_gpu_input({ntimestamps,
+    HostInputVoltageTypeD host_gpu_input({ntimestamps,
                                          input_nantennas,
                                          _config.nchans(),
                                          _config.nsamples_per_heap(),
@@ -110,8 +110,8 @@ TEST_P(TransposerTester, cycling_prime_test)
         host_gpu_input[ii].x = (ii % 113);
         host_gpu_input[ii].y = (ii % 107);
     }
-    DeviceInputVoltageType gpu_input = host_gpu_input;
-    DeviceOutputVoltageType gpu_output;
+    DeviceInputVoltageTypeD gpu_input = host_gpu_input;
+    DeviceOutputVoltageTypeD gpu_output;
     transposer.transpose(gpu_input, gpu_output, input_nantennas, _stream);
     compare_against_host(gpu_input, gpu_output, input_nantennas, ntimestamps);
 }

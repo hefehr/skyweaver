@@ -37,8 +37,8 @@ DelayManager::DelayManager(PipelineConfig const& config, cudaStream_t stream)
     // only needs recomputed if the beamsets change during a run.
     // Changing beamsets are thus not supported.
     _valid_nbeamsets = parse_beamsets();
-    _valid_nantennas = _header.nantennas;
-    _valid_nbeams    = _header.nbeams;
+    _valid_nantennas = _model_header.nantennas;
+    _valid_nbeams    = _model_header.nbeams;
 }
 
 DelayManager::~DelayManager()
@@ -50,7 +50,7 @@ DelayManager::~DelayManager()
 
 double DelayManager::epoch() const
 {
-    return _header.start_epoch;
+    return _model_header.start_epoch;
 }
 
 DelayManager::DelayVectorTypeD const& DelayManager::delays(double epoch)
@@ -60,15 +60,15 @@ DelayManager::DelayVectorTypeD const& DelayManager::delays(double epoch)
     // Scan through the model file until we reach model that
     // contains valid delays for the given epoch or until we
     // hit EOF (which throws an exception).
-    if(epoch < _header.start_epoch) {
+    if(epoch < _model_header.start_epoch) {
         throw InvalidDelayEpoch(epoch);
     }
 
     while(!validate_model(epoch)) { read_next_model(); }
-    if(_header.nantennas > _config.nantennas()) {
+    if(_model_header.nantennas > _config.nantennas()) {
         throw std::runtime_error("Delay model contains too many antennas");
     }
-    if(_header.nbeams > _config.nbeams()) {
+    if(_model_header.nbeams > _config.nbeams()) {
         throw std::runtime_error("Delay model contains too many beams");
     }
     // Resize the arrays for the delay model on the GPU
@@ -82,10 +82,10 @@ DelayManager::DelayVectorTypeD const& DelayManager::delays(double epoch)
         static_cast<void*>(thrust::raw_pointer_cast(_delays_h.data()));
     void* dev_ptr =
         static_cast<void*>(thrust::raw_pointer_cast(_delays_d.data()));
-    unsigned host_pitch = _header.nantennas * sizeof(DelayModel);
+    unsigned host_pitch = _model_header.nantennas * sizeof(DelayModel);
     unsigned dev_pitch  = _config.nantennas() * sizeof(DelayModel);
-    unsigned ncols      = _header.nantennas * sizeof(DelayModel);
-    unsigned nrows      = _header.nbeams;
+    unsigned ncols      = _model_header.nantennas * sizeof(DelayModel);
+    unsigned nrows      = _model_header.nbeams;
 
     // This could be made async
     CUDA_ERROR_CHECK(cudaMemcpy2D(dev_ptr,
@@ -100,16 +100,16 @@ DelayManager::DelayVectorTypeD const& DelayManager::delays(double epoch)
 
 bool DelayManager::validate_model(double epoch) const
 {
-    if (_header.nbeams > _config.nbeams())
+    if (_model_header.nbeams > _config.nbeams())
     {
         throw std::runtime_error("Delay model contains too many beams for current skyweaver build");
     }
-    if((_header.nbeams != _valid_nbeams) ||
-       (_header.nantennas != _valid_nantennas)) {
+    if((_model_header.nbeams != _valid_nbeams) ||
+       (_model_header.nantennas != _valid_nantennas)) {
         throw std::runtime_error(
             "Variable delay model parameters are unsupported");
     }
-    return ((epoch >= _header.start_epoch) && (epoch <= _header.end_epoch));
+    return ((epoch >= _model_header.start_epoch) && (epoch <= _model_header.end_epoch));
 }
 
 void DelayManager::safe_read(char* buffer, std::size_t nbytes)
@@ -135,16 +135,16 @@ void DelayManager::read_next_model()
 {
     BOOST_LOG_TRIVIAL(debug) << "Reading delay model from file";
     // Read the model header
-    safe_read(reinterpret_cast<char*>(&_header), sizeof(_header));
+    safe_read(reinterpret_cast<char*>(&_model_header), sizeof(_model_header));
 
     BOOST_LOG_TRIVIAL(debug) << "Delay model read successful";
     BOOST_LOG_TRIVIAL(debug)
-        << "Delay model parameters: " << "Nantennas = " << _header.nantennas
-        << ", " << "Nbeams = " << _header.nbeams << ", "
-        << "Start = " << _header.start_epoch << ", "
-        << "End = " << _header.end_epoch;
+        << "Delay model parameters: " << "Nantennas = " << _model_header.nantennas
+        << ", " << "Nbeams = " << _model_header.nbeams << ", "
+        << "Start = " << _model_header.start_epoch << ", "
+        << "End = " << _model_header.end_epoch;
 
-    const std::size_t nelements = _header.nantennas * _header.nbeams;
+    const std::size_t nelements = _model_header.nantennas * _model_header.nbeams;
     _delays_h.resize(nelements);
     // Read the weight, offset, rate tuples from the file
     BOOST_LOG_TRIVIAL(debug)
@@ -169,7 +169,7 @@ std::size_t DelayManager::parse_beamsets()
     // The first beam always belongs to the first beamset
     beamset_map[0] = 0;
     // Populate the weights for the first beamset
-    for(int ant_idx = 0; ant_idx < _header.nantennas; ++ant_idx) {
+    for(int ant_idx = 0; ant_idx < _model_header.nantennas; ++ant_idx) {
         beamsets_weights[beamset_idx][ant_idx] = _delays_h[ant_idx].x;
     }
     // Create a space for the next beamset (may not be required)
@@ -179,11 +179,11 @@ std::size_t DelayManager::parse_beamsets()
     ++beamset_idx;
 
     // Start from the 2nd beam in the set
-    for(int beam_idx = 1; beam_idx < _header.nbeams; ++beam_idx) {
-        for(int ant_idx = 0; ant_idx < _header.nantennas; ++ant_idx) {
+    for(int beam_idx = 1; beam_idx < _model_header.nbeams; ++beam_idx) {
+        for(int ant_idx = 0; ant_idx < _model_header.nantennas; ++ant_idx) {
             // Populate the values for the next beamset
             beamsets_weights[beamset_idx][ant_idx] =
-                _delays_h[beam_idx * _header.nantennas + ant_idx].x;
+                _delays_h[beam_idx * _model_header.nantennas + ant_idx].x;
 
             // Check if the current weight is different from the previous weight
             // If we already know there is an update this check can be skipped
@@ -216,7 +216,7 @@ std::size_t DelayManager::parse_beamsets()
     // At this point we can copy the weights
     // and mappings to the GPU
     _beamset_map_d = beamset_map;
-    _weights_d.resize(beamsets_weights.size() * _config.nantennas());
+    _weights_d.resize(beamsets_weights.size() * _config.nantennas(), 0.0f); // padding weights to max nantennas
     for(int ii = 0; ii < beamsets_weights.size(); ++ii) {
         thrust::copy(beamsets_weights[ii].begin(),
                      beamsets_weights[ii].end(),

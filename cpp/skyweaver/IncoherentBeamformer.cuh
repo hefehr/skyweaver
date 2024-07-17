@@ -48,9 +48,9 @@ class IncoherentBeamformer
   public:
     typedef FTPAVoltagesD<char2> VoltageVectorTypeD;
     // TF order
-    typedef BTFPowersD<typename BfTraits::QuantisedPowerType> PowerVectorType;
+    typedef BTFPowersD<typename BfTraits::QuantisedPowerType> PowerVectorTypeD;
     // TF order
-    typedef BTFPowersD<typename BfTraits::RawPowerType> RawPowerVectorType;
+    typedef BTFPowersD<typename BfTraits::RawPowerType> RawPowerVectorTypeD;
     // TF order
     typedef thrust::device_vector<float> ScalingVectorType;
 
@@ -82,8 +82,8 @@ class IncoherentBeamformer
      * @param stream The CUDA stream to execute in
      */
     void beamform(VoltageVectorTypeD const& input,
-                  RawPowerVectorType& output_raw,
-                  PowerVectorType& output,
+                  RawPowerVectorTypeD& output_raw,
+                  PowerVectorTypeD& output,
                   ScalingVectorType const& output_scale,
                   ScalingVectorType const& output_offset,
                   ScalingVectorType const& antenna_weights,

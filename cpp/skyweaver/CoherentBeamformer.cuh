@@ -49,8 +49,8 @@ class CoherentBeamformer
     // FTPA order
     typedef FTPAVoltagesD<char2> VoltageVectorTypeD;
     // TFB order
-    typedef TFBPowersD<typename BfTraits::QuantisedPowerType> PowerVectorType;
-    typedef BTFPowersD<typename BfTraits::RawPowerType> RawPowerVectorType;
+    typedef TFBPowersD<typename BfTraits::QuantisedPowerType> PowerVectorTypeD;
+    typedef BTFPowersD<typename BfTraits::RawPowerType> RawPowerVectorTypeD;
     // FBA order (assuming equal weight per polarisation)
     typedef thrust::device_vector<char2> WeightsVectorType;
     typedef thrust::device_vector<float> ScalingVectorType;
@@ -84,15 +84,14 @@ class CoherentBeamformer
                   ScalingVectorType const& scales,
                   ScalingVectorType const& offsets,
                   MappingVectorType const& beamset_mapping,
-                  RawPowerVectorType const& ib_powers,
-                  PowerVectorType& output,
+                  RawPowerVectorTypeD const& ib_powers,
+                  PowerVectorTypeD& output,
                   int nbeamsets,
                   cudaStream_t stream);
 
   private:
     PipelineConfig const& _config;
-    std::size_t _size_per_sample;
-    std::size_t _expected_weights_size;
+    std::size_t _size_per_sample; // data size per time sample: F*P*A
 };
 
 extern template class CoherentBeamformer<

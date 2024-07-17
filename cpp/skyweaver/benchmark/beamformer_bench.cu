@@ -67,12 +67,12 @@ class BeamformerBencher: public benchmark::Fixture
     skyweaver::PipelineConfig _config;
     typename CoherentBeamformer::VoltageVectorType ftpa_voltages_gpu;
     typename CoherentBeamformer::WeightsVectorType fbpa_weights_gpu;
-    typename CoherentBeamformer::PowerVectorType btf_powers_gpu;
+    typename CoherentBeamformer::PowerVectorTypeD btf_powers_gpu;
     typename CoherentBeamformer::ScalingVectorType scales;
     typename CoherentBeamformer::ScalingVectorType offsets;
     typename CoherentBeamformer::ScalingVectorType _antenna_weights;
-    typename IncoherentBeamformer::PowerVectorType tf_powers_gpu;
-    typename IncoherentBeamformer::RawPowerVectorType tf_powers_raw_gpu;
+    typename IncoherentBeamformer::PowerVectorTypeD tf_powers_gpu;
+    typename IncoherentBeamformer::RawPowerVectorTypeD tf_powers_raw_gpu;
     typename CoherentBeamformer::MappingVectorType _beamset_mapping;
 };
 

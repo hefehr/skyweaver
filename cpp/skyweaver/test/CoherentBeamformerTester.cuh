@@ -23,14 +23,14 @@ class CoherentBeamformerTester: public ::testing::Test
     typedef CoherentBeamformer::VoltageVectorTypeD DeviceVoltageVectorType;
     typedef FTPAVoltagesH<typename DeviceVoltageVectorType::value_type>
     VoltageVectorTypeH;
-    typedef CoherentBeamformer::PowerVectorType DevicePowerVectorType;
-    typedef TFBPowersH<typename DevicePowerVectorType::value_type>
+    typedef CoherentBeamformer::PowerVectorTypeD PowerVectorTypeD;
+    typedef TFBPowersH<typename PowerVectorTypeD::value_type>
         HostPowerVectorType;
-    typedef IncoherentBeamformer::PowerVectorType DeviceIBPowerVectorType;
-    typedef BTFPowersH<typename DeviceIBPowerVectorType::value_type>
+    typedef IncoherentBeamformer::PowerVectorTypeD IBPowerVectorTypeD;
+    typedef BTFPowersH<typename IBPowerVectorTypeD::value_type>
         HostIBPowerVectorType;
-    typedef IncoherentBeamformer::RawPowerVectorType DeviceRawIBPowerVectorType;
-    typedef BTFPowersH<typename DeviceRawIBPowerVectorType::value_type>
+    typedef IncoherentBeamformer::RawPowerVectorTypeD RawIBPowerVectorTypeD;
+    typedef BTFPowersH<typename RawIBPowerVectorTypeD::value_type>
         HostRawIBPowerVectorType;
     typedef CoherentBeamformer::WeightsVectorType DeviceWeightsVectorType;
     typedef thrust::host_vector<typename DeviceWeightsVectorType::value_type>
@@ -72,7 +72,7 @@ class CoherentBeamformerTester: public ::testing::Test
                               DeviceScalingVectorType const& offsets_gpu,
                               DeviceScalingVectorType const& antenna_weights,
                               DeviceMappingVectorType const& beamset_mapping,
-                              DevicePowerVectorType& btf_powers_gpu,
+                              PowerVectorTypeD& btf_powers_gpu,
                               int nsamples);
 
   protected:

@@ -114,8 +114,8 @@ Transposer::~Transposer()
 {
 }
 
-void Transposer::transpose(InputVoltageType const& taftp_voltages,
-                           OutputVoltageType& ftpa_voltages,
+void Transposer::transpose(InputVoltageTypeD const& taftp_voltages,
+                           OutputVoltageTypeD& ftpa_voltages,
                            std::size_t input_nantennas,
                            cudaStream_t stream)
 {

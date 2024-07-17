@@ -133,7 +133,7 @@ class DelayManager
     std::size_t _valid_nbeams;
     std::size_t _valid_nantennas;
     std::size_t _valid_nbeamsets;
-    DelayModelHeader _header;
+    DelayModelHeader _model_header;
     std::ifstream _input_stream;
     DelayVectorTypeH _delays_h;
     DelayVectorTypeD _delays_d;

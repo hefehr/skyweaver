@@ -23,8 +23,8 @@ template <typename T>
 class AggregationBuffer
 {
   public:
-    typedef thrust::host_vector<T, PinnedAllocator<T>> BufferType;
-    typedef std::function<void(BufferType const&)> DispatchCallback;
+    typedef thrust::host_vector<T, PinnedAllocator<T>> BufferTypeH;
+    typedef std::function<void(BufferTypeH const&)> DispatchCallback;
 
   public:
     /**
@@ -72,8 +72,8 @@ class AggregationBuffer
     std::size_t _dispatch_size;
     std::size_t _overlap_size;
     std::size_t _batch_size;
-    BufferType _buffer;
-    typename BufferType::iterator _buffer_iter;
+    BufferTypeH _buffer;
+    typename BufferTypeH::iterator _buffer_iter;
 };
 
 } // namespace skyweaver

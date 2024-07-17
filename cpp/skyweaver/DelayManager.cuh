@@ -64,8 +64,8 @@ class DelayManager
      */
     using DelayVectorTypeD = thrust::device_vector<DelayModel>;
     using DelayVectorTypeH = thrust::host_vector<DelayModel>;
-    using BeamsetWeightsVectorType = thrust::device_vector<float>;
-    using BeamsetMappingVectorType = thrust::device_vector<int>;
+    using BeamsetWeightsVectorTypeD = thrust::device_vector<float>;
+    using BeamsetMappingVectorTypeD = thrust::device_vector<int>;
 
   public:
     /**
@@ -105,7 +105,7 @@ class DelayManager
      *
      * @return A flat array of antenna weights in (beamset, antenna) format
      */
-    BeamsetWeightsVectorType const& beamset_weights() const;
+    BeamsetWeightsVectorTypeD const& beamset_weights() const;
 
     /**
      * @brief Return the mapping of beams to beamsets
@@ -113,7 +113,7 @@ class DelayManager
      * @return An array of length nbeams where each element is the
      *         beamset to which the beam belongs.
      */
-    BeamsetMappingVectorType const& beamset_mapping() const;
+    BeamsetMappingVectorTypeD const& beamset_mapping() const;
 
     /**
      * @brief Return the number of beamsets for the current delay model
@@ -140,8 +140,8 @@ class DelayManager
     // The _weights_d array is stored flat to
     // avoid having to use pointer arrays.
     // The format is (nbeamsets, nantennas)
-    BeamsetWeightsVectorType _weights_d;
-    BeamsetMappingVectorType _beamset_map_d;
+    BeamsetWeightsVectorTypeD _weights_d;
+    BeamsetMappingVectorTypeD _beamset_map_d;
 };
 
 } // namespace skyweaver

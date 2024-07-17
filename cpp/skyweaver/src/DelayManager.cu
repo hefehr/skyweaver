@@ -227,13 +227,13 @@ std::size_t DelayManager::parse_beamsets()
     return beamsets_weights.size();
 }
 
-DelayManager::BeamsetWeightsVectorType const&
+DelayManager::BeamsetWeightsVectorTypeD const&
 DelayManager::beamset_weights() const
 {
     return _weights_d;
 }
 
-DelayManager::BeamsetMappingVectorType const&
+DelayManager::BeamsetMappingVectorTypeD const&
 DelayManager::beamset_mapping() const
 {
     return _beamset_map_d;

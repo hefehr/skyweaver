@@ -141,7 +141,7 @@ TEST_F(BeamformerPipelineTester, full_pipeline_test)
                                                decltype(ib_handler),
                                                decltype(stats_handler),
                                                BfTraits>;
-    using InputVectorType = typename BPipelineType::VoltageVectorTypeH;
+    using InputVectorTypeH = typename BPipelineType::VoltageVectorTypeH;
 
     IDPipelineType dedispersion_pipeline(config, cb_handler);
     BPipelineType pipeline(config,
@@ -149,7 +149,7 @@ TEST_F(BeamformerPipelineTester, full_pipeline_test)
                            ib_handler,
                            stats_handler);
 
-    InputVectorType input({
+    InputVectorTypeH input({
         config.gulp_length_samps() / config.nsamples_per_heap(), // T
         header.nantennas,                                        // A
         config.nchans(),                                         // F

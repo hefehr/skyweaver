@@ -23,9 +23,6 @@ class MultiFileReader;
 
 class skyweaver::MultiFileReader
 {
-  public:
-    typedef thrust::device_vector<char2> VoltageType;
-
   private:
     PipelineConfig const& _config;
     std::vector<std::string> _dada_files;

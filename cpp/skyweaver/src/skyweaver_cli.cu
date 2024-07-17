@@ -106,7 +106,7 @@ std::ostream& operator<<(std::ostream& os, const std::vector<float>& vec)
 template <class Pipeline>
 void run_pipeline(Pipeline& pipeline, skyweaver::PipelineConfig& config, skyweaver::MultiFileReader& file_reader, skyweaver::ObservationHeader const& header)
 {
-    using VoltageType = typename Pipeline::HostVoltageVectorType;
+    using VoltageType = typename Pipeline::VoltageVectorTypeH;
 
     BOOST_LOG_NAMED_SCOPE("run_pipeline");
     BOOST_LOG_TRIVIAL(debug) << "Executing pipeline";

@@ -106,7 +106,7 @@ WeightsManager::~WeightsManager()
 }
 
 WeightsManager::WeightsVectorTypeD const&
-WeightsManager::weights(DelayVectorType const& delays,
+WeightsManager::weights(DelayVectorTypeD const& delays,
                         TimeType current_epoch,
                         TimeType delay_epoch)
 {

@@ -98,8 +98,8 @@ void AggregationBuffer<T>::dispatch()
 template <typename T>
 std::size_t AggregationBuffer<T>::remaining_slots() const
 {
-    typename BufferType::const_iterator iter = _buffer_iter;
-    typename BufferType::difference_type rslots =
+    typename BufferTypeH::const_iterator iter = _buffer_iter;
+    typename BufferTypeH::difference_type rslots =
         std::distance(iter, _buffer.cend()) / _batch_size;
     if(rslots < 0) {
         throw std::runtime_error("Iterator beyond end of buffer");

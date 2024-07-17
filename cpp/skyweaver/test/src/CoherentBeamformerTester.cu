@@ -158,7 +158,7 @@ void CoherentBeamformerTester<BfTraits>::compare_against_host(
     ScalingVectorTypeD const& scales_gpu,
     ScalingVectorTypeD const& offsets_gpu,
     ScalingVectorTypeD const& antenna_weights,
-    DeviceMappingVectorType const& beamset_mapping,
+    MappingVectorTypeD const& beamset_mapping,
     PowerVectorTypeD& btf_powers_gpu,
     int nsamples)
 {
@@ -171,7 +171,7 @@ void CoherentBeamformerTester<BfTraits>::compare_against_host(
     HostScalingVectorType scales               = scales_gpu;
     HostScalingVectorType offsets              = offsets_gpu;
     HostScalingVectorType antenna_weights_host = antenna_weights;
-    HostMappingVectorType beamset_mapping_host = beamset_mapping;
+    MappingVectorTypeH beamset_mapping_host = beamset_mapping;
 
     beamformer_c_reference(
         ftpa_voltages_host,
@@ -242,7 +242,7 @@ TYPED_TEST(CoherentBeamformerTester, representative_noise_test)
         offset_val);
 
     // Map all beams to the first beamset by default
-    typename CBT::DeviceMappingVectorType beamset_mapping(config.nbeams(), 0);
+    typename CBT::MappingVectorTypeD beamset_mapping(config.nbeams(), 0);
 
     // Enable all antennas in all beamsets
     typename CBT::ScalingVectorTypeD beamset_weights(config.nantennas() *

@@ -27,7 +27,7 @@ BufferedDispenser::BufferedDispenser(PipelineConfig const& config,
 }
 
 void BufferedDispenser::hoard(
-    DeviceFTPAVoltagesType const& new_ftpa_voltages_in)
+    FTPAVoltagesTypeD const& new_ftpa_voltages_in)
 {
     auto const& freqs = new_ftpa_voltages_in.frequencies();
     for(std::size_t i = 0; i < _config.nchans(); i++) {
@@ -66,7 +66,7 @@ void BufferedDispenser::hoard(
     }
 }
 
-typename BufferedDispenser::DeviceTPAVoltagesType const&
+typename BufferedDispenser::TPAVoltagesTypeD const&
 BufferedDispenser::dispense(std::size_t chan_idx) const
 { // implements overlapped buffering of data
     return _d_channeled_tpa_voltages[chan_idx];

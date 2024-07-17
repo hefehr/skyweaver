@@ -42,7 +42,7 @@ TEST_F(BufferedDispenserTester, testBufferedDispenser)
 
     /*generate char2 voltages_1 */
 
-    typename BufferedDispenser::HostFTPAVoltagesType voltages_1h(
+    typename BufferedDispenser::FTPAVoltagesH voltages_1h(
         {static_cast<std::size_t>(nchans),
          static_cast<std::size_t>(nsamples_gulp),
          static_cast<std::size_t>(npols),
@@ -53,7 +53,7 @@ TEST_F(BufferedDispenserTester, testBufferedDispenser)
                           0.0f,
                           17.0f);
     ASSERT_EQ(voltages_1h.size(), nantennas * nchans * npols * nsamples_gulp);
-    typename BufferedDispenser::DeviceFTPAVoltagesType voltages_1 = voltages_1h;
+    typename BufferedDispenser::FTPAVoltagesTypeD voltages_1 = voltages_1h;
 
     const std::size_t size_TPA = nantennas * npols * nsamples_gulp;
     const std::size_t max_delay_tpa =
@@ -67,7 +67,7 @@ TEST_F(BufferedDispenserTester, testBufferedDispenser)
             i); // tPA voltages_1 = overlap + T*PA voltages_1
         ASSERT_EQ(dispensed_voltages_1.size(), size_tpa);
 
-        typename BufferedDispenser::HostTPAVoltagesType dispensed_voltages_1h =
+        typename BufferedDispenser::HostTPAVoltagesH dispensed_voltages_1h =
             dispensed_voltages_1;
 
         std::size_t start_idx = max_delay_tpa; // start from end of overlap
@@ -86,7 +86,7 @@ TEST_F(BufferedDispenserTester, testBufferedDispenser)
     }
 
     /*generate char2 voltages_2 */
-    typename BufferedDispenser::HostFTPAVoltagesType voltages_2h(
+    typename BufferedDispenser::FTPAVoltagesH voltages_2h(
         {static_cast<std::size_t>(nchans),
          static_cast<std::size_t>(nsamples_gulp),
          static_cast<std::size_t>(npols),
@@ -96,13 +96,13 @@ TEST_F(BufferedDispenserTester, testBufferedDispenser)
                           nantennas * nchans * npols * nsamples_gulp,
                           0.0f,
                           17.0f);
-    typename BufferedDispenser::DeviceFTPAVoltagesType voltages_2 = voltages_2h;
+    typename BufferedDispenser::FTPAVoltagesTypeD voltages_2 = voltages_2h;
     bufferedDispenser.hoard(voltages_2); // FTPA voltages_1
     for(int i = 0; i < nchans; i++) {
         auto const& dispensed_voltages_2 = bufferedDispenser.dispense(
             i); // tPA voltages_1 = overlap + T*PA voltages_1
         ASSERT_EQ(dispensed_voltages_2.size(), size_tpa);
-        typename BufferedDispenser::HostTPAVoltagesType dispensed_voltages_2h =
+        typename BufferedDispenser::HostTPAVoltagesH dispensed_voltages_2h =
             dispensed_voltages_2;
         std::size_t start_idx = max_delay_tpa; // start from end of overlap
         int k                 = 0;

@@ -50,12 +50,14 @@ struct CoherentDedisperserConfig {
     cufftHandle _fft_plan;
     // cufftHandle _i_fft_plan;
 };
+
 void get_dm_responses(CoherentDedisperserConfig& config,
                       double dm_prefactor,
                       thrust::device_vector<cufftComplex>& responses);
 
 void create_coherent_dedisperser_config(CoherentDedisperserConfig& config,
                         PipelineConfig const& pipeline_config);
+
 void create_coherent_dedisperser_config(CoherentDedisperserConfig& config,
                        std::size_t fft_length,
                        std::size_t overlap_samps,

@@ -23,7 +23,7 @@ template <typename Traits>
 class IncoherentDedispersionPipelineTester: public ::testing::Test
 {
   public:
-    using OutputVectorType = TDBPowersH<typename Traits::OutputType>;
+    using OutputVectorTypeH = TDBPowersH<typename Traits::OutputType>;
 
   protected:
     void SetUp() override;
@@ -35,14 +35,14 @@ class IncoherentDedispersionPipelineTester: public ::testing::Test
 
     void init(ObservationHeader const& header);
 
-    void operator()(OutputVectorType const&, std::size_t dm_idx);
+    void operator()(OutputVectorTypeH const&, std::size_t dm_idx);
 
   protected:
     bool _init_called;
     int _operator_call_count;
     PipelineConfig _config;
     ObservationHeader _init_arg;
-    OutputVectorType _operator_arg_1;
+    OutputVectorTypeH _operator_arg_1;
     std::size_t _operator_arg_2;
 };
 

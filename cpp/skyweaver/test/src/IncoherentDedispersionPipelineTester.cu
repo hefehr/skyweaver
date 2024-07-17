@@ -51,7 +51,7 @@ void IncoherentDedispersionPipelineTester<Traits>::init(
 
 template <typename Traits>
 void IncoherentDedispersionPipelineTester<Traits>::operator()(
-    OutputVectorType const& output,
+    OutputVectorTypeH const& output,
     std::size_t dm_idx)
 {
     ++_operator_call_count;

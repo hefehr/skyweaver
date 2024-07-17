@@ -188,8 +188,8 @@ void StatisticsCalculator::update_scalings(
                 }
             }
             const float avg_std = sum / count;
-            BOOST_LOG_TRIVIAL(info) << "Channel " << f_idx;
-            BOOST_LOG_TRIVIAL(info) << "Averaged standard deviation = " << avg_std;
+            BOOST_LOG_TRIVIAL(debug) << "Channel " << f_idx;
+            BOOST_LOG_TRIVIAL(debug) << "Averaged standard deviation = " << avg_std;
             float const effective_nantennas = count / _config.npol();
 
             // CB OFFSET
@@ -197,7 +197,7 @@ void StatisticsCalculator::update_scalings(
                 float scale = std::pow(weights_amp * avg_std * std::sqrt(effective_nantennas), 2);
                 float dof = 2 * _config.cb_tscrunch() * _config.npol();
                 _cb_offsets_h[f_idx] = scale * dof;
-                BOOST_LOG_TRIVIAL(info) << "CB offset = " << _cb_offsets_h[f_idx];
+                BOOST_LOG_TRIVIAL(debug) << "CB offset = " << _cb_offsets_h[f_idx];
             }   
 
             // CB SCALE
@@ -205,7 +205,7 @@ void StatisticsCalculator::update_scalings(
                 float scale = std::pow(weights_amp * avg_std * std::sqrt(effective_nantennas), 2);
                 float dof = 2 * _config.cb_tscrunch() * _config.npol();
                 _cb_scaling_h[f_idx] = scale * std::sqrt(2 * dof) / _config.output_level();
-                BOOST_LOG_TRIVIAL(info) << "CB scaling = " << _cb_scaling_h[f_idx] ;
+                BOOST_LOG_TRIVIAL(debug) << "CB scaling = " << _cb_scaling_h[f_idx] ;
             } 
             
             // IB OFFSET
@@ -213,7 +213,7 @@ void StatisticsCalculator::update_scalings(
                 float scale = std::pow(avg_std, 2);
                 float dof = 2 * _config.ib_tscrunch() * effective_nantennas * _config.npol();
                 _ib_offsets_h[f_idx] = scale * dof;
-                BOOST_LOG_TRIVIAL(info) << "IB offset = " << _ib_offsets_h[f_idx] ;
+                BOOST_LOG_TRIVIAL(debug) << "IB offset = " << _ib_offsets_h[f_idx] ;
             }   
 
             // IB SCALE
@@ -221,7 +221,7 @@ void StatisticsCalculator::update_scalings(
                 float scale = std::pow(avg_std, 2);
                 float dof = 2 * _config.ib_tscrunch() * effective_nantennas * _config.npol();
                 _ib_scaling_h[f_idx] = scale * std::sqrt(2 * dof) / _config.output_level();
-                BOOST_LOG_TRIVIAL(info) << "IB scaling = " << _ib_scaling_h[f_idx] ;
+                BOOST_LOG_TRIVIAL(debug) << "IB scaling = " << _ib_scaling_h[f_idx] ;
             } 
 
         }

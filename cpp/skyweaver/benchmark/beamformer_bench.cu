@@ -65,21 +65,21 @@ class BeamformerBencher: public benchmark::Fixture
     cudaStream_t _stream;
     cudaEvent_t start, stop;
     skyweaver::PipelineConfig _config;
-    typename CoherentBeamformer::VoltageVectorType ftpa_voltages_gpu;
-    typename CoherentBeamformer::WeightsVectorType fbpa_weights_gpu;
+    typename CoherentBeamformer::VoltageVectorTypeD ftpa_voltages_gpu;
+    typename CoherentBeamformer::WeightsVectorTypeD fbpa_weights_gpu;
     typename CoherentBeamformer::PowerVectorTypeD btf_powers_gpu;
     typename CoherentBeamformer::ScalingVectorTypeD scales;
     typename CoherentBeamformer::ScalingVectorTypeD offsets;
     typename CoherentBeamformer::ScalingVectorTypeD _antenna_weights;
     typename IncoherentBeamformer::PowerVectorTypeD tf_powers_gpu;
     typename IncoherentBeamformer::RawPowerVectorTypeD tf_powers_raw_gpu;
-    typename CoherentBeamformer::MappingVectorType _beamset_mapping;
+    typename CoherentBeamformer::MappingVectorTypeD _beamset_mapping;
 };
 
 BENCHMARK_DEFINE_F(BeamformerBencher, simple_bench)(benchmark::State& state)
 {
     typedef
-        typename CoherentBeamformer::VoltageVectorType::value_type ValueType;
+        typename CoherentBeamformer::VoltageVectorTypeD::value_type ValueType;
     float elapsed_time;
     float total_elapsed_time = 0.0f;
     CoherentBeamformer coherent_beamformer(_config);

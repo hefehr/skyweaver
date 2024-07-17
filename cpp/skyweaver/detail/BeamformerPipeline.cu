@@ -72,10 +72,7 @@ BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
     CUDA_ERROR_CHECK(cudaStreamCreate(&_h2d_copy_stream));
     CUDA_ERROR_CHECK(cudaStreamCreate(&_processing_stream));
     CUDA_ERROR_CHECK(cudaStreamCreate(&_d2h_copy_stream));
-
-    CoherentDedisperserConfig _dedisperser_config;
     create_coherent_dedisperser_config(_dedisperser_config, _config);
-
     BOOST_LOG_TRIVIAL(debug) << "Constructing delay and weights managers";
     _delay_manager.reset(new DelayManager(_config, _h2d_copy_stream));
     _weights_manager.reset(new WeightsManager(_config, _processing_stream));
@@ -195,7 +192,6 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
     _dispenser->hoard(_ftpa_post_transpose);
     _timer.stop("dispenser hoarding");
     NVTX_RANGE_POP();
-
     NVTX_RANGE_PUSH("Coherent dedispersion - beamforming loop");
     for(unsigned int dm_idx = 0; dm_idx < _config.coherent_dms().size();
         ++dm_idx) {

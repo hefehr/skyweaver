@@ -199,7 +199,7 @@ void CoherentBeamformer<BfTraits>::beamform(
     WeightsVectorTypeD const& weights,
     ScalingVectorTypeD const& output_scale,
     ScalingVectorTypeD const& output_offset,
-    MappingVectorType const& beamset_mapping,
+    MappingVectorTypeD const& beamset_mapping,
     RawPowerVectorTypeD const& ib_powers,
     PowerVectorTypeD& output,
     int nbeamsets,

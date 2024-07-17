@@ -34,7 +34,7 @@ void create_coherent_dedisperser_config(CoherentDedisperserConfig& config,
     }
     
     create_coherent_dedisperser_config(config,
-                            pipeline_config.gulp_length_samps(),
+                                      pipeline_config.gulp_length_samps(),
                                       max_dm_delay,
                                       pipeline_config.nchans(),
                                       pipeline_config.npol(),
@@ -87,8 +87,6 @@ void create_coherent_dedisperser_config(CoherentDedisperserConfig& config,
         config._d_dms.end(),
         config._d_dm_prefactor.begin(),
         DMPrefactor());
-
-
 
     config.fine_chan_bw = config.coarse_chan_bw / config.fft_length;
 
@@ -176,6 +174,9 @@ void CoherentDedisperser::dedisperse(
 
     BOOST_LOG_TRIVIAL(debug) << "Executed forward FFT";
 
+    BOOST_LOG_TRIVIAL(debug) << "freq_idx = " << freq_idx;
+    BOOST_LOG_TRIVIAL(debug) << "dm_idx = " << dm_idx;
+
     multiply_by_chirp(d_fpa_spectra,
                       d_fpa_spectra,
                       freq_idx,
@@ -232,6 +233,7 @@ void CoherentDedisperser::multiply_by_chirp(
     std::size_t response_offset = freq_idx * config.fft_length;
 
     BOOST_LOG_TRIVIAL(debug) << "Freq idx: " << freq_idx;
+    BOOST_LOG_TRIVIAL(debug) << "config.fft_length: " << config.fft_length;
     BOOST_LOG_TRIVIAL(debug) << "response_offset: " << response_offset;
 
     dim3 blockSize(config.nantennas * config.npols);

@@ -38,9 +38,9 @@ class CoherentBeamformerTester: public ::testing::Test
     typedef CoherentBeamformer::ScalingVectorTypeD ScalingVectorTypeD;
     typedef thrust::host_vector<typename ScalingVectorTypeD::value_type>
         HostScalingVectorType;
-    typedef CoherentBeamformer::MappingVectorType DeviceMappingVectorType;
-    typedef thrust::host_vector<typename DeviceMappingVectorType::value_type>
-        HostMappingVectorType;
+    typedef CoherentBeamformer::MappingVectorTypeD MappingVectorTypeD;
+    typedef thrust::host_vector<typename MappingVectorTypeD::value_type>
+        MappingVectorTypeH;
 
   protected:
     void SetUp() override;
@@ -71,7 +71,7 @@ class CoherentBeamformerTester: public ::testing::Test
                               ScalingVectorTypeD const& scales_gpu,
                               ScalingVectorTypeD const& offsets_gpu,
                               ScalingVectorTypeD const& antenna_weights,
-                              DeviceMappingVectorType const& beamset_mapping,
+                              MappingVectorTypeD const& beamset_mapping,
                               PowerVectorTypeD& btf_powers_gpu,
                               int nsamples);
 

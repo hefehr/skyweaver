@@ -29,11 +29,10 @@ class BeamformerPipeline
 {
   public:
     using VoltageVectorTypeH = TAFTPVoltagesH<char2>;
-    using VoltageVectorTypeD     = TAFTPVoltagesD<char2>;
-    typedef thrust::device_vector<float> ChannelScaleVectorType;
-    typedef long double TimeType;
-    typedef CoherentBeamformer<BeamformerTraits> CoherentBeamformer;
-    typedef IncoherentBeamformer<BeamformerTraits> IncoherentBeamformer;
+    using VoltageVectorTypeD = TAFTPVoltagesD<char2>;
+    using TimeType = long double;
+    using CoherentBeamformer = CoherentBeamformer<BeamformerTraits>;
+    using IncoherentBeamformer = IncoherentBeamformer<BeamformerTraits>;
 
   public:
     /**

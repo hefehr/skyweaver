@@ -54,7 +54,7 @@ class CoherentBeamformer
     // FBA order (assuming equal weight per polarisation)
     typedef thrust::device_vector<char2> WeightsVectorTypeD;
     typedef thrust::device_vector<float> ScalingVectorTypeD;
-    typedef thrust::device_vector<int> MappingVectorType;
+    typedef thrust::device_vector<int> MappingVectorTypeD;
 
   public:
     /**
@@ -83,7 +83,7 @@ class CoherentBeamformer
                   WeightsVectorTypeD const& weights,
                   ScalingVectorTypeD const& scales,
                   ScalingVectorTypeD const& offsets,
-                  MappingVectorType const& beamset_mapping,
+                  MappingVectorTypeD const& beamset_mapping,
                   RawPowerVectorTypeD const& ib_powers,
                   PowerVectorTypeD& output,
                   int nbeamsets,

@@ -12,6 +12,7 @@
 #include <thrust/sequence.h>
 #include <thrust/transform.h>
 #include <vector>
+#include "skyweaver/dedispersion_utils.cuh"
 namespace skyweaver
 {
 
@@ -52,12 +53,17 @@ void CoherentDedisperser::createConfig(CoherentDedisperserConfig& config,
         config._d_ism_responses[i].resize(num_coarse_chans * fft_length);
     }
 
+    // thrust::transform(
+    //     config._d_dms.begin(),
+    //     config._d_dms.end(),
+    //     config._d_dm_prefactor.begin(),
+    //     [=] __device__(double dm) { return -1.0f * TWO_PI * DM_CONST * dm; });
+    
     thrust::transform(
         config._d_dms.begin(),
         config._d_dms.end(),
         config._d_dm_prefactor.begin(),
-        [=] __device__(double dm) { return -1.0f * TWO_PI * DM_CONST * dm; });
-
+        DMPrefactor());
     config.fine_chan_bw = config.coarse_chan_bw / config.fft_length;
 
     for(int idx = 0; idx < config._d_dm_prefactor.size(); idx++) {

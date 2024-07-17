@@ -1,6 +1,7 @@
 #include "skyweaver/DescribedVector.hpp"
 #include "skyweaver/test/CoherentDedisperserTester.cuh"
 #include "skyweaver/test/test_utils.cuh"
+#include "skyweaver/dedispersion_utils.cuh"
 
 namespace skyweaver
 {
@@ -29,15 +30,15 @@ void CoherentDedisperserTester::SetUp()
     nantennas        = 64;
     nchans           = 64;
     npols            = 2;
-    double f_low     = 856.0;
-    double bridge_bw = 13.375;
+    double f_low     = 856.0e6;
+    double bridge_bw = 13.375e6;
     double tsamp     = 4096 / 856e6;
 
     double f1     = f_low;
-    double f2     = f_low + 856.0 / 4096;
+    double f2     = f_low + 856.0e6 / 4096;
     double max_dm = *(std::max_element(dms.begin(), dms.end()));
 
-    double max_dm_delay = CoherentDedisperser::get_dm_delay(f1, f2, max_dm);
+    double max_dm_delay = dm_delay(f1, f2, max_dm);
     max_delay_samps     = std::ceil(max_dm_delay / tsamp);
 
     BOOST_LOG_TRIVIAL(info)
@@ -139,7 +140,7 @@ TEST_F(CoherentDedisperserTester, testCoherentDedisperserWithPythonData)
     // read entire file to host vector
     TPAVoltagesH<char2> h_voltages({nsamples, npols, nantennas});
 
-    codedisp_input.read(reinterpret_cast<char*>(h_voltages.data()),
+    codedisp_input.read(reinterpret_cast<char*>(thrust::raw_pointer_cast(h_voltages.data())),
                         inp_filesize);
     BOOST_LOG_TRIVIAL(debug)
         << "Input h_voltages.size(): " << h_voltages.size();
@@ -159,7 +160,7 @@ TEST_F(CoherentDedisperserTester, testCoherentDedisperserWithPythonData)
     std::size_t nsamples_out  = nelements_out / npols / nantennas;
     // read entire file to host vector
     FTPAVoltagesH<char2> h_voltages_check({1, nsamples_out, npols, nantennas});
-    codedisp_output.read(reinterpret_cast<char*>(h_voltages_check.data()),
+    codedisp_output.read(reinterpret_cast<char*>(thrust::raw_pointer_cast(h_voltages_check.data())),
                          out_filesize);
     BOOST_LOG_TRIVIAL(debug)
         << "Python output h_voltages_check.size(): " << h_voltages_check.size();
@@ -229,7 +230,7 @@ TEST_F(CoherentDedisperserTester, testCoherentDedisperserWithPythonDataAllChans)
     std::size_t nelements = inp_filesize / sizeof(char2);
     std::size_t nsamples  = nelements / npols / nantennas;
     TPAVoltagesH<char2> h_voltages({nsamples, npols, nantennas});
-    codedisp_input.read(reinterpret_cast<char*>(h_voltages.data()),
+    codedisp_input.read(reinterpret_cast<char*>(thrust::raw_pointer_cast(h_voltages.data())),
                         inp_filesize);
     BOOST_LOG_TRIVIAL(debug)
         << "codedisp_input h_voltages.size(): " << h_voltages.size();
@@ -250,7 +251,7 @@ TEST_F(CoherentDedisperserTester, testCoherentDedisperserWithPythonDataAllChans)
     // read entire file to host vector
     FTPAVoltagesH<char2> h_voltages_check(
         {nchans, nsamples_out, npols, nantennas});
-    codedisp_output.read(reinterpret_cast<char*>(h_voltages_check.data()),
+    codedisp_output.read(reinterpret_cast<char*>(thrust::raw_pointer_cast(h_voltages_check.data())),
                          out_filesize);
     BOOST_LOG_TRIVIAL(debug)
         << "Python output h_voltages_check.size(): " << h_voltages_check.size();

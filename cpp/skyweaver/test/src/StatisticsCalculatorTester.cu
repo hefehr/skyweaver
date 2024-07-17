@@ -16,8 +16,6 @@
 #include <thrust/random/normal_distribution.h>
 #include <vector>
 
-#define EXPECT_RELATIVE_ERROR()
-
 namespace skyweaver
 {
 namespace test

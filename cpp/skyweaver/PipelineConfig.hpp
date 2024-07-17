@@ -280,26 +280,6 @@ class PipelineConfig
     float output_level() const;
 
     /**
-     * @brief      Get the coherent beamformer power scaling
-     */
-    float cb_power_scaling() const;
-
-    /**
-     * @brief      Get the coherent beamformer power offset
-     */
-    float cb_power_offset() const;
-
-    /**
-     * @brief      Get the incoherent beamformer power scaling
-     */
-    float ib_power_scaling() const;
-
-    /**
-     * @brief      Get the incoherent beamformer power offset
-     */
-    float ib_power_offset() const;
-
-    /**
      * @brief      Return the total number of antennas that will be beamformed
      */
     std::size_t nantennas() const { return SKYWEAVER_NANTENNAS; }
@@ -380,10 +360,6 @@ class PipelineConfig
     std::size_t _total_nchans;
     std::string _stokes_mode;
     float _output_level;
-    float _cb_power_scaling;
-    float _cb_power_offset;
-    float _ib_power_scaling;
-    float _ib_power_offset;
     DedispersionPlan _ddplan;
     mutable std::vector<double> _channel_frequencies;
 };

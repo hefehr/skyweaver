@@ -100,6 +100,10 @@ DelayManager::DelayVectorDType const& DelayManager::delays(double epoch)
 
 bool DelayManager::validate_model(double epoch) const
 {
+    if (_header.nbeams > _config.nbeams())
+    {
+        throw std::runtime_error("Delay model contains too many beams for current skyweaver build");
+    }
     if((_header.nbeams != _valid_nbeams) ||
        (_header.nantennas != _valid_nantennas)) {
         throw std::runtime_error(

@@ -188,10 +188,8 @@ void StatisticsCalculator::update_scalings(
                 }
             }
             const float avg_std = sum / count;
-            BOOST_LOG_TRIVIAL(info) << "F = " << f_idx;
-            BOOST_LOG_TRIVIAL(info) << "avg_std = " << avg_std;
-            BOOST_LOG_TRIVIAL(info) << "sum = " << sum;
-            BOOST_LOG_TRIVIAL(info) << "count = " << count;
+            BOOST_LOG_TRIVIAL(info) << "Channel " << f_idx;
+            BOOST_LOG_TRIVIAL(info) << "Averaged standard deviation = " << avg_std;
             float const effective_nantennas = count / _config.npol();
 
             // CB OFFSET

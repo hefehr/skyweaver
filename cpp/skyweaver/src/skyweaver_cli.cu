@@ -174,6 +174,7 @@ void run_pipeline(Pipeline& pipeline, skyweaver::PipelineConfig& config, skyweav
         thrust::raw_pointer_cast(taftp_input_voltage_a->data())),
                 input_bytes);
     stopwatch.stop("file read");
+    bool thread_error = false;
     // A is full B is empty
     while(!file_reader.eof()) {
         taftp_input_voltage_a.swap(taftp_input_voltage_b);
@@ -182,15 +183,23 @@ void run_pipeline(Pipeline& pipeline, skyweaver::PipelineConfig& config, skyweav
         // Here spawn a thread to read the next block to process
         // Thread must write to buffer A
         std::thread reader_thread([&]() {
-            nbytes_read = file_reader.read(reinterpret_cast<char*>(
-                thrust::raw_pointer_cast(taftp_input_voltage_a->data())),
-                                input_bytes);
-            BOOST_LOG_TRIVIAL(debug) << "read " << nbytes_read << " bytes from file"; 
+            try {
+                nbytes_read = file_reader.read(reinterpret_cast<char*>(
+                    thrust::raw_pointer_cast(taftp_input_voltage_a->data())),
+                                    input_bytes);
+                BOOST_LOG_TRIVIAL(debug) << "read " << nbytes_read << " bytes from file"; 
+            } catch (std::runtime_error& e) {
+                BOOST_LOG_TRIVIAL(error) << "Error on input read: " << e.what(); 
+                thread_error = true;
+            }
         });
         // Buffer B is full from the previous read and so is now ready to be processed
         pipeline(*taftp_input_voltage_b);
         // Buffer B is now finished processing and we can wait on the A read
         reader_thread.join();
+        if (thread_error) {
+            throw std::runtime_error("Error in input file read");
+        }
         data_time_elapsed += config.gulp_length_samps() * taftp_input_voltage_a->tsamp();
         percentage = std::min(100.0f * data_time_elapsed / remaining_duration, 100.0f);
         wall_time_elapsed = stopwatch.elapsed("processing_loop") / 1e6;

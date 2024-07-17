@@ -136,7 +136,8 @@ void SigprocFileWriter::new_stream()
         _extension,
         _max_filesize,
         [&](std::size_t& header_size,
-            std::size_t bytes_written) -> std::shared_ptr<char const> {
+            std::size_t bytes_written,
+            std::size_t file_count) -> std::shared_ptr<char const> {
             // We do not explicitly delete[] this array
             // Cleanup is handled by the shared pointer
             // created below

@@ -383,8 +383,6 @@ class SessionMetadata:
     centre_frequency: Quantity
     # Observation bandwidth
     bandwidth: Quantity
-    # ITRF reference position of the observatory
-    itrf_reference: tuple[float, float, float]
     # Total number of frequency channels
     nchannels: int
     # The project identifier
@@ -476,7 +474,6 @@ class SessionMetadata:
                 antenna_feng_map,
                 metadata["cfreq"] * u.Hz,
                 metadata["bandwidth"] * u.Hz,
-                tuple(metadata["itrf_reference"]),
                 metadata["nchans"],
                 metadata["project_id"],
                 metadata["sb_id"],
@@ -846,4 +843,4 @@ def main():
     - Antenna database file format (preferrably YAML)
     - Delay format (preferrably some packed binary format)
     """
-    
+

@@ -132,6 +132,19 @@ def metadata_show(metafile: str, verbose: bool = False) -> None:
     else:
         print(om)
 
+def metadata_gains(metafile: str, basename: str, verbose: bool = False) -> None:
+    """Display the contents of a metadata file.
+
+    Args:
+        verbose (bool, optional): Show a full breakdown of the file. Defaults to a summary.
+    """
+
+    om = skyweaver.SessionMetadata.from_file(metafile)
+    for C in om.calibration_solutions:
+        if verbose:
+            print(C)
+        C.to_file(basename)
+
 def delays_create(
     metafile: str,
     bfconfig: str,
@@ -160,12 +173,12 @@ def delays_create(
         raise ValueError("Pointing idx {} requested but only {} pointings in session")
     step = step * u.s
     pointing = pointings[pointing_idx]
-    delays, _, _ = skyweaver.create_delays(sm, bc, pointing, step=step)
+    delays, targets, _ = skyweaver.create_delays(sm, bc, pointing, step=step)
     if outfile is None:
         fname = "swdelays_{}_{}_to_{}_{}.bin".format(
             pointing.phase_centre.name,
             int(pointing.start_epoch.unix),
-            int(pointing.start_epoch.unix),
+            int(pointing.end_epoch.unix),
             secrets.token_hex(3)
         )
     else:
@@ -174,6 +187,10 @@ def delays_create(
     with open(fname, "wb") as fo:
         for delay_model in delays:
             fo.write(delay_model.to_bytes())
+    with open(fname + ".targets", "w") as fo:
+        for target in targets:
+            fo.write(target.format_katcp() +"\n")
+        
 
 def parse_default_args(args):
     """Execute functions for common arguments
@@ -183,7 +200,7 @@ def parse_default_args(args):
 def add_defaults_args(parser):
     """Inject common arguments onto a parser
     """
-    parser.add_argument("--log-level", help="Set the log level", type=str)
+    parser.add_argument("--log-level", help="Set the log level", type=str, default="info")
     parser.add_argument("--log-file", help="Specify and output logging file", type=str)
 
 def subparser_create_wrapper(parent, *args, **kwargs):
@@ -210,6 +227,15 @@ def cli():
     metadata_show_parser.add_argument("metafile", metavar="FILE")
     metadata_show_parser.set_defaults(
         func=lambda args: metadata_show(args.metafile, args.verbose))
+
+    # sw metadata show
+    metadata_gains_parser = subparser_create_wrapper(
+        metadata_subparsers, "gains", help="Dump gain solution")
+    metadata_gains_parser.add_argument("--verbose", action="store_true")
+    metadata_gains_parser.add_argument("--basename", type=str, default="gains")
+    metadata_gains_parser.add_argument("metafile", metavar="FILE")
+    metadata_gains_parser.set_defaults(
+        func=lambda args: metadata_gains(args.metafile, args.basename, args.verbose))
 
     # sw delays
     delays = l1subparsers.add_parser("delays", help="Tools for delay files")
@@ -244,4 +270,3 @@ def cli():
 
 if __name__ == "__main__":
     cli()
-    

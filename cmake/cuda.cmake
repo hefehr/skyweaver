@@ -4,9 +4,10 @@ include_directories(${CUDA_TOOLKIT_INCLUDE})
 set(CUDA_HOST_COMPILER ${CMAKE_CXX_COMPILER})
 set(CUDA_PROPAGATE_HOST_FLAGS OFF)
 
-list(APPEND CUDA_NVCC_FLAGS --std=c++${CMAKE_CXX_STANDARD} -Wno-deprecated-gpu-targets --ptxas-options=-v)
-list(APPEND CUDA_NVCC_FLAGS_DEBUG -O2 -Xcompiler "-Wextra" --Werror all-warnings -Xcudafe "--diag_suppress=20012")
-list(APPEND CUDA_NVCC_FLAGS_PROFILE --generate-line-info)
+list(APPEND CUDA_NVCC_FLAGS --std=c++${CMAKE_CXX_STANDARD} --expt-extended-lambda --expt-relaxed-constexpr -Wno-deprecated-gpu-targets -Xcudafe="--diag_suppress=20012" -Xcudafe="--diag_suppress=20208" -Xcompiler="-fopenmp")
+#list(APPEND CUDA_NVCC_FLAGS_DEBUG -g -G -O2 -Xcompiler "-Wextra" --Werror all-warnings)
+list(APPEND CUDA_NVCC_FLAGS_DEBUG -g -G -O2)
+list(APPEND CUDA_NVCC_FLAGS_PROFILE --generate-line-info -O3 -use_fast_math -restrict)
 list(APPEND CUDA_NVCC_FLAGS_RELEASE -O3 -use_fast_math -restrict)
 #list(APPEND CUDA_NVCC_FLAGS_RELEASE -gencode=arch=compute_61,code=sm_61) # Titan X Pascal
 #list(APPEND CUDA_NVCC_FLAGS_RELEASE -gencode=arch=compute_75,code=sm_75) # GeForce 2080
@@ -18,6 +19,8 @@ list(APPEND CUDA_NVCC_FLAGS_RELEASE -O3 -use_fast_math -restrict)
 if(CUDA_VERSION GREATER_EQUAL 11.8)
     message(STATUS  "Enabling device specific (arch=89)")
     list(APPEND CUDA_NVCC_FLAGS_RELEASE -gencode=arch=compute_89,code=sm_89) # L40
+    list(APPEND CUDA_NVCC_FLAGS_DEBUG -gencode=arch=compute_89,code=sm_89) # L40
+    list(APPEND CUDA_NVCC_FLAGS_PROFILE -gencode=arch=compute_89,code=sm_89) # L40
 endif(CUDA_VERSION GREATER_EQUAL 11.8)
 
 # There is some kind of bug here, as setting CMAKE_CUDA_ARCHITECTURES
@@ -30,16 +33,16 @@ endif()
 set(CMAKE_CXX_FLAGS "-DENABLE_CUDA ${CMAKE_CXX_FLAGS}")
 message(STATUS "CMAKE_BUILD_TYPE ${CMAKE_BUILD_TYPE_UPPER}")
 if(CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG")
-    set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} ${CUDA_NVCC_FLAGS_DEBUG}")
+    list(APPEND CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} ${CUDA_NVCC_FLAGS_DEBUG})
 elseif(CMAKE_BUILD_TYPE_UPPER STREQUAL "RELEASE")
-    set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} ${CUDA_NVCC_FLAGS_RELEASE}")
+    list(APPEND CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} ${CUDA_NVCC_FLAGS_RELEASE})
+    message(STATUS CUDA_NVCC_FLAGS)
 elseif(CMAKE_BUILD_TYPE_UPPER STREQUAL "PROFILE")
-    set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} ${CUDA_NVCC_FLAGS_PROFILE}")
+    list(APPEND CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} ${CUDA_NVCC_FLAGS_PROFILE})
 endif()
 
-
 get_property(dirs DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY INCLUDE_DIRECTORIES)
-add_definitions(-DUSE_NVTX)
+
 find_library(CUDA_NVTOOLSEXT_LIB
     NAMES nvToolsExt
     HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib64)

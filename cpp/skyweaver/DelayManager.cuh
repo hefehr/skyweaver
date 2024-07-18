@@ -1,6 +1,8 @@
 #ifndef SKYWEAVER_DELAYMANAGER_CUH
 #define SKYWEAVER_DELAYMANAGER_CUH
 
+#include "skyweaver/PipelineConfig.hpp"
+
 #include <boost/log/trivial.hpp>
 #include <exception>
 #include <fstream>
@@ -9,6 +11,7 @@
 #include <string>
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
+#include <vector>
 
 namespace skyweaver
 {
@@ -45,6 +48,8 @@ struct DelayModelHeader {
     double end_epoch;
 };
 
+typedef float3 DelayModel;
+
 /**
  * @brief      Class for managing loading of delay models from
  *             file and provisioning of them on the GPU.
@@ -53,12 +58,14 @@ class DelayManager
 {
   public:
     /**
-     * These vectors are in (nbeam, nantenna) order, i.e. the 
-     * fastest dimension is antenna. This is also how the vectors 
+     * These vectors are in (nbeam, nantenna) order, i.e. the
+     * fastest dimension is antenna. This is also how the vectors
      * are store on file.
      */
-    typedef thrust::device_vector<float3> DelayVectorDType;
-    typedef thrust::host_vector<float3> DelayVectorHType;
+    using DelayVectorTypeD          = thrust::device_vector<DelayModel>;
+    using DelayVectorTypeH          = thrust::host_vector<DelayModel>;
+    using BeamsetWeightsVectorTypeD = thrust::device_vector<float>;
+    using BeamsetMappingVectorTypeD = thrust::device_vector<int>;
 
   public:
     /**
@@ -67,7 +74,7 @@ class DelayManager
      * @param delay_file A file containing delay models in skyweaver format
      * @param stream A cuda stream on which to execute host to device copies
      */
-    DelayManager(std::string delay_file, cudaStream_t stream);
+    DelayManager(PipelineConfig const& config, cudaStream_t stream);
     ~DelayManager();
     DelayManager(DelayManager const&) = delete;
 
@@ -80,18 +87,61 @@ class DelayManager
      *
      * @return A device vector containing the current delays
      */
-    DelayVectorDType const& delays(double epoch);
+    DelayVectorTypeD const& delays(double epoch);
+
+    /**
+     * @brief Return the UNIX epoch of the current delay model
+     *
+     * @return double UNIX epoch
+     */
+    double epoch() const;
+
+    /**
+     * @brief Return the antenna weights for each beamset
+     *
+     * @details In order to use this array it is necessary to use
+     *          the beamset_mapping function to determine which
+     *          beam belongs to which beamset.
+     *
+     * @return A flat array of antenna weights in (beamset, antenna) format
+     */
+    BeamsetWeightsVectorTypeD const& beamset_weights() const;
+
+    /**
+     * @brief Return the mapping of beams to beamsets
+     *
+     * @return An array of length nbeams where each element is the
+     *         beamset to which the beam belongs.
+     */
+    BeamsetMappingVectorTypeD const& beamset_mapping() const;
+
+    /**
+     * @brief Return the number of beamsets for the current delay model
+     *
+     * @return the number of beamsets
+     */
+    int nbeamsets() const;
 
   private:
     bool validate_model(double epoch) const;
     void read_next_model();
     void safe_read(char* buffer, std::size_t nbytes);
+    std::size_t parse_beamsets();
 
+    PipelineConfig const& _config;
     cudaStream_t _copy_stream;
-    DelayModelHeader _header;
+    std::size_t _valid_nbeams;
+    std::size_t _valid_nantennas;
+    std::size_t _valid_nbeamsets;
+    DelayModelHeader _model_header;
     std::ifstream _input_stream;
-    DelayVectorHType _delays_h;
-    DelayVectorDType _delays_d;
+    DelayVectorTypeH _delays_h;
+    DelayVectorTypeD _delays_d;
+    // The _weights_d array is stored flat to
+    // avoid having to use pointer arrays.
+    // The format is (nbeamsets, nantennas)
+    BeamsetWeightsVectorTypeD _weights_d;
+    BeamsetMappingVectorTypeD _beamset_map_d;
 };
 
 } // namespace skyweaver

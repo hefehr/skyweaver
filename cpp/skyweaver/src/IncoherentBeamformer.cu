@@ -1,20 +1,27 @@
 #include "psrdada_cpp/cuda_utils.hpp"
 #include "skyweaver/IncoherentBeamformer.cuh"
 #include "skyweaver/beamformer_utils.cuh"
+#include "skyweaver/types.cuh"
 
 #include <cassert>
+
+#define ACC_BUFFER_SIZE 64
 
 namespace skyweaver
 {
 namespace kernels
 {
 
-__global__ void icbf_ftpa_general_k(char2 const* __restrict__ ftpa_voltages,
-                                    float* __restrict__ tf_powers_raw,
-                                    int8_t* __restrict__ tf_powers,
-                                    float const* __restrict__ output_scale,
-                                    float const* __restrict__ output_offset,
-                                    int ntimestamps)
+template <typename BfTraits>
+__global__ void icbf_ftpa_general_k(
+    char2 const* __restrict__ ftpa_voltages,
+    typename BfTraits::RawPowerType* __restrict__ tf_powers_raw,
+    typename BfTraits::QuantisedPowerType* __restrict__ tf_powers,
+    float const* __restrict__ output_scale,
+    float const* __restrict__ output_offset,
+    float const* __restrict__ antenna_weights,
+    int nsamples,
+    int nbeamsets)
 {
     // FTPA beamformer
     // Each thread loads the two pols of 1 antenna
@@ -27,16 +34,22 @@ __global__ void icbf_ftpa_general_k(char2 const* __restrict__ ftpa_voltages,
 
     const int a   = SKYWEAVER_NANTENNAS;
     const int pa  = SKYWEAVER_NPOL * a;
-    const int tpa = ntimestamps * pa;
+    const int tpa = nsamples * pa;
 
-    volatile __shared__ float acc_buffer[SKYWEAVER_NANTENNAS];
+    // REMOVED volatile
+    __shared__ typename BfTraits::RawPowerType acc_buffer[ACC_BUFFER_SIZE];
+
+    for(int ii = threadIdx.x; ii < ACC_BUFFER_SIZE; ii += blockDim.x) {
+        acc_buffer[ii] = BfTraits::zero_power;
+    }
+    __syncthreads();
 
     const int output_t_idx = blockIdx.x;
     const int output_f_idx = blockIdx.y;
     const int input_t_idx  = output_t_idx * SKYWEAVER_IB_TSCRUNCH;
     const int input_f_idx  = output_f_idx * SKYWEAVER_IB_FSCRUNCH;
     const int a_idx        = threadIdx.x;
-    float power            = 0.0f;
+    typename BfTraits::RawPowerType power = BfTraits::zero_power;
     for(int f_idx = input_f_idx; f_idx < input_f_idx + SKYWEAVER_CB_FSCRUNCH;
         ++f_idx) {
         for(int t_idx = input_t_idx;
@@ -50,160 +63,132 @@ __global__ void icbf_ftpa_general_k(char2 const* __restrict__ ftpa_voltages,
                 make_cuFloatComplex((float)p0_v.x, (float)p0_v.y);
             cuFloatComplex p1 =
                 make_cuFloatComplex((float)p1_v.x, (float)p1_v.y);
-            power += calculate_stokes(p0, p1);
+            BfTraits::integrate_stokes(p0, p1, power);
         }
     }
-    acc_buffer[threadIdx.x] = power;
-    for(unsigned int ii = blockDim.x / 2; ii > 0; ii >>= 1) {
-        __syncthreads();
-        if(threadIdx.x < ii) {
-            // Changed from += due to warning #3012-D
-            acc_buffer[threadIdx.x] =
-                acc_buffer[threadIdx.x] + acc_buffer[threadIdx.x + ii];
-        }
-    }
-    __syncthreads();
-    if(threadIdx.x == 0) {
-        float power_f32           = acc_buffer[threadIdx.x];
-        int output_idx            = output_t_idx * gridDim.y + output_f_idx;
-        tf_powers_raw[output_idx] = power_f32;
-        float scale               = output_scale[output_f_idx];
-        float offset              = output_offset[output_f_idx];
-        tf_powers[output_idx] =
-            (int8_t)fmaxf(-127.0f,
-                          fminf(127.0f, rintf((power_f32 - offset) / scale)));
-    }
-}
-
-__global__ void icbf_taftp_general_k(char4 const* __restrict__ taftp_voltages,
-                                     float* __restrict__ tf_powers_raw,
-                                     int8_t* __restrict__ tf_powers,
-                                     float const* __restrict__ output_scale,
-                                     float const* __restrict__ output_offset,
-                                     int ntimestamps)
-{
-    // TAFTP
-    const int tp         = SKYWEAVER_NSAMPLES_PER_HEAP;
-    const int ftp        = SKYWEAVER_NCHANS * tp;
-    const int aftp       = SKYWEAVER_NANTENNAS * ftp;
-    const int nchans_out = SKYWEAVER_NCHANS / SKYWEAVER_IB_FSCRUNCH;
-    const int nsamps_out = SKYWEAVER_NSAMPLES_PER_HEAP / SKYWEAVER_IB_TSCRUNCH;
-    volatile __shared__ float acc_buffer[SKYWEAVER_NSAMPLES_PER_HEAP];
-    volatile __shared__ float output_buffer_raw[nsamps_out * nchans_out];
-    volatile __shared__ int8_t output_buffer[nsamps_out * nchans_out];
-
-    for(int timestamp_idx = blockIdx.x; timestamp_idx < ntimestamps;
-        timestamp_idx += gridDim.x) {
-        for(int start_channel_idx = 0; start_channel_idx < SKYWEAVER_NCHANS;
-            start_channel_idx += SKYWEAVER_IB_FSCRUNCH) {
-            float power = 0.0f;
-            for(int sub_channel_idx = start_channel_idx;
-                sub_channel_idx < start_channel_idx + SKYWEAVER_IB_FSCRUNCH;
-                ++sub_channel_idx) {
-                for(int antenna_idx = 0; antenna_idx < SKYWEAVER_NANTENNAS;
-                    ++antenna_idx) {
-                    int input_index = timestamp_idx * aftp + antenna_idx * ftp +
-                                      sub_channel_idx * tp + threadIdx.x;
-
-                    // Each ant here is both polarisations for one antenna
-                    char4 ant = taftp_voltages[input_index];
-                    cuFloatComplex p0 =
-                        make_cuFloatComplex((float)ant.x, (float)ant.y);
-                    cuFloatComplex p1 =
-                        make_cuFloatComplex((float)ant.z, (float)ant.w);
-                    power += calculate_stokes(p0, p1);
-                }
-            }
-            acc_buffer[threadIdx.x] = power;
+    for(int beamset_idx = 0; beamset_idx < nbeamsets; ++beamset_idx) {
+        acc_buffer[a_idx] = power * antenna_weights[a_idx];
+        for(unsigned int ii = ACC_BUFFER_SIZE / 2; ii > 0; ii >>= 1) {
             __syncthreads();
-            for(int ii = 1; ii < SKYWEAVER_IB_TSCRUNCH; ++ii) {
-                int idx = threadIdx.x + ii;
-                if(idx < SKYWEAVER_NSAMPLES_PER_HEAP) {
-                    power += acc_buffer[idx];
-                }
+            if(a_idx < ii) {
+                acc_buffer[a_idx] = acc_buffer[a_idx] + acc_buffer[a_idx + ii];
             }
-            if(threadIdx.x % SKYWEAVER_IB_TSCRUNCH == 0) {
-                int output_buffer_idx =
-                    threadIdx.x / SKYWEAVER_IB_TSCRUNCH * nchans_out +
-                    start_channel_idx / SKYWEAVER_IB_FSCRUNCH;
-                float scale =
-                    output_scale[start_channel_idx / SKYWEAVER_IB_FSCRUNCH];
-                float offset =
-                    output_offset[start_channel_idx / SKYWEAVER_IB_FSCRUNCH];
-                output_buffer_raw[output_buffer_idx] = power;
-                output_buffer[output_buffer_idx]     = (int8_t)fmaxf(
-                    -127.0f,
-                    fminf(127.0f, rintf((power - offset) / scale)));
-            }
-            __syncthreads();
-        }
-        int output_offset = timestamp_idx * nsamps_out * nchans_out;
-        for(int idx = threadIdx.x;
-            idx < nsamps_out * SKYWEAVER_NCHANS / SKYWEAVER_IB_FSCRUNCH;
-            idx += blockDim.x) {
-            tf_powers_raw[output_offset + idx] = output_buffer_raw[idx];
-            tf_powers[output_offset + idx]     = output_buffer[idx];
         }
         __syncthreads();
+        if(a_idx == 0) {
+            const typename BfTraits::RawPowerType power_f32 = acc_buffer[0];
+            const int output_idx = beamset_idx * gridDim.x * gridDim.y +
+                                   output_t_idx * gridDim.y + output_f_idx;
+            const float scale =
+                output_scale[beamset_idx * gridDim.y + output_f_idx];
+            const float offset =
+                output_offset[beamset_idx * gridDim.y + output_f_idx];
+            tf_powers_raw[output_idx] = power_f32;
+            tf_powers[output_idx] =
+                BfTraits::clamp(BfTraits::rescale(power_f32, offset, scale));
+        }
     }
 }
 
 } // namespace kernels
 
-IncoherentBeamformer::IncoherentBeamformer(PipelineConfig const& config)
+template <typename BfTraits>
+IncoherentBeamformer<BfTraits>::IncoherentBeamformer(
+    PipelineConfig const& config)
     : _config(config)
 {
     BOOST_LOG_TRIVIAL(debug) << "Constructing IncoherentBeamformer instance";
 }
 
-IncoherentBeamformer::~IncoherentBeamformer()
+template <typename BfTraits>
+IncoherentBeamformer<BfTraits>::~IncoherentBeamformer()
 {
 }
 
-void IncoherentBeamformer::beamform(VoltageVectorType const& input,
-                                    RawPowerVectorType& output_raw,
-                                    PowerVectorType& output,
-                                    ScalingVectorType const& output_scale,
-                                    ScalingVectorType const& output_offset,
-                                    cudaStream_t stream)
+template <typename BfTraits>
+void IncoherentBeamformer<BfTraits>::beamform(
+    VoltageVectorTypeD const& input,
+    RawPowerVectorTypeD& output_raw,
+    PowerVectorTypeD& output,
+    ScalingVectorTypeD const& output_scale,
+    ScalingVectorTypeD const& output_offset,
+    ScalingVectorTypeD const& antenna_weights,
+    int nbeamsets,
+    cudaStream_t stream)
 {
     // First work out nsamples and resize output if not done already
     BOOST_LOG_TRIVIAL(debug) << "Executing incoherent beamforming";
-    const std::size_t fpa_size =
-        _config.npol() * _config.nantennas() * _config.nchans();
-    assert(input.size() % fpa_size == 0 /* Non integer number of time stamps*/);
-    std::size_t ntimestamps = input.size() / fpa_size;
+    
+    if(nbeamsets <= 0) {
+        throw std::runtime_error(
+            "Number of beamsets must be greater than zero");
+    }
+    std::size_t nsamples = input.nsamples();
     std::size_t output_size =
         (input.size() / _config.nantennas() / _config.npol() /
-         _config.ib_tscrunch() / _config.ib_fscrunch());
+         _config.ib_tscrunch() / _config.ib_fscrunch()) *
+        nbeamsets;
     BOOST_LOG_TRIVIAL(debug) << "Resizing output buffer from " << output.size()
                              << " to " << output_size << " elements";
-    output.resize(output_size);
-    output_raw.resize(output_size);
-    assert(output_scale.size() == SKYWEAVER_NCHANS / SKYWEAVER_IB_FSCRUNCH /* Unexpected number of channels in scaling vector */);
-    assert(output_offset.size() == SKYWEAVER_NCHANS / SKYWEAVER_IB_FSCRUNCH /* Unexpected number of channels in offset vector */);
-    dim3 block(SKYWEAVER_NANTENNAS);
-    dim3 grid(ntimestamps / SKYWEAVER_IB_TSCRUNCH,
-              SKYWEAVER_NCHANS / SKYWEAVER_IB_FSCRUNCH);
+    output.resize({static_cast<std::size_t>(nbeamsets),
+                    nsamples / _config.ib_tscrunch(),
+                   _config.nchans() / _config.ib_fscrunch()});
+    output.metalike(input);
+    output.tsamp(input.tsamp() * _config.ib_tscrunch());
+    output_raw.resize({static_cast<std::size_t>(nbeamsets),
+                        nsamples / _config.ib_tscrunch(),
+                       _config.nchans() / _config.ib_fscrunch()});
+    output_raw.metalike(input);
+    output_raw.tsamp(input.tsamp() * _config.ib_tscrunch());
+    if(output_scale.size() !=
+       (_config.nchans() / _config.ib_fscrunch()) * nbeamsets) {
+        std::runtime_error("Unexpected number of channels in scaling vector");
+    }
+    if(output_offset.size() !=
+       (_config.nchans() / _config.ib_fscrunch()) * nbeamsets) {
+        std::runtime_error("Unexpected number of channels in offset vector");
+    }
+    if(antenna_weights.size() != _config.nantennas() * nbeamsets) {
+        std::runtime_error(
+            "Antenna weights vector is not nantennas x nbeamsets in size");
+    }
+    dim3 block(_config.nantennas());
+    dim3 grid(nsamples / _config.ib_tscrunch(),
+              _config.nchans() / _config.ib_fscrunch());
     char2 const* ftpa_voltages_ptr = thrust::raw_pointer_cast(input.data());
     float const* output_scale_ptr =
         thrust::raw_pointer_cast(output_scale.data());
     float const* output_offset_ptr =
         thrust::raw_pointer_cast(output_offset.data());
-    PowerVectorType::value_type* tf_powers_ptr =
+    float const* antenna_weights_ptr =
+        thrust::raw_pointer_cast(antenna_weights.data());
+    typename PowerVectorTypeD::value_type* tf_powers_ptr =
         thrust::raw_pointer_cast(output.data());
-    RawPowerVectorType::value_type* tf_powers_raw_ptr =
+    typename RawPowerVectorTypeD::value_type* tf_powers_raw_ptr =
         thrust::raw_pointer_cast(output_raw.data());
     BOOST_LOG_TRIVIAL(debug) << "Executing incoherent beamforming kernel";
-    kernels::icbf_ftpa_general_k<<<grid, block, 0, stream>>>(
-        ftpa_voltages_ptr,
-        tf_powers_raw_ptr,
-        tf_powers_ptr,
-        output_scale_ptr,
-        output_offset_ptr,
-        static_cast<int>(ntimestamps));
+    BOOST_LOG_TRIVIAL(debug) << "Nbeamsets = " << nbeamsets;
+    kernels::icbf_ftpa_general_k<BfTraits>
+        <<<grid, block, 0, stream>>>(ftpa_voltages_ptr,
+                                     tf_powers_raw_ptr,
+                                     tf_powers_ptr,
+                                     output_scale_ptr,
+                                     output_offset_ptr,
+                                     antenna_weights_ptr,
+                                     static_cast<int>(nsamples),
+                                     nbeamsets);
     CUDA_ERROR_CHECK(cudaStreamSynchronize(stream));
     BOOST_LOG_TRIVIAL(debug) << "Incoherent beamforming kernel complete";
 }
+
+template class IncoherentBeamformer<
+    SingleStokesBeamformerTraits<StokesParameter::I>>;
+template class IncoherentBeamformer<
+    SingleStokesBeamformerTraits<StokesParameter::Q>>;
+template class IncoherentBeamformer<
+    SingleStokesBeamformerTraits<StokesParameter::U>>;
+template class IncoherentBeamformer<
+    SingleStokesBeamformerTraits<StokesParameter::V>>;
+template class IncoherentBeamformer<FullStokesBeamformerTraits>;
 
 } // namespace skyweaver

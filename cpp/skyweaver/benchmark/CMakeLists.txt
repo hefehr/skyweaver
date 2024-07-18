@@ -1,0 +1,5 @@
+include_directories(${BENCHMARK_INCLUDE_DIR})
+link_directories(${BENCHMARK_LIBRARY_DIR})
+cuda_add_executable(beamformer_bench beamformer_bench.cu)
+add_dependencies(beamformer_bench googlebenchmark)
+target_link_libraries(beamformer_bench ${BENCHMARK_LIBRARIES} ${SKYWEAVER_LIBRARIES} ${DEPENDENCY_LIBRARIES})

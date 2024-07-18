@@ -71,8 +71,8 @@ void WeightsManagerTester::calc_weights_c_reference(
 }
 
 void WeightsManagerTester::compare_against_host(
-    DelayVectorType const& delays,
-    WeightsVectorType const& weights,
+    DelayVectorTypeD const& delays,
+    WeightsVectorTypeD const& weights,
     TimeType current_epoch,
     TimeType delay_epoch)
 {
@@ -102,7 +102,7 @@ TEST_F(WeightsManagerTester, test_zero_value)
     std::size_t delays_size = _config.nbeams() * _config.nantennas();
     WeightsManager weights_manager(_config, _stream);
     // This is a thrust::device_vector<float3>
-    DelayVectorType delays(delays_size, {1.0f, 0.0f, 0.0f});
+    DelayVectorTypeD delays(delays_size, {1.0f, 0.0f, 0.0f});
     TimeType current_epoch = 10.0;
     TimeType delay_epoch   = 9.0;
     // First try everything with only zeros
@@ -117,7 +117,7 @@ TEST_F(WeightsManagerTester, test_real_value)
     std::size_t delays_size = _config.nbeams() * _config.nantennas();
     WeightsManager weights_manager(_config, _stream);
     // This is a thrust::device_vector<float3>
-    DelayVectorType delays(delays_size, {1.0f, 1e-11f, 1e-10f});
+    DelayVectorTypeD delays(delays_size, {1.0f, 1e-11f, 1e-10f});
     TimeType current_epoch = 10.0;
     TimeType delay_epoch   = 9.0;
     // First try everything with only zeros
@@ -132,7 +132,7 @@ TEST_F(WeightsManagerTester, test_real_values)
     std::size_t delays_size = _config.nbeams() * _config.nantennas();
     WeightsManager weights_manager(_config, _stream);
     // This is a thrust::device_vector<float3>
-    DelayVectorType delays(delays_size, {0.0f, 0.0f});
+    DelayVectorTypeD delays(delays_size, {0.0f, 0.0f});
     for(int ii = 0; ii < delays_size; ++ii) {
         delays[ii] = {ii * 1e-11f, ii * 1e-15f};
     }

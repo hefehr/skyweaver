@@ -60,20 +60,7 @@ static_assert(SKYWEAVER_NBEAMS % 32 == 0,
 #endif // SKYWEAVER_IB_SUBTRACTION
 
 /**
- * Stokes mode to output from coherent beamformer
- *
- * Can have values 0, 1, 2, 3 (I, Q, U, V)
- */
-#define SKYWEAVER_STOKES_I 0
-#define SKYWEAVER_STOKES_Q 1
-#define SKYWEAVER_STOKES_U 2
-#define SKYWEAVER_STOKES_V 3
-#ifndef SKYWEAVER_STOKES_MODE
-    #define SKYWEAVER_STOKES_MODE SKYWEAVER_STOKES_I
-#endif // SKYWEAVER_STOKES_MODE
-
-/**
- * The factor by which to time scrunch the 
+ * The factor by which to time scrunch the
  * coherent beam data.
  */
 #ifndef SKYWEAVER_CB_TSCRUNCH
@@ -81,15 +68,16 @@ static_assert(SKYWEAVER_NBEAMS % 32 == 0,
 #endif // SKYWEAVER_CB_TSCRUNCH
 
 /**
- * The factor by which to time scrunch the 
+ * The factor by which to time scrunch the
  * coherent beam data.
  */
-#ifndef SKYWEAVER_CB_FSCRUNCH
-    #define SKYWEAVER_CB_FSCRUNCH 4
-#endif // SKYWEAVER_CB_FSCRUNCH
+// #ifndef SKYWEAVER_CB_FSCRUNCH
+//     #define SKYWEAVER_CB_FSCRUNCH 4
+// #endif // SKYWEAVER_CB_FSCRUNCH
+#define SKYWEAVER_CB_FSCRUNCH 1
 
 /**
- * The factor by which to time scrunch the 
+ * The factor by which to time scrunch the
  * incoherent beam data.
  */
 #ifndef SKYWEAVER_IB_TSCRUNCH
@@ -97,25 +85,32 @@ static_assert(SKYWEAVER_NBEAMS % 32 == 0,
 #endif // SKYWEAVER_IB_TSCRUNCH
 
 /**
- * The factor by which to time scrunch the 
+ * The factor by which to time scrunch the
  * incoherent beam data.
  */
-#ifndef SKYWEAVER_IB_FSCRUNCH
-    #define SKYWEAVER_IB_FSCRUNCH 4
-#endif // SKYWEAVER_IB_FSCRUNCH
-
+// #ifndef SKYWEAVER_IB_FSCRUNCH
+//     #define SKYWEAVER_IB_FSCRUNCH 4
+// #endif // SKYWEAVER_IB_FSCRUNCH
+#define SKYWEAVER_IB_FSCRUNCH 1
 
 // These are fixed for MeerKAT F-engine data
 #define SKYWEAVER_NSAMPLES_PER_HEAP 256
 #define SKYWEAVER_NPOL              2
 
-// These parameters are fixed for beamformer 
-// kernel performance. 
+// A useful number to compute is the size of each AFTP in TAFTP input data
+//  Usually for A=64, N=64, T=256, P=2, this is 8192 bytes
+#define SKYWEAVER_INPUT_NBITS sizeof(std::int8_t)
+#define SKYWEAVER_AFTP_SIZE                                                             \
+    SKYWEAVER_NANTENNAS* SKYWEAVER_NCHANS* SKYWEAVER_NSAMPLES_PER_HEAP* SKYWEAVER_NPOL* \
+        SKYWEAVER_INPUT_NBITS
+
+// These parameters are fixed for beamformer
+// kernel performance.
 // Note: The old FBFUSE code contained parameters
 // here for specifying spead heap and packet sizes
 // for the outgoing data. With skyweaver it is assumed
-// that the data do not need to be packetised and it is 
-// preferable to output in a format more suitable for 
+// that the data do not need to be packetised and it is
+// preferable to output in a format more suitable for
 // downstream processing without network transfer.
 #define SKYWEAVER_CB_NTHREADS  1024
 #define SKYWEAVER_CB_WARP_SIZE 32
@@ -123,28 +118,32 @@ static_assert(SKYWEAVER_NBEAMS % 32 == 0,
     (SKYWEAVER_CB_NTHREADS / SKYWEAVER_CB_WARP_SIZE)
 #define SKYWEAVER_CB_NSAMPLES_PER_BLOCK \
     (SKYWEAVER_CB_TSCRUNCH * SKYWEAVER_CB_NTHREADS / SKYWEAVER_CB_WARP_SIZE)
-#define SKYWEAVER_CB_NCHANS_OUT        (SKYWEAVER_NCHANS / SKYWEAVER_CB_FSCRUNCH)
+#define SKYWEAVER_CB_NCHANS_OUT (SKYWEAVER_NCHANS / SKYWEAVER_CB_FSCRUNCH)
 
 // To be removed when the new output format is chosen
-#define SKYWEAVER_CB_PACKET_SIZE 8192     
-#define SKYWEAVER_CB_HEAP_SIZE 8192
+#define SKYWEAVER_CB_PACKET_SIZE       8192
+#define SKYWEAVER_CB_HEAP_SIZE         8192
 #define SKYWEAVER_CB_NCHANS_PER_PACKET (SKYWEAVER_CB_NCHANS_OUT)
-#define SKYWEAVER_CB_NSAMPLES_PER_PACKET (SKYWEAVER_CB_HEAP_SIZE / SKYWEAVER_CB_NCHANS_OUT)
-#define SKYWEAVER_CB_NPACKETS_PER_HEAP (SKYWEAVER_CB_HEAP_SIZE / SKYWEAVER_CB_PACKET_SIZE)
-#define SKYWEAVER_CB_NSAMPLES_PER_HEAP (SKYWEAVER_CB_NPACKETS_PER_HEAP * SKYWEAVER_CB_NSAMPLES_PER_PACKET)
-
+#define SKYWEAVER_CB_NSAMPLES_PER_PACKET \
+    (SKYWEAVER_CB_HEAP_SIZE / SKYWEAVER_CB_NCHANS_OUT)
+#define SKYWEAVER_CB_NPACKETS_PER_HEAP \
+    (SKYWEAVER_CB_HEAP_SIZE / SKYWEAVER_CB_PACKET_SIZE)
+#define SKYWEAVER_CB_NSAMPLES_PER_HEAP \
+    (SKYWEAVER_CB_NPACKETS_PER_HEAP * SKYWEAVER_CB_NSAMPLES_PER_PACKET)
 
 #define SKYWEAVER_IB_NSAMPLES_PER_BLOCK \
     (SKYWEAVER_IB_TSCRUNCH * SKYWEAVER_IB_NTHREADS / SKYWEAVER_IB_WARP_SIZE)
-#define SKYWEAVER_IB_NCHANS_OUT        (SKYWEAVER_NCHANS / SKYWEAVER_IB_FSCRUNCH)
+#define SKYWEAVER_IB_NCHANS_OUT (SKYWEAVER_NCHANS / SKYWEAVER_IB_FSCRUNCH)
 
 // To be removed
-#define SKYWEAVER_IB_PACKET_SIZE 8192     
-#define SKYWEAVER_IB_HEAP_SIZE 8192
+#define SKYWEAVER_IB_PACKET_SIZE       8192
+#define SKYWEAVER_IB_HEAP_SIZE         8192
 #define SKYWEAVER_IB_NCHANS_PER_PACKET (SKYWEAVER_IB_NCHANS_OUT)
-#define SKYWEAVER_IB_NSAMPLES_PER_PACKET (SKYWEAVER_IB_HEAP_SIZE / SKYWEAVER_IB_NCHANS_OUT)
-#define SKYWEAVER_IB_NPACKETS_PER_HEAP (SKYWEAVER_IB_HEAP_SIZE / SKYWEAVER_IB_PACKET_SIZE)
-#define SKYWEAVER_IB_NSAMPLES_PER_HEAP (SKYWEAVER_IB_NPACKETS_PER_HEAP * SKYWEAVER_IB_NSAMPLES_PER_PACKET)
+#define SKYWEAVER_IB_NSAMPLES_PER_PACKET \
+    (SKYWEAVER_IB_HEAP_SIZE / SKYWEAVER_IB_NCHANS_OUT)
+#define SKYWEAVER_IB_NPACKETS_PER_HEAP \
+    (SKYWEAVER_IB_HEAP_SIZE / SKYWEAVER_IB_PACKET_SIZE)
+#define SKYWEAVER_IB_NSAMPLES_PER_HEAP \
+    (SKYWEAVER_IB_NPACKETS_PER_HEAP * SKYWEAVER_IB_NSAMPLES_PER_PACKET)
 
 #endif // SKYWEAVER_CONSTANTS_HPP
-

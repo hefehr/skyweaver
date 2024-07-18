@@ -2,6 +2,7 @@
 #include "skyweaver/DelayManager.cuh"
 #include "skyweaver/PipelineConfig.hpp"
 #include "skyweaver/WeightsManager.cuh"
+#include "skyweaver/types.cuh"
 
 #include <thrust/device_vector.h>
 
@@ -47,7 +48,6 @@ generate_weights_k(float3 const* __restrict__ delay_models,
     char2 compressed_weight;
     // This isn't really needed as there will never be more than 64 antennas
     // However this makes this fucntion more flexible with smaller blocks
-
     for(int chan_idx = blockIdx.y; chan_idx < nchans; chan_idx += gridDim.y) {
         double frequency = channel_frequencies[chan_idx];
         int chan_offset  = chan_idx * weights_per_channel; // correct
@@ -73,10 +73,10 @@ generate_weights_k(float3 const* __restrict__ delay_models,
                     // If we ever have to implement scalar weightings, this
                     // must change.
                     sincos(TWOPI * phase, &weight.y, &weight.x);
-                    compressed_weight.x =
-                        (char)__double2int_rn(weight.x * 127.0 * delay_model.x);
-                    compressed_weight.y = (char)__double2int_rn(
-                        -1.0 * weight.y * 127.0 * delay_model.x);
+                    compressed_weight.x = clamp<int8_t, int>(
+                        __double2int_rn(weight.x * 127.0 * delay_model.x));
+                    compressed_weight.y = clamp<int8_t, int>(__double2int_rn(
+                        -1.0 * weight.y * 127.0 * delay_model.x));
                     int output_idx =
                         time_idx * weights_per_time_step + antenna_offset;
                     weights[output_idx] = compressed_weight;
@@ -92,12 +92,11 @@ WeightsManager::WeightsManager(PipelineConfig const& config,
                                cudaStream_t stream)
     : _config(config), _stream(stream)
 {
-    std::size_t nbeams    = _config.nbeams();
-    std::size_t nantennas = _config.nantennas();
     BOOST_LOG_TRIVIAL(debug)
-        << "Constructing WeightsManager instance to hold weights for " << nbeams
-        << " beams and " << nantennas << " antennas";
-    _weights.resize(nbeams * nantennas * _config.nchans());
+        << "Constructing WeightsManager instance to hold weights for "
+        << _config.nbeams() << " beams and " << _config.nantennas()
+        << " antennas";
+    _weights.resize(_config.nbeams() * _config.nantennas() * _config.nchans());
     // This should be an implicit copy to the device
     BOOST_LOG_TRIVIAL(debug) << "Copying channel frequencies to the GPU";
     _channel_frequencies = _config.channel_frequencies();
@@ -107,15 +106,15 @@ WeightsManager::~WeightsManager()
 {
 }
 
-WeightsManager::WeightsVectorType const&
-WeightsManager::weights(DelayVectorType const& delays,
+WeightsManager::WeightsVectorTypeD const&
+WeightsManager::weights(DelayVectorTypeD const& delays,
                         TimeType current_epoch,
                         TimeType delay_epoch)
 {
     // First we retrieve new delays if there are any.
     BOOST_LOG_TRIVIAL(debug)
         << "Requesting weights: current epoch = " << current_epoch
-        << ", delay mode epoch = " << delay_epoch
+        << ", delay model epoch = " << delay_epoch
         << " (difference = " << (current_epoch - delay_epoch) << ")";
     WeightsType* weights_ptr = thrust::raw_pointer_cast(_weights.data());
     FreqType const* frequencies_ptr =

@@ -1,3 +1,4 @@
+#include "cuda.h"
 #include "psrdada_cpp/cuda_utils.hpp"
 #include "skyweaver/skyweaver_constants.hpp"
 #include "skyweaver/test/TransposerTester.cuh"
@@ -7,7 +8,8 @@ namespace skyweaver
 namespace test
 {
 
-TransposerTester::TransposerTester(): ::testing::TestWithParam<std::size_t>(), _stream(0)
+TransposerTester::TransposerTester()
+    : ::testing::TestWithParam<TransposerParameters>(), _stream(0)
 {
 }
 
@@ -25,23 +27,24 @@ void TransposerTester::TearDown()
     CUDA_ERROR_CHECK(cudaStreamDestroy(_stream));
 }
 
-void TransposerTester::transpose_c_reference(HostVoltageType const& input,
-                                             HostVoltageType& output,
-                                             int input_nantennas,
-                                             int output_nantennas,
-                                             int nchans,
-                                             int ntimestamps)
+void TransposerTester::transpose_c_reference(HostInputVoltageTypeD const& input,
+                                             HostOutputVoltageTypeD& output,
+                                             std::size_t input_nantennas,
+                                             std::size_t output_nantennas,
+                                             std::size_t nchans,
+                                             std::size_t ntimestamps)
 {
     // TAFTP to FTPA
     // Input dimensions
-    int tp   = _config.nsamples_per_heap() * _config.npol();
-    int ftp  = nchans * tp;
-    int aftp = input_nantennas * ftp;
+    std::size_t tp   = _config.nsamples_per_heap() * _config.npol();
+    std::size_t ftp  = nchans * tp;
+    std::size_t aftp = input_nantennas * ftp;
 
     // Output dimensions
-    int pa  = _config.npol() * output_nantennas;
-    int tpa = _config.nsamples_per_heap() * ntimestamps * pa;
-    output.resize(nchans * tpa, {0, 0});
+    std::size_t pa  = _config.npol() * output_nantennas;
+    std::size_t tpa = _config.nsamples_per_heap() * ntimestamps * pa;
+    output.resize(
+        {input.nchannels(), input.nsamples(), input.npol(), output_nantennas});
 
     for(int timestamp_idx = 0; timestamp_idx < ntimestamps; ++timestamp_idx) {
         for(int antenna_idx = 0; antenna_idx < input_nantennas; ++antenna_idx) {
@@ -68,14 +71,15 @@ void TransposerTester::transpose_c_reference(HostVoltageType const& input,
     }
 }
 
-void TransposerTester::compare_against_host(DeviceVoltageType const& gpu_input,
-                                            DeviceVoltageType const& gpu_output,
-                                            std::size_t input_nantennas,
-                                            std::size_t ntimestamps)
+void TransposerTester::compare_against_host(
+    DeviceInputVoltageTypeD const& gpu_input,
+    DeviceOutputVoltageTypeD const& gpu_output,
+    std::size_t input_nantennas,
+    std::size_t ntimestamps)
 {
-    HostVoltageType host_input = gpu_input;
-    HostVoltageType host_output;
-    HostVoltageType cuda_output = gpu_output;
+    HostInputVoltageTypeD host_input = gpu_input;
+    HostOutputVoltageTypeD host_output;
+    HostOutputVoltageTypeD cuda_output = gpu_output;
     transpose_c_reference(host_input,
                           host_output,
                           input_nantennas,
@@ -91,25 +95,31 @@ void TransposerTester::compare_against_host(DeviceVoltageType const& gpu_input,
 TEST_P(TransposerTester, cycling_prime_test)
 {
     Transposer transposer(_config);
-    std::size_t ntimestamps     = 12;
-    std::size_t input_nantennas = GetParam();
+    TransposerParameters params = GetParam();
+    std::size_t ntimestamps     = params.ntimestamps;
+    std::size_t input_nantennas = params.nantennas;
     std::size_t input_size = (ntimestamps * input_nantennas * _config.nchans() *
                               _config.nsamples_per_heap() * _config.npol());
+    HostInputVoltageTypeD host_gpu_input({ntimestamps,
+                                          input_nantennas,
+                                          _config.nchans(),
+                                          _config.nsamples_per_heap(),
+                                          _config.npol()});
 
-    HostVoltageType host_gpu_input(input_size);
     for(int ii = 0; ii < input_size; ++ii) {
         host_gpu_input[ii].x = (ii % 113);
         host_gpu_input[ii].y = (ii % 107);
     }
-    DeviceVoltageType gpu_input = host_gpu_input;
-    DeviceVoltageType gpu_output;
+    DeviceInputVoltageTypeD gpu_input = host_gpu_input;
+    DeviceOutputVoltageTypeD gpu_output;
     transposer.transpose(gpu_input, gpu_output, input_nantennas, _stream);
     compare_against_host(gpu_input, gpu_output, input_nantennas, ntimestamps);
 }
 
 INSTANTIATE_TEST_SUITE_P(TransposerTesterSuite,
                          TransposerTester,
-                         ::testing::Range<std::size_t>(1, SKYWEAVER_NANTENNAS, 13));
+                         ::testing::Values(TransposerParameters{12, 12},
+                                           TransposerParameters{16, 16}));
 
 } // namespace test
 } // namespace skyweaver

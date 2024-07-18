@@ -1,46 +1,300 @@
 #include "boost/program_options.hpp"
 #include "errno.h"
 #include "psrdada_cpp/cli_utils.hpp"
+#include "skyweaver/BeamformerPipeline.cuh"
+#include "skyweaver/DescribedVector.hpp"
+#include "skyweaver/IncoherentDedispersionPipeline.cuh"
+#include "skyweaver/MultiFileReader.cuh"
+#include "skyweaver/MultiFileWriter.cuh"
 #include "skyweaver/PipelineConfig.hpp"
+#include "skyweaver/StatisticsCalculator.cuh"
+#include "skyweaver/Timer.hpp"
+#include "skyweaver/logging.hpp"
+#include "skyweaver/nvtx_utils.h"
+#include "skyweaver/skyweaver_constants.hpp"
+#include "thrust/device_vector.h"
+#include "thrust/host_vector.h"
 
 #include <algorithm>
 #include <cerrno>
 #include <fstream>
+#include <iomanip>
 #include <ios>
 #include <iostream>
+#include <limits>
+#include <memory>
+#include <omp.h>
 #include <sstream>
 #include <string>
 #include <sys/types.h>
+#include <thread>
 #include <vector>
 
 #define BOOST_LOG_DYN_LINK 1
 
 namespace
 {
+
+std::string skyweaver_splash = R"(
+   ____ __                                           
+  / __// /__ __ __ _    __ ___  ___ _ _  __ ___  ____
+ _\ \ /  '_// // /| |/|/ // -_)/ _ `/| |/ // -_)/ __/
+/___//_/\_\ \_, / |__,__/ \__/ \_,_/ |___/ \__//_/   
+           /___/                                     
+
+)";
+
 const size_t ERROR_IN_COMMAND_LINE     = 1;
 const size_t SUCCESS                   = 0;
 const size_t ERROR_UNHANDLED_EXCEPTION = 2;
+
+class NullHandler
+{
+  public:
+    template <typename... Args>
+    void init(Args... args) {};
+
+    template <typename... Args>
+    bool operator()(Args... args)
+    {
+        return false;
+    };
+};
+
+const char* build_time = __DATE__ " " __TIME__;
+
+void display_constants()
+{
+    const int boxWidth = 53;
+    std::string border(boxWidth, '-');
+
+    auto print_str = [&](const std::string& label, std::string const& value) {
+        std::cout << "[ " << std::setw(boxWidth - 4 - value.size()) << std::left
+                  << label << value << " ]" << std::endl;
+    };
+
+    auto print_int = [&](const std::string& label, int value) {
+        std::string value_str = std::to_string(value);
+        print_str(label, value_str);
+    };
+
+    std::cout << border << std::endl;
+    print_str("Build date: ", build_time);
+    print_int("SKYWEAVER_NANTENNAS: ", SKYWEAVER_NANTENNAS);
+    print_int("SKYWEAVER_NCHANS: ", SKYWEAVER_NCHANS);
+    print_int("SKYWEAVER_NBEAMS: ", SKYWEAVER_NBEAMS);
+    print_int("SKYWEAVER_CB_TSCRUNCH: ", SKYWEAVER_CB_TSCRUNCH);
+    print_int("SKYWEAVER_CB_FSCRUNCH: ", SKYWEAVER_CB_FSCRUNCH);
+    print_int("SKYWEAVER_IB_TSCRUNCH: ", SKYWEAVER_IB_TSCRUNCH);
+    print_int("SKYWEAVER_IB_FSCRUNCH: ", SKYWEAVER_IB_FSCRUNCH);
+    print_int("SKYWEAVER_IB_SUBTRACTION: ", SKYWEAVER_IB_SUBTRACTION);
+    std::cout << border << std::endl;
+    std::cout << std::endl;
+}
+
 } // namespace
 
 // This patching of the << operator is required to allow
 // for float vector arguments to boost program options
 namespace std
 {
-  std::ostream& operator<<(std::ostream &os, const std::vector<float> &vec) 
-  {    
-    for (auto item : vec) 
-    { 
-      os << item << " "; 
-    } 
-    return os; 
-  }
-} 
+std::ostream& operator<<(std::ostream& os, const std::vector<float>& vec)
+{
+    for(auto item: vec) { os << item << " "; }
+    return os;
+}
+} // namespace std
+
+template <class Pipeline>
+void run_pipeline(Pipeline& pipeline,
+                  skyweaver::PipelineConfig& config,
+                  skyweaver::MultiFileReader& file_reader,
+                  skyweaver::ObservationHeader const& header)
+{
+    using VoltageType = typename Pipeline::VoltageVectorTypeH;
+
+    BOOST_LOG_NAMED_SCOPE("run_pipeline");
+    BOOST_LOG_TRIVIAL(debug) << "Executing pipeline";
+    std::size_t input_elements = header.nantennas * config.nchans() *
+                                 config.npol() * config.gulp_length_samps();
+    BOOST_LOG_TRIVIAL(debug)
+        << "Allocating "
+        << input_elements * sizeof(typename VoltageType::value_type)
+        << " byte input buffer";
+    double tsamp = header.obs_nchans / header.obs_bandwidth;
+    NVTX_RANGE_PUSH("Input buffer initialisation");
+    std::unique_ptr<VoltageType> taftp_input_voltage_a =
+        std::make_unique<VoltageType>();
+    taftp_input_voltage_a->resize(
+        {config.gulp_length_samps() / config.nsamples_per_heap(), // T
+         header.nantennas,                                        // A
+         config.nchans(),                                         // F
+         config.nsamples_per_heap(),                              // T
+         config.npol()});                                         // P
+    taftp_input_voltage_a->frequencies(config.channel_frequencies());
+    taftp_input_voltage_a->tsamp(tsamp);
+    taftp_input_voltage_a->dms({0.0});
+    std::unique_ptr<VoltageType> taftp_input_voltage_b =
+        std::make_unique<VoltageType>();
+    taftp_input_voltage_b->like(*taftp_input_voltage_a);
+    NVTX_RANGE_POP();
+
+    BOOST_LOG_TRIVIAL(debug)
+        << "Input buffer: " << taftp_input_voltage_a->describe();
+    std::size_t input_bytes = taftp_input_voltage_a->size() *
+                              sizeof(typename VoltageType::value_type);
+
+    NVTX_RANGE_PUSH("Getting total file size");
+    std::size_t total_bytes = file_reader.get_total_size();
+    BOOST_LOG_TRIVIAL(info) << "Total input size (bytes): " << total_bytes;
+    NVTX_RANGE_POP();
+
+    // Set the start offsets and adjust the total bytes
+    std::size_t bytes_per_sample =
+        header.nantennas * config.nchans() * config.npol() * sizeof(char2);
+    std::size_t bytes_per_second = (1.0f / tsamp) * bytes_per_sample;
+    std::size_t offset_nsamps =
+        static_cast<std::size_t>(config.start_time() / tsamp);
+    offset_nsamps = (offset_nsamps / config.nsamples_per_heap()) *
+                    config.nsamples_per_heap(); // floor
+    pipeline.init(header, offset_nsamps * tsamp);
+    std::size_t offset_nbytes = offset_nsamps * bytes_per_sample;
+    BOOST_LOG_TRIVIAL(info) << "Starting at " << config.start_time()
+                            << " seconds into the observation";
+    BOOST_LOG_TRIVIAL(debug)
+        << "Offsetting to byte " << offset_nbytes << " of the input data";
+    file_reader.seekg(offset_nbytes, std::ios::beg);
+
+    float total_duration     = total_bytes / bytes_per_second;
+    float remaining_duration = total_duration - config.start_time();
+    if((config.duration() < std::numeric_limits<float>::infinity()) &&
+       (config.duration() > remaining_duration)) {
+        BOOST_LOG_TRIVIAL(warning)
+            << "Requested duration is longer than the remaining input length";
+    }
+    remaining_duration = std::min(remaining_duration, config.duration());
+
+    skyweaver::Timer stopwatch;
+    stopwatch.start("processing_loop");
+    std::size_t processed_bytes = 0;
+    float data_time_elapsed     = 0.0f;
+    float wall_time_elapsed     = 0.0f;
+    float real_time_fraction    = 0.0;
+    float percentage            = 0.0f;
+    std::streamsize nbytes_read = 0;
+
+    // Populate buffer A
+    stopwatch.start("file read");
+    nbytes_read =
+        file_reader.read(reinterpret_cast<char*>(thrust::raw_pointer_cast(
+                             taftp_input_voltage_a->data())),
+                         input_bytes);
+    stopwatch.stop("file read");
+    bool thread_error = false;
+    // A is full B is empty
+    while(!file_reader.eof()) {
+        taftp_input_voltage_a.swap(taftp_input_voltage_b);
+        // B is full A is empty
+
+        // Here spawn a thread to read the next block to process
+        // Thread must write to buffer A
+        std::thread reader_thread([&]() {
+            try {
+                nbytes_read = file_reader.read(
+                    reinterpret_cast<char*>(thrust::raw_pointer_cast(
+                        taftp_input_voltage_a->data())),
+                    input_bytes);
+                BOOST_LOG_TRIVIAL(debug)
+                    << "read " << nbytes_read << " bytes from file";
+            } catch(std::runtime_error& e) {
+                BOOST_LOG_TRIVIAL(error) << "Error on input read: " << e.what();
+                thread_error = true;
+            }
+        });
+        // Buffer B is full from the previous read and so is now ready to be
+        // processed
+        pipeline(*taftp_input_voltage_b);
+        // Buffer B is now finished processing and we can wait on the A read
+        reader_thread.join();
+        if(thread_error) {
+            throw std::runtime_error("Error in input file read");
+        }
+        data_time_elapsed +=
+            config.gulp_length_samps() * taftp_input_voltage_a->tsamp();
+        percentage =
+            std::min(100.0f * data_time_elapsed / remaining_duration, 100.0f);
+        wall_time_elapsed  = stopwatch.elapsed("processing_loop") / 1e6;
+        real_time_fraction = data_time_elapsed / wall_time_elapsed;
+        processed_bytes += input_bytes;
+        BOOST_LOG_TRIVIAL(info)
+            << "Progress: " << std::setprecision(6) << percentage
+            << "%, Data time: " << data_time_elapsed
+            << " s, Wall time: " << wall_time_elapsed << ", "
+            << "Realtime fraction: " << real_time_fraction;
+        if(data_time_elapsed >= config.duration()) {
+            break;
+        }
+    }
+    stopwatch.stop("processing_loop");
+    stopwatch.show_all_timings();
+}
+
+template <typename BfTraits, bool enable_incoherent_dedispersion>
+void setup_pipeline(skyweaver::PipelineConfig& config)
+{
+    BOOST_LOG_NAMED_SCOPE("setup_pipeline");
+    BOOST_LOG_TRIVIAL(debug) << "Setting up the pipeline";
+    // Update the config
+    NVTX_RANGE_PUSH("File reader initialisation and header fetch");
+    skyweaver::MultiFileReader file_reader(config);
+    auto const& header = file_reader.get_header();
+    NVTX_RANGE_POP();
+    BOOST_LOG_TRIVIAL(debug) << "Validating headers and updating configuration";
+    validate_header(header, config);
+    update_config(config, header);
+    BOOST_LOG_TRIVIAL(debug) << "Creating pipeline handlers";
+    using OutputType = typename BfTraits::QuantisedPowerType;
+    skyweaver::MultiFileWriter<skyweaver::BTFPowersH<OutputType>> ib_handler(
+        config,
+        "ib");
+    skyweaver::MultiFileWriter<skyweaver::FPAStatsD<skyweaver::Statistics>>
+        stats_handler(config, "stats");
+    if constexpr(enable_incoherent_dedispersion) {
+        skyweaver::MultiFileWriter<skyweaver::TDBPowersH<OutputType>>
+            cb_file_writer(config, "cb");
+        skyweaver::IncoherentDedispersionPipeline<OutputType,
+                                                  OutputType,
+                                                  decltype(cb_file_writer)>
+            incoherent_dispersion_pipeline(config, cb_file_writer);
+        skyweaver::BeamformerPipeline<decltype(incoherent_dispersion_pipeline),
+                                      decltype(ib_handler),
+                                      decltype(stats_handler),
+                                      BfTraits>
+            pipeline(config,
+                     incoherent_dispersion_pipeline,
+                     ib_handler,
+                     stats_handler);
+        run_pipeline(pipeline, config, file_reader, header);
+    } else {
+        skyweaver::MultiFileWriter<skyweaver::TFBPowersD<OutputType>>
+            cb_file_writer(config, "cb");
+        skyweaver::BeamformerPipeline<decltype(cb_file_writer),
+                                      decltype(ib_handler),
+                                      decltype(stats_handler),
+                                      BfTraits>
+            pipeline(config, cb_file_writer, ib_handler, stats_handler);
+        run_pipeline(pipeline, config, file_reader, header);
+    }
+}
 
 int main(int argc, char** argv)
 {
+    std::cout << skyweaver_splash;
+    display_constants();
+
     try {
         skyweaver::PipelineConfig config;
-
+        skyweaver::init_logging("warning");
         /**
          * Define and parse the program options
          */
@@ -66,9 +320,9 @@ int main(int argc, char** argv)
             // Input file containing list of DADA files to process
             ("input-file",
              po::value<std::string>()->required()->notifier(
-                 [&config](std::string key) { 
-                        config.read_input_file_list(key);     
-                    }),
+                 [&config](std::string key) {
+                     config.read_input_file_list(key);
+                 }),
              "File containing list of DADA files to process")
 
             // Input file for delay solutions
@@ -81,54 +335,122 @@ int main(int argc, char** argv)
                  [&config](std::string key) { config.delay_file(key); }),
              "File containing delay solutions")
 
-            // Output file for block statistics
-            ("stats-file",
-             po::value<std::string>()
-                 ->default_value(config.statistics_file())
-                 ->notifier([&config](std::string key) {
-                     config.statistics_file(key);
-                 }),
-             "Output file for block statistics")
-
             // Output directory where all results will be written
             ("output-dir",
-             po::value<std::string>()->default_value(config.output_dir())->notifier(
-                 [&config](std::string key) { config.output_dir(key); }),
+             po::value<std::string>()
+                 ->default_value(config.output_dir())
+                 ->notifier(
+                     [&config](std::string key) { config.output_dir(key); }),
              "The output directory for all results")
 
             // Output file for block statistics
             ("output-level",
-             po::value<float>()->default_value(config.output_level())->notifier(
-                 [&config](float key) { config.output_level(key); }),
+             po::value<float>()
+                 ->default_value(config.output_level())
+                 ->notifier([&config](float key) { config.output_level(key); }),
              "The desired standard deviation for output data")
 
             /**
-             * Dispersion measures for coherent dedispersion
-             * Can be specified on the command line with: 
-             * 
-             * --coherent-dm 1 2 3
-             * or 
-             * --coherent-dm 1 --coherent-dm 2 --coherent-dm 3
-             * 
+             * Defines a dedispersion plan to be executed.
+             * Argument is colon-separated with no spaces.
+             * Parameters:
+             * <coherent_dm>:<start_incoherent_dm>:<end_incoherent_dm>:<dm_step>:<tscrunch>
+             * The tscrunch is defined relative to the beamformer output.
+             *
+             * --ddplan 5.0:0.0:10.0:0.1:1
+             * or
+             * --ddplan 5.0:1
+             *
              * In the configuration file it can only be specified with:
-             * 
-             * coherent-dm=1
-             * coherent-dm=2
-             * coherent-dm=3 
+             *
+             * ddplan=5.0:0.0:10.0:0.1:1
+             * ddplan=5.0:1
              */
-            ("coherent-dm",
-             po::value<std::vector<float>>()
+            ("ddplan",
+             po::value<std::vector<std::string>>()
                  ->multitoken()
-                 ->default_value(config.coherent_dms())
-                 ->notifier([&config](std::vector<float> const& dms) {
-                     config.coherent_dms(dms);
+                 ->required()
+                 ->notifier(
+                     [&config](std::vector<std::string> const& descriptors) {
+                         for(auto const& descriptor: descriptors) {
+                             config.ddplan().add_block(descriptor);
+                         }
+                     }),
+             "A dispersion plan definition string "
+             "(<coherent_dm>:<start_incoherent_dm>:"
+             "<end_incoherent_dm>:<dm_step>:<tscrunch>) or "
+             "(<coherent_dm>:<tscrunch>) "
+             "or (<coherent_dm>)")
+
+                ("enable-incoherent-dedispersion",
+                 po::value<bool>()->default_value(true)->notifier(
+                     [&config](bool const& enable) {
+                         config.enable_incoherent_dedispersion(enable);
+                     }),
+                 "Turn on/off incoherent dedispersion after beamforming")
+
+                    ("start-time",
+                     po::value<float>()->default_value(0.0f)->notifier(
+                         [&config](float const& start_time) {
+                             config.start_time(start_time);
+                         }),
+                     "Time since start of the data stream from which to start "
+                     "processing (seconds)")
+
+                        ("duration",
+                         po::value<float>()
+                             ->default_value(
+                                 std::numeric_limits<float>::infinity())
+                             ->notifier([&config](float const& duration) {
+                                 config.duration(duration);
+                             }),
+                         "Number of seconds of data to process")
+
+            // Number of samples to read in each gulp
+            ("gulp-size",
+             po::value<std::size_t>()
+                 ->default_value(config.gulp_length_samps())
+                 ->notifier([&config](std::size_t const& gulp_size) {
+                     // Round off to next multiple of 256
+                     if(gulp_size % config.nsamples_per_heap() != 0 || //256
+                        gulp_size % config.nsamples_per_block() != 0) { // 32* tscrunch
+                        
+                        std::size_t larger_value = std::max(
+                            config.nsamples_per_heap(),
+                            config.nsamples_per_block());
+
+                         BOOST_LOG_TRIVIAL(warning)
+                             << "Rounding up gulp-size to next multiple of NSAMPLES PER HEAP and NSAMPLES PER BLOCK";
+
+                         config.gulp_length_samps(
+                             (gulp_size / larger_value) *
+                             larger_value);
+                     } else {
+                         config.gulp_length_samps(gulp_size);
+                     }
                  }),
-             "The dispersion measures to coherently dedisperse to")
+             "The number of samples to read in each gulp ")
+
+            // Stokes mode I, Q, U, V or IQUV
+            ("stokes-mode",
+             po::value<std::string>()
+                 ->default_value(config.stokes_mode())
+                 ->notifier([&config](std::string stokes) {
+                     for(auto& c: stokes) c = (char)toupper(c);
+                     config.stokes_mode(stokes);
+                 }),
+             "The Stokes mode to use, can be either I, Q, U, V or IQUV")
+
+            // Logging options
+            ("nthreads",
+             po::value<std::size_t>()->default_value(16)->notifier(
+                 [](std::size_t nthreads) { omp_set_num_threads(nthreads); }),
+             "The number of threads to use for incoherent dedispersion")
 
             // Logging options
             ("log-level",
              po::value<std::string>()->default_value("info")->notifier(
-                 [](std::string level) { psrdada_cpp::set_log_level(level); }),
+                 [](std::string level) { skyweaver::init_logging(level); }),
              "The logging level to use (debug, info, warning, error)");
 
         // set options allowed on command line
@@ -176,24 +498,74 @@ int main(int argc, char** argv)
         /**
          * All the application code goes here
          */
-
+        NVTX_MARKER("Application start");
+        BOOST_LOG_NAMED_SCOPE("skyweaver_cli")
         BOOST_LOG_TRIVIAL(info)
             << "Initialising the skyweaver beamforming pipeline";
         if(config_file != "") {
             BOOST_LOG_TRIVIAL(info) << "Configuration file: " << config_file;
         }
-        BOOST_LOG_TRIVIAL(info) << "Input file count: " << config.input_files().size();
+        BOOST_LOG_TRIVIAL(info)
+            << "Input file count: " << config.input_files().size();
         BOOST_LOG_TRIVIAL(info) << "Delay file: " << config.delay_file();
-        BOOST_LOG_TRIVIAL(info) << "Stats file: " << config.statistics_file();
         BOOST_LOG_TRIVIAL(info) << "Output dir: " << config.output_dir();
         BOOST_LOG_TRIVIAL(info) << "Output level: " << config.output_level();
-        BOOST_LOG_TRIVIAL(info) << "Coherent DMs: " << config.coherent_dms();
-
-        // Here we build and invoke the pipeline
-
-        /**
-         * End of application code
-         */
+        BOOST_LOG_TRIVIAL(info) << "Gulp size: " << config.gulp_length_samps();
+        BOOST_LOG_TRIVIAL(info) << "Stokes mode: " << config.stokes_mode();
+        BOOST_LOG_TRIVIAL(info) << config.ddplan();
+        if(config.enable_incoherent_dedispersion()) {
+            BOOST_LOG_TRIVIAL(info) << "Incoherent dedispersion enabled";
+            if(config.stokes_mode() == "I") {
+                setup_pipeline<skyweaver::SingleStokesBeamformerTraits<
+                                   skyweaver::StokesParameter::I>,
+                               true>(config);
+            } else if(config.stokes_mode() == "Q") {
+                setup_pipeline<skyweaver::SingleStokesBeamformerTraits<
+                                   skyweaver::StokesParameter::Q>,
+                               true>(config);
+            } else if(config.stokes_mode() == "U") {
+                setup_pipeline<skyweaver::SingleStokesBeamformerTraits<
+                                   skyweaver::StokesParameter::U>,
+                               true>(config);
+            } else if(config.stokes_mode() == "V") {
+                setup_pipeline<skyweaver::SingleStokesBeamformerTraits<
+                                   skyweaver::StokesParameter::V>,
+                               true>(config);
+            } else if(config.stokes_mode() == "IQUV") {
+                setup_pipeline<skyweaver::FullStokesBeamformerTraits, true>(
+                    config);
+            } else {
+                throw std::runtime_error(
+                    "Invalid Stokes mode passed, must be one "
+                    "of I, Q, U, V or IQUV");
+            }
+        } else {
+            BOOST_LOG_TRIVIAL(info) << "Incoherent dedispersion disabled";
+            if(config.stokes_mode() == "I") {
+                setup_pipeline<skyweaver::SingleStokesBeamformerTraits<
+                                   skyweaver::StokesParameter::I>,
+                               false>(config);
+            } else if(config.stokes_mode() == "Q") {
+                setup_pipeline<skyweaver::SingleStokesBeamformerTraits<
+                                   skyweaver::StokesParameter::Q>,
+                               false>(config);
+            } else if(config.stokes_mode() == "U") {
+                setup_pipeline<skyweaver::SingleStokesBeamformerTraits<
+                                   skyweaver::StokesParameter::U>,
+                               false>(config);
+            } else if(config.stokes_mode() == "V") {
+                setup_pipeline<skyweaver::SingleStokesBeamformerTraits<
+                                   skyweaver::StokesParameter::V>,
+                               false>(config);
+            } else if(config.stokes_mode() == "IQUV") {
+                setup_pipeline<skyweaver::FullStokesBeamformerTraits, false>(
+                    config);
+            } else {
+                throw std::runtime_error(
+                    "Invalid Stokes mode passed, must be one "
+                    "of I, Q, U, V or IQUV");
+            }
+        }
     } catch(std::exception& e) {
         std::cerr << "Unhandled Exception reached the top of main: " << e.what()
                   << ", application will now exit" << std::endl;

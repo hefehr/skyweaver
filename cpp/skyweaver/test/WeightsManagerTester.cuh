@@ -14,8 +14,8 @@ namespace test
 class WeightsManagerTester: public ::testing::Test
 {
   public:
-    typedef WeightsManager::DelayVectorType DelayVectorType;
-    typedef WeightsManager::WeightsVectorType WeightsVectorType;
+    typedef WeightsManager::DelayVectorTypeD DelayVectorTypeD;
+    typedef WeightsManager::WeightsVectorTypeD WeightsVectorTypeD;
     typedef WeightsManager::TimeType TimeType;
 
   protected:
@@ -39,8 +39,8 @@ class WeightsManagerTester: public ::testing::Test
                              double tstep,
                              int ntsteps);
 
-    void compare_against_host(DelayVectorType const& delays,
-                              WeightsVectorType const& weights,
+    void compare_against_host(DelayVectorTypeD const& delays,
+                              WeightsVectorTypeD const& weights,
                               TimeType current_epoch,
                               TimeType delay_epoch);
 

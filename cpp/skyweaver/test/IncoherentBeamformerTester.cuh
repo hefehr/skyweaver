@@ -1,61 +1,74 @@
 #ifndef SKYWEAVER_INCOHERENTBEAMFORMERTESTER_CUH
 #define SKYWEAVER_INCOHERENTBEAMFORMERTESTER_CUH
 
-#include "skyweaver/PipelineConfig.hpp"
+#include "skyweaver/DescribedVector.hpp"
 #include "skyweaver/IncoherentBeamformer.cuh"
+#include "skyweaver/PipelineConfig.hpp"
 #include "thrust/host_vector.h"
+
 #include <gtest/gtest.h>
 
-namespace skyweaver {
-namespace test {
+namespace skyweaver
+{
+namespace test
+{
 
+template <typename BfTraits>
 class IncoherentBeamformerTester: public ::testing::Test
 {
-public:
-    typedef IncoherentBeamformer::VoltageVectorType DeviceVoltageVectorType;
-    typedef thrust::host_vector<char2> HostVoltageVectorType;
-    typedef IncoherentBeamformer::PowerVectorType DevicePowerVectorType;
-    typedef thrust::host_vector<int8_t> HostPowerVectorType;
-    typedef IncoherentBeamformer::RawPowerVectorType DeviceRawPowerVectorType;
-    typedef thrust::host_vector<float> HostRawPowerVectorType;
-    typedef IncoherentBeamformer::ScalingVectorType DeviceScalingVectorType;
-    typedef thrust::host_vector<float> HostScalingVectorType;
+  public:
+    using BfTraitsType = BfTraits;
+    typedef IncoherentBeamformer<BfTraits> IncoherentBeamformer;
+    typedef IncoherentBeamformer::VoltageVectorTypeD VoltageVectorTypeD;
+    typedef FTPAVoltagesH<typename VoltageVectorTypeD::value_type>
+        VoltageVectorTypeH;
+    typedef IncoherentBeamformer::PowerVectorTypeD DevicePowerVectorType;
+    typedef BTFPowersH<typename DevicePowerVectorType::value_type>
+        HostPowerVectorType;
+    typedef IncoherentBeamformer::RawPowerVectorTypeD DeviceRawPowerVectorType;
+    typedef BTFPowersH<typename DeviceRawPowerVectorType::value_type>
+        HostRawPowerVectorType;
+    typedef IncoherentBeamformer::ScalingVectorTypeD ScalingVectorTypeD;
+    typedef thrust::host_vector<typename ScalingVectorTypeD::value_type>
+        HostScalingVectorType;
 
-protected:
+  protected:
     void SetUp() override;
     void TearDown() override;
 
-public:
+  public:
     IncoherentBeamformerTester();
     ~IncoherentBeamformerTester();
 
-protected:
-    void beamformer_c_reference(
-        HostVoltageVectorType const& ftpa_voltages,
-        HostRawPowerVectorType& tf_powers_raw,
-        HostPowerVectorType& tf_powers,
-        int nchannels,
-        int tscrunch,
-        int fscrunch,
-        int ntimestamps,
-        int nantennas,
-        HostScalingVectorType const& scale,
-        HostScalingVectorType const& offset);
+  protected:
+    void beamformer_c_reference(VoltageVectorTypeH const& ftpa_voltages,
+                                HostRawPowerVectorType& tf_powers_raw,
+                                HostPowerVectorType& tf_powers,
+                                int nchannels,
+                                int tscrunch,
+                                int fscrunch,
+                                int ntimestamps,
+                                int nantennas,
+                                HostScalingVectorType const& scale,
+                                HostScalingVectorType const& offset,
+                                HostScalingVectorType const& beamset_weights,
+                                int nbeamsets);
 
-    void compare_against_host(
-        DeviceVoltageVectorType const& ftpa_voltages_gpu,
-        DeviceRawPowerVectorType& tf_powers_raw_gpu,
-        DevicePowerVectorType& tf_powers_gpu,
-        DeviceScalingVectorType const& scaling_vector,
-        DeviceScalingVectorType const& offset_vector,
-        int ntimestamps);
+    void compare_against_host(VoltageVectorTypeD const& ftpa_voltages_gpu,
+                              DeviceRawPowerVectorType& tf_powers_raw_gpu,
+                              DevicePowerVectorType& tf_powers_gpu,
+                              ScalingVectorTypeD const& scaling_vector,
+                              ScalingVectorTypeD const& offset_vector,
+                              ScalingVectorTypeD const& beamset_weights,
+                              int ntimestamps,
+                              int nbeamsets);
 
-protected:
+  protected:
     PipelineConfig _config;
     cudaStream_t _stream;
 };
 
-} //namespace test
-} //namespace skyweaver
+} // namespace test
+} // namespace skyweaver
 
-#endif //SKYWEAVER_INCOHERENTBEAMFORMERTESTER_CUH
+#endif // SKYWEAVER_INCOHERENTBEAMFORMERTESTER_CUH

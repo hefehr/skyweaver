@@ -7,8 +7,9 @@ from __future__ import annotations
 import logging
 import textwrap
 import ctypes
-from typing import Self, Any
+from typing import Any
 from dataclasses import dataclass
+from typing_extensions import Self
 
 # 3rd party imports
 import h5py
@@ -43,7 +44,6 @@ class DelayModelHeader(ctypes.Structure):
         # UNIX epoch of end of delay model validity
         ("end_epoch", ctypes.c_double),
     ]
-
 
 @dataclass
 class DelayModel:
@@ -369,6 +369,23 @@ class Subarray:
         self_set: set = set(self.antenna_positions)
         return other_set.issubset(self_set)
 
+@dataclass
+class CalibrationSolution:
+
+    epoch: str
+    antenna_pols : list[str]
+    solution : np.ndarray
+
+    def __init__(self, epoch, antenna_pols, solution):
+
+        self.epoch = epoch
+        self.antenna_pols = antenna_pols
+        self.solution = solution
+
+    def to_file(self,basename="gains"):
+
+        with open(basename + f"_{self.epoch}.afp",'wb') as out:
+            self.solution.tofile(out)
 
 @dataclass
 class SessionMetadata:
@@ -382,8 +399,6 @@ class SessionMetadata:
     centre_frequency: Quantity
     # Observation bandwidth
     bandwidth: Quantity
-    # ITRF reference position of the observatory
-    itrf_reference: tuple[float, float, float]
     # Total number of frequency channels
     nchannels: int
     # The project identifier
@@ -399,6 +414,8 @@ class SessionMetadata:
     # Time series of "suspect" flags indicating data validity
     # True values imply invalid data
     suspect_flags: np.ndarray[bool]
+    # Complex gain solutions (if no phase-up is done)
+    calibration_solutions: list[CalibrationSolution]
 
     def __str__(self) -> str:
         key_padding = 20
@@ -470,12 +487,23 @@ class SessionMetadata:
                     antenna_positions[kp_antenna.name] = kp_antenna
             # Parse out general metadata
             metadata: dict = dict(f.attrs)
+
+            calibration_solutions = []
+            if 'calibration_solutions' in f:
+                for epoch in f['calibration_solutions']:
+                    antenna_pols = [str(ap) for ap in f['calibration_solutions'][epoch]]
+                    gains = np.array([np.array(f['calibration_solutions'][epoch][ap]) for ap in antenna_pols])
+
+                    # Convert to AFP order, to match dada file axes
+                    gains = gains.reshape(-1,2,metadata['nchans']).transpose(0,2,1)
+                    S = CalibrationSolution(epoch, antenna_pols, gains)
+                    calibration_solutions.append(S)
+
             return cls(
                 antenna_positions,
                 antenna_feng_map,
                 metadata["cfreq"] * u.Hz,
                 metadata["bandwidth"] * u.Hz,
-                tuple(metadata["itrf_reference"]),
                 metadata["nchans"],
                 metadata["project_id"],
                 metadata["sb_id"],
@@ -484,8 +512,10 @@ class SessionMetadata:
                 f["phase_centres"][()].astype([ # pylint: disable=no-member
                     ("timestamp", "datetime64[us]"), ("value", "|S64")]),
                 f["suspect_flags"][()].astype([ # pylint: disable=no-member
-                    ("timestamp", "datetime64[us]"), ("value", "bool")])
+                    ("timestamp", "datetime64[us]"), ("value", "bool")]),
+                calibration_solutions
             )
+
 
     def _drop_duplicate_values(self, ar: np.ndarray) -> np.ndarray:
         vals = ar["value"]
@@ -572,10 +602,6 @@ class SessionMetadata:
                         np.timedelta64(1, 's')
                     if duration < min_duration.to(u.s).value:
                         continue
-                    if overlap_end == sentinel_time:
-                        # We convert sentinel time to None to remove any ambiguity
-                        # a value of None implies "to the end of the session"
-                        overlap_end = None
                     overlaps.append((
                         Time(overlap_start),
                         Time(overlap_end),
@@ -599,6 +625,7 @@ class SessionMetadata:
         for start, end, target, _ in windows:
             pointings.append(PointingMetadata(target, start, end, self))
         return pointings
+
 
 
 @dataclass
@@ -845,4 +872,3 @@ def main():
     - Antenna database file format (preferrably YAML)
     - Delay format (preferrably some packed binary format)
     """
-    

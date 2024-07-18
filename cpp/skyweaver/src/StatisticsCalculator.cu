@@ -17,6 +17,26 @@ namespace skyweaver
 namespace kernel
 {
 
+__device__ void accumulate(double power,
+                           long long& n,
+                           double& M1,
+                           double& M2,
+                           double& M3,
+                           double& M4)
+{
+    long long n1 = n;
+    n++;
+    double delta    = power - M1;
+    double delta_n  = delta / n;
+    double delta_n2 = delta_n * delta_n;
+    double term1    = delta * delta_n * n1;
+    M1 += delta_n;
+    M4 += term1 * delta_n2 * (n * n - 3 * n + 3) + 6 * delta_n2 * M2 -
+          4 * delta_n * M3;
+    M3 += term1 * delta_n * (n - 2) - 3 * delta_n * M2;
+    M2 += term1;
+}
+
 /**
  * @brief Calculate statistics for the given input data
  *
@@ -46,32 +66,22 @@ __global__ void calculate_statistics(char2 const* __restrict__ ftpa_voltages,
         channel_idx * tpa_size + pol_idx * nantennas + antenna_idx;
     const int stride = npol * nantennas;
     double M1 = 0.0, M2 = 0.0, M3 = 0.0, M4 = 0.0;
-    int n = 0;
-    for(int sample_idx = offset; sample_idx < (tpa_size + offset); sample_idx += stride) {
+    long long n = 0;
+    for(int sample_idx = offset; sample_idx < (tpa_size + offset);
+        sample_idx += stride) {
         char2 data = ftpa_voltages[sample_idx];
-        double power =
-            (double)data.x * (double)data.x + (double)data.y * (double)data.y;
-        long long n1 = n;
-        n++;
-        double delta    = power - M1;
-        double delta_n  = delta / n;
-        double delta_n2 = delta_n * delta_n;
-        double term1    = delta * delta_n * n1;
-        M1 += delta_n;
-        M4 += term1 * delta_n2 * (n * n - 3 * n + 3) + 6 * delta_n2 * M2 -
-              4 * delta_n * M3;
-        M3 += term1 * delta_n * (n - 2) - 3 * delta_n * M2;
-        M2 += term1;
+        accumulate(static_cast<double>(data.x), n, M1, M2, M3, M4);
+        accumulate(static_cast<double>(data.y), n, M1, M2, M3, M4);
     }
 
     // Output is ordered in FPA order
     int output_idx =
         channel_idx * npol * nantennas + pol_idx * nantennas + antenna_idx;
     Statistics* output = &results[output_idx];
-    output->mean       = M1;
-    output->std        = sqrt(M2 / (n - 1.0));
-    output->skew       = sqrt((double)n) * M3 / pow(M2, 1.5);
-    output->kurtosis   = (double)n * M4 / (M2 * M2) - 3.0;
+    output->mean       = static_cast<float>(M1);
+    output->std        = static_cast<float>(sqrt(M2 / (n - 1.0)));
+    output->skew     = static_cast<float>(sqrt((double)n) * M3 / pow(M2, 1.5));
+    output->kurtosis = static_cast<float>((double)n * M4 / (M2 * M2) - 3.0);
 }
 
 } // namespace kernel
@@ -82,32 +92,6 @@ StatisticsCalculator::StatisticsCalculator(PipelineConfig const& config,
 {
     BOOST_LOG_TRIVIAL(debug)
         << "Constructing new StatisticsCalculator instance";
-
-    // Resize all host and device arrays
-    std::size_t reduced_nchans_ib = _config.nchans() / _config.ib_fscrunch();
-    std::size_t reduced_nchans_cb = _config.nchans() / _config.cb_fscrunch();
-    // Offsets for the coherent beams, unused if CB-IB subtractions
-    // is enabled
-    _cb_offsets_d.resize(reduced_nchans_cb);
-    _cb_offsets_h.resize(reduced_nchans_cb);
-
-    // Scalings for the coherent beams
-    _cb_scaling_d.resize(reduced_nchans_cb);
-    _cb_scaling_h.resize(reduced_nchans_cb);
-
-    // Offsets for the incoherent beam
-    _ib_offsets_d.resize(reduced_nchans_ib);
-    _ib_offsets_h.resize(reduced_nchans_ib);
-
-    // Scalings for the incoherent beam
-    _ib_scaling_d.resize(reduced_nchans_ib);
-    _ib_scaling_h.resize(reduced_nchans_ib);
-
-    // Statistics of a data block
-    _stats_d.resize(_config.nchans() * _config.nantennas() * _config.npol());
-    _stats_h.resize(_config.nchans() * _config.nantennas() * _config.npol());
-
-    
 }
 
 StatisticsCalculator::~StatisticsCalculator()
@@ -118,18 +102,22 @@ StatisticsCalculator::~StatisticsCalculator()
 }
 
 void StatisticsCalculator::calculate_statistics(
-    thrust::device_vector<char2> const& ftpa_voltages)
+    FTPAVoltagesD<char2> const& ftpa_voltages)
 {
-    int fpa_size = _config.nantennas() * _config.nchans() * _config.npol();
-    assert(ftpa_voltages.size() % fpa_size == 0
-           /* TAFTP voltages is not a multiple of AFTP size*/);
-    int nsamples = ftpa_voltages.size() / fpa_size;
+    _stats_d.resize({ftpa_voltages.nchannels(),
+                     ftpa_voltages.npol(),
+                     ftpa_voltages.nantennas()});
+    _stats_d.metalike(ftpa_voltages);
+    _stats_d.tsamp(ftpa_voltages.tsamp() * ftpa_voltages.nsamples());
+    _stats_h.like(_stats_d);
+
+    int nsamples = ftpa_voltages.nsamples();
     // call kernel
     char2 const* ftpa_voltages_ptr =
         thrust::raw_pointer_cast(ftpa_voltages.data());
     Statistics* stats_ptr = thrust::raw_pointer_cast(_stats_d.data());
-    dim3 dimBlock(_config.nantennas());
-    dim3 dimGrid(_config.nchans(), _config.npol());
+    dim3 dimBlock(_stats_d.nantennas());
+    dim3 dimGrid(_stats_d.nchannels(), _stats_d.npol());
     kernel::calculate_statistics<<<dimGrid, dimBlock, 0, _stream>>>(
         ftpa_voltages_ptr,
         stats_ptr,
@@ -141,121 +129,105 @@ void StatisticsCalculator::calculate_statistics(
     BOOST_LOG_TRIVIAL(debug) << "Copied input levels to host";
 }
 
-void StatisticsCalculator::open_statistics_file()
-{
-    _stats_file.open(_config.statistics_file(),
-                     std::ios::out | std::ios::binary);
-    if(_stats_file.is_open()) {
-        BOOST_LOG_TRIVIAL(info)
-            << "Opened statistics file " << _config.statistics_file();
-    } else {
-        std::ostringstream error_message;
-        error_message << "Could not open file " << _config.statistics_file()
-                      << std::strerror(errno);
-        BOOST_LOG_TRIVIAL(error) << error_message.str();
-        throw std::runtime_error(error_message.str());
-    }
-}
-
-void StatisticsCalculator::write_statistics()
-{
-    _stats_file.write(reinterpret_cast<char const*>(_stats_h.data()),
-                      _stats_h.size() * sizeof(Statistics));
-}
-
-void StatisticsCalculator::update_scalings()
+void StatisticsCalculator::update_scalings(
+    ScalingVectorTypeH const& beamset_weights,
+    int nbeamsets)
 {
     // At this stage we have the standard deviations of each channel
     // available on the host (h_input_levels) To support post-fact rescaling
     // of the data it is the scales and offsets that must be preserved to
     // disk.
-    const float weights_amp       = 127.0f;
+    const float weights_amp = 127.0f;
+
     std::size_t reduced_nchans_ib = _config.nchans() / _config.ib_fscrunch();
     std::size_t reduced_nchans_cb = _config.nchans() / _config.cb_fscrunch();
 
-    // define function
-    auto get_offset_cb = [&](float x, Statistics const& y) {
-        float scale =
-            std::pow(weights_amp * y.std *
-                         std::sqrt(static_cast<float>(_config.nantennas())),
-                     2);
-        float dof =
-            2 * _config.cb_tscrunch() * _config.cb_fscrunch() * _config.npol();
-        return x + (scale * dof);
-    };
+    // Offsets for the coherent beams
+    _cb_offsets_d.resize(reduced_nchans_cb * nbeamsets);
+    _cb_offsets_h.resize(reduced_nchans_cb * nbeamsets);
 
-    auto get_scale_cb = [&](float x, Statistics const& y) {
-        float scale =
-            std::pow(weights_amp * y.std *
-                         std::sqrt(static_cast<float>(_config.nantennas())),
-                     2);
-        float dof =
-            2 * _config.cb_tscrunch() * _config.cb_fscrunch() * _config.npol();
-        return x + (scale * std::sqrt(2 * dof) / _config.output_level());
-    };
+    // Scalings for the coherent beams
+    _cb_scaling_d.resize(reduced_nchans_cb * nbeamsets);
+    _cb_scaling_h.resize(reduced_nchans_cb * nbeamsets);
 
-    auto get_offset_ib = [&](float x, Statistics const& y) {
-        float scale = std::pow(y.std, 2);
-        float dof   = 2 * _config.ib_tscrunch() * _config.ib_fscrunch() *
-                    _config.nantennas() * _config.npol();
-        return x + (scale * dof);
-    };
+    // Offsets for the incoherent beam
+    _ib_offsets_d.resize(reduced_nchans_ib * nbeamsets);
+    _ib_offsets_h.resize(reduced_nchans_ib * nbeamsets);
 
-    auto get_scale_ib = [&](float x, Statistics const& y) {
-        float scale = std::pow(y.std, 2);
-        float dof   = 2 * _config.ib_tscrunch() * _config.ib_fscrunch() *
-                    _config.nantennas() * _config.npol();
-        return x + (scale * std::sqrt(2 * dof) / _config.output_level());
-    };
+    // Scalings for the incoherent beam
+    _ib_scaling_d.resize(reduced_nchans_ib * nbeamsets);
+    _ib_scaling_h.resize(reduced_nchans_ib * nbeamsets);
 
-    // CB scaling and  offsets
-    for(std::uint32_t ii = 0; ii < reduced_nchans_cb; ++ii) {
-        _cb_offsets_h[ii] =
-            std::accumulate(
-                &_stats_h[_config.cb_fscrunch() * ii],
-                &_stats_h[_config.cb_fscrunch() * ii + _config.cb_fscrunch()],
-                0.0f,
-                get_offset_cb) /
-            _config.cb_fscrunch();
+    const std::uint32_t pa = _config.npol() * _config.nantennas();
+    const std::uint32_t a  = _config.nantennas();
 
-        _cb_scaling_h[ii] =
-            std::accumulate(
-                &_stats_h[_config.cb_fscrunch() * ii],
-                &_stats_h[_config.cb_fscrunch() * ii + _config.cb_fscrunch()],
-                0.0f,
-                get_scale_cb) /
-            _config.cb_fscrunch();
+    for(std::uint32_t beamset_idx = 0; beamset_idx < nbeamsets; ++beamset_idx) {
+        // For each frequency channel we average the std estimates then
+        // calculate the offsets and scalings.
+        for(int f_idx = 0; f_idx < _config.nchans(); ++f_idx) {
+            float sum   = 0.0f;
+            float count = 0.0f;
+            for(int p_idx = 0; p_idx < _config.npol(); ++p_idx) {
+                for(int a_idx = 0; a_idx < _config.nantennas(); ++a_idx) {
+                    const float weight =
+                        beamset_weights[_config.nantennas() * beamset_idx +
+                                        a_idx];
+                    sum +=
+                        weight * _stats_h[f_idx * pa + p_idx * a + a_idx].std;
+                    count += weight;
+                }
+            }
+            const float avg_std = sum / count;
+            BOOST_LOG_TRIVIAL(debug) << "Channel " << f_idx;
+            BOOST_LOG_TRIVIAL(debug)
+                << "Averaged standard deviation = " << avg_std;
+            float const effective_nantennas = count / _config.npol();
 
-        BOOST_LOG_TRIVIAL(debug)
-            << "Coherent beam power offset: " << _cb_offsets_h[ii];
-        BOOST_LOG_TRIVIAL(debug)
-            << "Coherent beam power scaling: " << _cb_scaling_h[ii];
+            // CB OFFSET
+            {
+                float scale = std::pow(weights_amp * avg_std *
+                                           std::sqrt(effective_nantennas),
+                                       2);
+                float dof   = 2 * _config.cb_tscrunch() * _config.npol();
+                _cb_offsets_h[f_idx] = scale * dof;
+                BOOST_LOG_TRIVIAL(debug)
+                    << "CB offset = " << _cb_offsets_h[f_idx];
+            }
+
+            // CB SCALE
+            {
+                float scale = std::pow(weights_amp * avg_std *
+                                           std::sqrt(effective_nantennas),
+                                       2);
+                float dof   = 2 * _config.cb_tscrunch() * _config.npol();
+                _cb_scaling_h[f_idx] =
+                    scale * std::sqrt(2 * dof) / _config.output_level();
+                BOOST_LOG_TRIVIAL(debug)
+                    << "CB scaling = " << _cb_scaling_h[f_idx];
+            }
+
+            // IB OFFSET
+            {
+                float scale = std::pow(avg_std, 2);
+                float dof   = 2 * _config.ib_tscrunch() * effective_nantennas *
+                            _config.npol();
+                _ib_offsets_h[f_idx] = scale * dof;
+                BOOST_LOG_TRIVIAL(debug)
+                    << "IB offset = " << _ib_offsets_h[f_idx];
+            }
+
+            // IB SCALE
+            {
+                float scale = std::pow(avg_std, 2);
+                float dof   = 2 * _config.ib_tscrunch() * effective_nantennas *
+                            _config.npol();
+                _ib_scaling_h[f_idx] =
+                    scale * std::sqrt(2 * dof) / _config.output_level();
+                BOOST_LOG_TRIVIAL(debug)
+                    << "IB scaling = " << _ib_scaling_h[f_idx];
+            }
+        }
     }
-
-    // scaling for incoherent beamformer
-    for(std::uint32_t ii = 0; ii < reduced_nchans_ib; ++ii) {
-        _ib_offsets_h[ii] =
-            std::accumulate(
-                &_stats_h[_config.ib_fscrunch() * ii],
-                &_stats_h[_config.ib_fscrunch() * ii + _config.ib_fscrunch()],
-                0.0f,
-                get_offset_ib) /
-            _config.ib_fscrunch();
-
-        _ib_scaling_h[ii] =
-            std::accumulate(
-                &_stats_h[_config.ib_fscrunch() * ii],
-                &_stats_h[_config.ib_fscrunch() * ii + _config.ib_fscrunch()],
-                0.0f,
-                get_scale_ib) /
-            _config.ib_fscrunch();
-
-        BOOST_LOG_TRIVIAL(debug)
-            << "Incoherent beam power offset: " << _ib_offsets_h[ii];
-        BOOST_LOG_TRIVIAL(debug)
-            << "Incoherent beam power scaling: " << _ib_scaling_h[ii];
-    }
-
     // At this stage, all scaling vectors are available on the host and
     // could be written to disk.
 
@@ -303,31 +275,31 @@ void StatisticsCalculator::dump_scalings(
     writer.close();
 }
 
-StatisticsCalculator::StatisticsVectorDType const&
+StatisticsCalculator::StatisticsVectorTypeD const&
 StatisticsCalculator::statistics() const
 {
     return _stats_d;
 }
 
-StatisticsCalculator::ScalingVectorDType const&
+StatisticsCalculator::ScalingVectorTypeD const&
 StatisticsCalculator::cb_offsets() const
 {
     return _cb_offsets_d;
 }
 
-StatisticsCalculator::ScalingVectorDType const&
+StatisticsCalculator::ScalingVectorTypeD const&
 StatisticsCalculator::cb_scaling() const
 {
     return _cb_scaling_d;
 }
 
-StatisticsCalculator::ScalingVectorDType const&
+StatisticsCalculator::ScalingVectorTypeD const&
 StatisticsCalculator::ib_offsets() const
 {
     return _ib_offsets_d;
 }
 
-StatisticsCalculator::ScalingVectorDType const&
+StatisticsCalculator::ScalingVectorTypeD const&
 StatisticsCalculator::ib_scaling() const
 {
     return _ib_scaling_d;

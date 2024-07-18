@@ -28,11 +28,11 @@ class WeightsManager
 {
   public:
     typedef char2 WeightsType;
-    typedef thrust::device_vector<WeightsType> WeightsVectorType;
+    typedef thrust::device_vector<WeightsType> WeightsVectorTypeD;
     typedef double FreqType;
-    typedef thrust::device_vector<FreqType> FreqVectorType;
+    typedef thrust::device_vector<FreqType> FreqVectorTypeD;
     typedef double TimeType;
-    typedef DelayManager::DelayVectorDType DelayVectorType;
+    typedef DelayManager::DelayVectorTypeD DelayVectorTypeD;
 
   public:
     /**
@@ -60,15 +60,15 @@ class WeightsManager
      *
      * @return     A thrust device vector containing the generated weights
      */
-    WeightsVectorType const& weights(DelayVectorType const& delays,
-                                     TimeType current_epoch,
-                                     TimeType delay_epoch);
+    WeightsVectorTypeD const& weights(DelayVectorTypeD const& delays,
+                                      TimeType current_epoch,
+                                      TimeType delay_epoch);
 
   private:
     PipelineConfig const& _config;
     cudaStream_t _stream;
-    WeightsVectorType _weights;
-    FreqVectorType _channel_frequencies;
+    WeightsVectorTypeD _weights;
+    FreqVectorTypeD _channel_frequencies;
 };
 
 } // namespace skyweaver

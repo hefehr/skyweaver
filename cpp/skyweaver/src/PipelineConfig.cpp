@@ -1,18 +1,21 @@
 #include "skyweaver/PipelineConfig.hpp"
 
-#include <boost/algorithm/string.hpp> 
-
+#include <boost/algorithm/string.hpp>
 #include <fstream>
+#include <limits>
 
 namespace skyweaver
 {
 
 PipelineConfig::PipelineConfig()
-    : _delay_file("delays.swd"), _input_files({}), _output_dir("./"),
-      _statistics_file("./statistics.bin"), _coherent_dms({0.0f}),
-      _cfreq(1284000000.0), _bw(13375000.0), _channel_frequencies_stale(true),
-      _output_level(24.0f), _cb_power_scaling(0.0f), _cb_power_offset(0.0f),
-      _ib_power_scaling(0.0f), _ib_power_offset(0.0f)
+    : _input_files({}), _check_input_contiguity(false), _dada_header_size(4096),
+      _delay_file(""), _output_dir("./"), _max_output_filesize(10000000000000),
+      _output_file_prefix(""), _dedisp_max_delay_samps(0),
+      _enable_incoherent_dedispersion(true), _cfreq(1284000000.0),
+      _bw(13375000.0), _channel_frequencies_stale(true),
+      _gulp_length_samps(4096), _start_time(0.0f),
+      _duration(std::numeric_limits<float>::infinity()), _total_nchans(4096),
+      _stokes_mode("I"), _output_level(24.0f)
 {
 }
 
@@ -40,26 +43,49 @@ std::vector<std::string> const& PipelineConfig::input_files() const
     return _input_files;
 }
 
+void PipelineConfig::check_input_contiguity(bool check)
+{
+    _check_input_contiguity = check;
+}
+
+bool PipelineConfig::check_input_contiguity() const
+{
+    return _check_input_contiguity;
+}
+
+void PipelineConfig::dada_header_size(std::size_t size)
+{
+    _dada_header_size = size;
+}
+
+std::size_t PipelineConfig::dada_header_size() const
+{
+    return _dada_header_size;
+}
+
 void PipelineConfig::read_input_file_list(std::string filename)
 {
+    BOOST_LOG_TRIVIAL(debug) << "Reading input file list from " << filename;
     std::string line;
     std::ifstream ifs(filename.c_str());
     if(!ifs.is_open()) {
-        std::cerr << "Unable to open input file list: " << filename
-                  << " (" << std::strerror(errno) << ")\n";
+        std::cerr << "Unable to open input file list: " << filename << " ("
+                  << std::strerror(errno) << ")\n";
         throw std::runtime_error(std::strerror(errno));
     }
     _input_files.resize(0);
-    while ( std::getline (ifs, line) )
-    {
+    // TODO: Check that the files from the input list exist
+    while(std::getline(ifs, line)) {
+        BOOST_LOG_TRIVIAL(debug) << line;
         boost::algorithm::trim(line);
-        if (line.rfind("#", 0))
-        {
+        if(line[0] == '#' || line.empty()) {
             // Line is a comment
+            BOOST_LOG_TRIVIAL(debug) << "is a comment or empty";
             continue;
         } else {
             _input_files.push_back(line);
         }
+        BOOST_LOG_TRIVIAL(debug) << "trimmed: " << line;
     }
     ifs.close();
 }
@@ -74,14 +100,24 @@ std::string const& PipelineConfig::output_dir() const
     return _output_dir;
 }
 
-void PipelineConfig::statistics_file(std::string const& filename)
+std::size_t PipelineConfig::max_output_filesize() const
 {
-    _statistics_file = filename;
+    return _max_output_filesize;
 }
 
-std::string const& PipelineConfig::statistics_file() const
+void PipelineConfig::max_output_filesize(std::size_t nbytes)
 {
-    return _statistics_file;
+    _max_output_filesize = nbytes;
+}
+
+std::string const& PipelineConfig::output_file_prefix() const
+{
+    return _output_file_prefix;
+}
+
+void PipelineConfig::output_file_prefix(std::string const& prefix)
+{
+    _output_file_prefix = prefix;
 }
 
 double PipelineConfig::centre_frequency() const
@@ -108,12 +144,37 @@ void PipelineConfig::bandwidth(double bw)
 
 std::vector<float> const& PipelineConfig::coherent_dms() const
 {
-    return _coherent_dms;
+    return _ddplan.coherent_dms();
 }
 
-void PipelineConfig::coherent_dms(std::vector<float> const& coherent_dms)
+DedispersionPlan& PipelineConfig::ddplan()
 {
-    _coherent_dms = coherent_dms;
+    return _ddplan;
+}
+
+DedispersionPlan const& PipelineConfig::ddplan() const
+{
+    return _ddplan;
+}
+
+void PipelineConfig::dedisp_max_delay_samps(std::size_t max_delay)
+{
+    _dedisp_max_delay_samps = max_delay;
+}
+
+std::size_t PipelineConfig::dedisp_max_delay_samps() const
+{
+    return _dedisp_max_delay_samps;
+}
+
+void PipelineConfig::enable_incoherent_dedispersion(bool enable)
+{
+    _enable_incoherent_dedispersion = enable;
+}
+
+bool PipelineConfig::enable_incoherent_dedispersion() const
+{
+    return _enable_incoherent_dedispersion;
 }
 
 std::vector<double> const& PipelineConfig::channel_frequencies() const
@@ -141,6 +202,36 @@ void PipelineConfig::calculate_channel_frequencies() const
     _channel_frequencies_stale = false;
 }
 
+std::size_t PipelineConfig::gulp_length_samps() const
+{
+    return _gulp_length_samps;
+}
+
+void PipelineConfig::gulp_length_samps(std::size_t nsamps)
+{
+    _gulp_length_samps = nsamps;
+}
+
+float PipelineConfig::start_time() const
+{
+    return _start_time;
+}
+
+void PipelineConfig::start_time(float start_time_)
+{
+    _start_time = start_time_;
+}
+
+float PipelineConfig::duration() const
+{
+    return _duration;
+}
+
+void PipelineConfig::duration(float duration_)
+{
+    _duration = duration_;
+}
+
 void PipelineConfig::output_level(float level)
 {
     _output_level = level;
@@ -149,6 +240,16 @@ void PipelineConfig::output_level(float level)
 float PipelineConfig::output_level() const
 {
     return _output_level;
+}
+
+std::size_t PipelineConfig::total_nchans() const
+{
+    return _total_nchans;
+}
+
+void PipelineConfig::total_nchans(std::size_t nchans)
+{
+    _total_nchans = nchans;
 }
 
 } // namespace skyweaver

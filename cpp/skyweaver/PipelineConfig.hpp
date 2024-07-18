@@ -2,6 +2,7 @@
 #define SKYWEAVER_PIPELINECONFIG_HPP
 
 #include "psrdada_cpp/common.hpp"
+#include "skyweaver/DedispersionPlan.hpp"
 #include "skyweaver/skyweaver_constants.hpp"
 
 #include <string>
@@ -40,10 +41,30 @@ class PipelineConfig
     void input_files(std::vector<std::string> const&);
 
     /**
-     * @brief      Set the list of input files from a text file 
-     * 
-     * @details    File format is a newline separated list of 
-     *             absolute or relative filepaths. Lines beginning 
+     * @brief      Check if the input files are contiguous
+     */
+    bool check_input_contiguity() const;
+
+    /**
+     * @brief      Set whether the input files are contiguous
+     */
+    void check_input_contiguity(bool);
+
+    /**
+     * @brief      Get the size of the DADA header in the input files
+     */
+    std::size_t dada_header_size() const;
+
+    /**
+     * @brief      Set the size of the DADA header in the input files
+     */
+    void dada_header_size(std::size_t);
+
+    /**
+     * @brief      Set the list of input files from a text file
+     *
+     * @details    File format is a newline separated list of
+     *             absolute or relative filepaths. Lines beginning
      *             with # are considered to be comments
      */
     void read_input_file_list(std::string filename);
@@ -59,14 +80,24 @@ class PipelineConfig
     void output_dir(std::string const&);
 
     /**
-     * @brief      Get the file path for the statistics file
+     * @brief Get the prefix for the output files
      */
-    std::string const& statistics_file() const;
+    std::string const& output_file_prefix() const;
 
     /**
-     * @brief      Set the file path for the statistics file
+     * @brief Set the prefix for the output files
      */
-    void statistics_file(std::string const&);
+    void output_file_prefix(std::string const&);
+
+    /**
+     * @brief Get the maximum size of the output files
+     */
+    std::size_t max_output_filesize() const;
+
+    /**
+     * @brief Set the maximum output file size
+     */
+    void max_output_filesize(std::size_t);
 
     /**
      * @brief      Get the centre frequency for the subband to
@@ -108,14 +139,41 @@ class PipelineConfig
     /**
      * @brief      Get the coherent dm trials to be dedispersed to
      *
+     * @details    Helper method to return the coherent DMs from the ddplan
      */
     std::vector<float> const& coherent_dms() const;
 
     /**
-     * @brief      Set the coherent dm trials to be dedispersed to
-     *
+     * @brief      Get a reference to the dedispersion plan
      */
-    void coherent_dms(std::vector<float> const&);
+    DedispersionPlan& ddplan();
+
+    /**
+     * @brief      Get a const reference to the dedispersion plan
+     */
+    DedispersionPlan const& ddplan() const;
+
+    /**
+     * @brief      Return the length of the kernel in samples
+     */
+    std::size_t dedisp_max_delay_samps() const;
+
+    /**
+     * @brief      Set the length of the kernel in samples
+     */
+    void dedisp_max_delay_samps(std::size_t);
+
+    /**
+     * @brief      Enable/disable incoherent dedispersion based fscrunch after
+     * beamforming
+     */
+    void enable_incoherent_dedispersion(bool enable);
+
+    /**
+     * @brief      Check if incoherent dedispersion based fscrunch after
+     * beamforming is enabled
+     */
+    bool enable_incoherent_dedispersion() const;
 
     /**
      * @brief      Return the number of time samples to be integrated
@@ -153,13 +211,35 @@ class PipelineConfig
     std::size_t nbeams() const { return SKYWEAVER_NBEAMS; }
 
     /**
-     * @brief      Return the number of samples that will be processed 
+     * @brief      Return the number of samples that will be processed
      *             in each batch.
      */
     std::size_t nsamples_per_block() const
     {
         return SKYWEAVER_CB_NSAMPLES_PER_BLOCK;
     }
+
+    /**
+     * @brief Return the total number of samples to read from file in each gulp.
+     *
+     * @details Must be a multiple of nsamps per heap and greater than\
+     *          the dedispersion kernel size.
+     */
+    std::size_t gulp_length_samps() const;
+
+    /**
+     * @brief Set the total number of samples to read from file in each gulp.
+     *
+     * @details Must be a multiple of nsamps per heap and greater than\
+     *          the dedispersion kernel size.
+     */
+    void gulp_length_samps(std::size_t);
+
+    float start_time() const;
+    void start_time(float);
+
+    float duration() const;
+    void duration(float);
 
     /**
      * Below are methods to get and set the power scaling and offset in the
@@ -199,26 +279,6 @@ class PipelineConfig
     float output_level() const;
 
     /**
-     * @brief      Get the coherent beamformer power scaling
-     */
-    float cb_power_scaling() const;
-
-    /**
-     * @brief      Get the coherent beamformer power offset
-     */
-    float cb_power_offset() const;
-
-    /**
-     * @brief      Get the incoherent beamformer power scaling
-     */
-    float ib_power_scaling() const;
-
-    /**
-     * @brief      Get the incoherent beamformer power offset
-     */
-    float ib_power_offset() const;
-
-    /**
      * @brief      Return the total number of antennas that will be beamformed
      */
     std::size_t nantennas() const { return SKYWEAVER_NANTENNAS; }
@@ -230,11 +290,36 @@ class PipelineConfig
     std::size_t nchans() const { return SKYWEAVER_NCHANS; }
 
     /**
+     * @brief      Return the F-engine channelisation mode
+     * data
+     */
+    std::size_t total_nchans() const;
+
+    /**
+     * @brief      Set the F-engine channelisation mode
+     * data
+     */
+    void total_nchans(std::size_t);
+
+    /**
      * @brief      Return the number of polarisations in the observation
      *
      * @note       This better be 2 otherwise who knows what will happen...
      */
     std::size_t npol() const { return SKYWEAVER_NPOL; }
+
+    /**
+     * @brief      Return the Stokes mode
+     */
+    std::string stokes_mode() const { return _stokes_mode; }
+
+    /**
+     * @brief      Set the Stokes mode
+     */
+    void stokes_mode(std::string const& stokes_mode_)
+    {
+        _stokes_mode = stokes_mode_;
+    }
 
     /**
      * @brief      Return the number of time samples per F-engine SPEAD heap.
@@ -252,19 +337,29 @@ class PipelineConfig
     void update_power_offsets_and_scalings();
 
   private:
-    std::string _delay_file;
+    /* input file options*/
     std::vector<std::string> _input_files;
+    bool _check_input_contiguity;
+    std::size_t _dada_header_size;
+
+    /* Other required files*/
+    std::string _delay_file;
+
     std::string _output_dir;
-    std::string _statistics_file;
-    std::vector<float> _coherent_dms;
+    std::size_t _max_output_filesize;
+    std::string _output_file_prefix;
+    std::size_t _dedisp_max_delay_samps;
+    bool _enable_incoherent_dedispersion;
     double _cfreq;
     double _bw;
     mutable bool _channel_frequencies_stale;
+    std::size_t _gulp_length_samps;
+    float _start_time;
+    float _duration;
+    std::size_t _total_nchans;
+    std::string _stokes_mode;
     float _output_level;
-    float _cb_power_scaling;
-    float _cb_power_offset;
-    float _ib_power_scaling;
-    float _ib_power_offset;
+    DedispersionPlan _ddplan;
     mutable std::vector<double> _channel_frequencies;
 };
 

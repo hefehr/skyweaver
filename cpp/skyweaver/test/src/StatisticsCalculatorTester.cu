@@ -1,8 +1,10 @@
 
 #include "psrdada_cpp/cuda_utils.hpp"
+#include "skyweaver/DescribedVector.hpp"
 #include "skyweaver/PipelineConfig.hpp"
 #include "skyweaver/skyweaver_constants.hpp"
 #include "skyweaver/test/StatisticsCalculatorTester.cuh"
+#include "skyweaver/test/test_utils.cuh"
 
 #include <algorithm>
 #include <cmath>
@@ -13,8 +15,6 @@
 #include <thrust/random.h>
 #include <thrust/random/normal_distribution.h>
 #include <vector>
-
-#define EXPECT_RELATIVE_ERROR()
 
 namespace skyweaver
 {
@@ -110,7 +110,6 @@ StatisticsCalculatorTester::~StatisticsCalculatorTester()
 void StatisticsCalculatorTester::SetUp()
 {
     CUDA_ERROR_CHECK(cudaStreamCreate(&_stream));
-    _config.statistics_file("./statistics.bin");
 }
 
 void StatisticsCalculatorTester::TearDown()
@@ -119,8 +118,8 @@ void StatisticsCalculatorTester::TearDown()
 }
 
 void StatisticsCalculatorTester::compare_against_host(
-    thrust::host_vector<char2>& data,
-    thrust::host_vector<Statistics>& gpu_results) const
+    FTPAVoltagesH<char2>& data,
+    FPAStatsH<Statistics>& gpu_results) const
 {
     std::size_t fpa_size =
         _config.nantennas() * _config.npol() * _config.nchans();
@@ -142,9 +141,8 @@ void StatisticsCalculatorTester::compare_against_host(
                         (f * _config.nantennas() * _config.npol()) +
                         (p * _config.nantennas()) + a;
                     char2 d = data[input_idx];
-                    double power =
-                        double(d.x) * double(d.x) + double(d.y) * double(d.y);
-                    stats[output_idx].push(power);
+                    stats[output_idx].push(double(d.x));
+                    stats[output_idx].push(double(d.y));
                     ++input_idx;
                 }
             }
@@ -152,18 +150,23 @@ void StatisticsCalculatorTester::compare_against_host(
     }
 
     for(std::size_t stats_idx = 0; stats_idx < fpa_size; ++stats_idx) {
-        // Even though the values are doubles, we do not expect the host 
-        // and device codes to actually return identical values given 
+        // Even though the values are doubles, we do not expect the host
+        // and device codes to actually return identical values given
         // differences in operation order. Hence we compare as if the
         // values are floats.
-        EXPECT_FLOAT_EQ(gpu_results[stats_idx].mean,
-                         stats[stats_idx].mean());
-        EXPECT_FLOAT_EQ(gpu_results[stats_idx].std,
-                         stats[stats_idx].standard_deviation());
-        EXPECT_FLOAT_EQ(gpu_results[stats_idx].skew,
-                         stats[stats_idx].skewness());
-        EXPECT_FLOAT_EQ(gpu_results[stats_idx].kurtosis,
-                         stats[stats_idx].kurtosis());
+        expect_relatively_near(static_cast<double>(gpu_results[stats_idx].mean),
+                               stats[stats_idx].mean(),
+                               1e-5);
+        expect_relatively_near(static_cast<double>(gpu_results[stats_idx].std),
+                               stats[stats_idx].standard_deviation(),
+                               1e-5);
+        expect_relatively_near(static_cast<double>(gpu_results[stats_idx].skew),
+                               stats[stats_idx].skewness(),
+                               1e-5);
+        expect_relatively_near(
+            static_cast<double>(gpu_results[stats_idx].kurtosis),
+            stats[stats_idx].kurtosis(),
+            1e-5);
     }
 }
 
@@ -171,40 +174,34 @@ TEST_F(StatisticsCalculatorTester, test_normal_dist)
 {
     // Make some input data
     std::size_t nsamples = 1024;
-    std::size_t input_size =
-        _config.nantennas() * _config.npol() * _config.nchans() * nsamples;
     thrust::default_random_engine rng(1337);
     thrust::random::normal_distribution<float> dist(0.0f, 20.0f);
-    thrust::host_vector<char2> ftpa_voltages_h(input_size);
-    thrust::generate(ftpa_voltages_h.begin(), ftpa_voltages_h.end(), [&] {
-        char2 val;
-        val.x = static_cast<char>(std::clamp(dist(rng), -127.0f, 127.0f));
-        val.y = static_cast<char>(std::clamp(dist(rng), -127.0f, 127.0f));
-        return val;
-    });
-    thrust::device_vector<char2> ftpa_voltages = ftpa_voltages_h;
+    FTPAVoltagesH<char2> ftpa_voltages_h(
+        {_config.nchans(), nsamples, _config.npol(), _config.nantennas()});
+    for(auto& val: ftpa_voltages_h) {
+        val.x = static_cast<int8_t>(std::clamp(dist(rng), -127.0f, 127.0f));
+        val.y = static_cast<int8_t>(std::clamp(dist(rng), -127.0f, 127.0f));
+    }
+    FTPAVoltagesD<char2> ftpa_voltages = ftpa_voltages_h;
     StatisticsCalculator calculator(_config, _stream);
     calculator.calculate_statistics(ftpa_voltages);
-    thrust::device_vector<Statistics> stats = calculator.statistics();
-    thrust::host_vector<Statistics> stats_h(stats.size());
+    FPAStatsD<Statistics> stats = calculator.statistics();
+    FPAStatsH<Statistics> stats_h;
+    stats_h.like(stats);
     stats_h = stats;
     compare_against_host(ftpa_voltages_h, stats_h);
 }
-
 
 TEST_F(StatisticsCalculatorTester, test_file_writer)
 {
     // Make some input data
     std::size_t nsamples = 1024;
-    std::size_t input_size =
-        _config.nantennas() * _config.npol() * _config.nchans() * nsamples;    
-    thrust::host_vector<char2> ftpa_voltages_h(input_size, {0, 0});
-    thrust::device_vector<char2> ftpa_voltages = ftpa_voltages_h;
+    FTPAVoltagesH<char2> ftpa_voltages_h(
+        {_config.nchans(), nsamples, _config.npol(), _config.nantennas()});
+    FTPAVoltagesD<char2> ftpa_voltages = ftpa_voltages_h;
     StatisticsCalculator calculator(_config, _stream);
-    calculator.open_statistics_file();
     calculator.calculate_statistics(ftpa_voltages);
-    calculator.write_statistics();
-    thrust::device_vector<Statistics> stats = calculator.statistics();
+    FPAStatsD<Statistics> stats = calculator.statistics();
 }
 
 } // namespace test

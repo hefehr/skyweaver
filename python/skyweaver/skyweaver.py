@@ -384,7 +384,7 @@ class CalibrationSolution:
 
     def to_file(self,basename="gains"):
 
-        with open(basename + f"_{self.epoch}.bin",'wb') as out:
+        with open(basename + f"_{self.epoch}.afp",'wb') as out:
             self.solution.tofile(out)
 
 @dataclass
@@ -493,6 +493,9 @@ class SessionMetadata:
                 for epoch in f['calibration_solutions']:
                     antenna_pols = [str(ap) for ap in f['calibration_solutions'][epoch]]
                     gains = np.array([np.array(f['calibration_solutions'][epoch][ap]) for ap in antenna_pols])
+
+                    # Convert to AFP order, to match dada file axes
+                    gains = gains.reshape(-1,2,metadata['nchans']).transpose(0,2,1)
                     S = CalibrationSolution(epoch, antenna_pols, gains)
                     calibration_solutions.append(S)
 

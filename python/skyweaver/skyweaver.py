@@ -45,7 +45,6 @@ class DelayModelHeader(ctypes.Structure):
         ("end_epoch", ctypes.c_double),
     ]
 
-
 @dataclass
 class DelayModel:
     """Wrapper class for a delay model
@@ -370,6 +369,23 @@ class Subarray:
         self_set: set = set(self.antenna_positions)
         return other_set.issubset(self_set)
 
+@dataclass
+class CalibrationSolution:
+
+    epoch: str
+    antenna_pols : list[str]
+    solution : np.ndarray
+
+    def __init__(self, epoch, antenna_pols, solution):
+
+        self.epoch = epoch
+        self.antenna_pols = antenna_pols
+        self.solution = solution
+
+    def to_file(self,basename="gains"):
+
+        with open(basename + f"_{self.epoch}.bin",'wb') as out:
+            self.solution.tofile(out)
 
 @dataclass
 class SessionMetadata:
@@ -398,6 +414,8 @@ class SessionMetadata:
     # Time series of "suspect" flags indicating data validity
     # True values imply invalid data
     suspect_flags: np.ndarray[bool]
+    # Complex gain solutions (if no phase-up is done)
+    calibration_solutions: list[CalibrationSolution]
 
     def __str__(self) -> str:
         key_padding = 20
@@ -469,6 +487,15 @@ class SessionMetadata:
                     antenna_positions[kp_antenna.name] = kp_antenna
             # Parse out general metadata
             metadata: dict = dict(f.attrs)
+
+            calibration_solutions = []
+            if 'calibration_solutions' in f:
+                for epoch in f['calibration_solutions']:
+                    antenna_pols = [str(ap) for ap in f['calibration_solutions'][epoch]]
+                    gains = np.array([np.array(f['calibration_solutions'][epoch][ap]) for ap in antenna_pols])
+                    S = CalibrationSolution(epoch, antenna_pols, gains)
+                    calibration_solutions.append(S)
+
             return cls(
                 antenna_positions,
                 antenna_feng_map,
@@ -482,8 +509,10 @@ class SessionMetadata:
                 f["phase_centres"][()].astype([ # pylint: disable=no-member
                     ("timestamp", "datetime64[us]"), ("value", "|S64")]),
                 f["suspect_flags"][()].astype([ # pylint: disable=no-member
-                    ("timestamp", "datetime64[us]"), ("value", "bool")])
+                    ("timestamp", "datetime64[us]"), ("value", "bool")]),
+                calibration_solutions
             )
+
 
     def _drop_duplicate_values(self, ar: np.ndarray) -> np.ndarray:
         vals = ar["value"]
@@ -593,6 +622,7 @@ class SessionMetadata:
         for start, end, target, _ in windows:
             pointings.append(PointingMetadata(target, start, end, self))
         return pointings
+
 
 
 @dataclass
@@ -839,4 +869,3 @@ def main():
     - Antenna database file format (preferrably YAML)
     - Delay format (preferrably some packed binary format)
     """
-

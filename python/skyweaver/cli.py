@@ -132,6 +132,19 @@ def metadata_show(metafile: str, verbose: bool = False) -> None:
     else:
         print(om)
 
+def metadata_gains(metafile: str, basename: str, verbose: bool = False) -> None:
+    """Display the contents of a metadata file.
+
+    Args:
+        verbose (bool, optional): Show a full breakdown of the file. Defaults to a summary.
+    """
+
+    om = skyweaver.SessionMetadata.from_file(metafile)
+    for C in om.calibration_solutions:
+        if verbose:
+            print(C)
+        C.to_file(basename)
+
 def delays_create(
     metafile: str,
     bfconfig: str,
@@ -215,6 +228,15 @@ def cli():
     metadata_show_parser.set_defaults(
         func=lambda args: metadata_show(args.metafile, args.verbose))
 
+    # sw metadata show
+    metadata_gains_parser = subparser_create_wrapper(
+        metadata_subparsers, "gains", help="Dump gain solution")
+    metadata_gains_parser.add_argument("--verbose", action="store_true")
+    metadata_gains_parser.add_argument("--basename", type=str, default="gains")
+    metadata_gains_parser.add_argument("metafile", metavar="FILE")
+    metadata_gains_parser.set_defaults(
+        func=lambda args: metadata_gains(args.metafile, args.basename, args.verbose))
+
     # sw delays
     delays = l1subparsers.add_parser("delays", help="Tools for delay files")
     delays_subparsers = delays.add_subparsers(help="sub-command help")
@@ -248,4 +270,3 @@ def cli():
 
 if __name__ == "__main__":
     cli()
-    

@@ -178,7 +178,7 @@ def delays_create(
         fname = "swdelays_{}_{}_to_{}_{}.bin".format(
             pointing.phase_centre.name,
             int(pointing.start_epoch.unix),
-            int(pointing.start_epoch.unix),
+            int(pointing.end_epoch.unix),
             secrets.token_hex(3)
         )
     else:

@@ -16,7 +16,7 @@ IncoherentDedisperser::IncoherentDedisperser(PipelineConfig const& config,
                                              std::vector<float> const& dms,
                                              std::size_t tscrunch)
     : _config(config), _dms(dms), _tscrunch(tscrunch),
-      _delays(dms.size() * config.channel_frequencies().size()), _max_delay(0),
+      _delays(dms.size() * config.channel_frequencies().size()), _max_sample_delay(0),
       _scale_factor(1.0f)
 {
     prepare();
@@ -47,7 +47,7 @@ void IncoherentDedisperser::prepare()
                                      tsamp));
     }
     auto it    = std::max_element(_delays.begin(), _delays.end());
-    _max_delay = *it;
+    _max_sample_delay = *it;
     // if RFI rejection is enabled based on kurtosis file, this is no longer
     // valid, unless we replace with random noise
     _scale_factor = std::sqrt(_config.nchans() * _tscrunch);
@@ -58,41 +58,41 @@ std::vector<int> const& IncoherentDedisperser::delays() const
     return _delays;
 }
 
-int IncoherentDedisperser::max_delay() const
+int IncoherentDedisperser::max_sample_delay() const
 {
-    return _max_delay;
+    return _max_sample_delay;
 }
 
 template <typename InputVectorType, typename OutputVectorType>
 void IncoherentDedisperser::dedisperse<InputVectorType, OutputVectorType>(
-    InputVectorType const& tfb_powers,
+    InputVectorType const& tfb_powers, // this is not a described vector
     OutputVectorType& tdb_powers)
 {
     typedef typename value_traits<
         typename OutputVectorType::value_type>::promoted_type AccumulatorType;
     typedef std::vector<AccumulatorType> AccumulatorVectorType;
 
-    const std::size_t nchans   = _config.channel_frequencies().size();
+    const std::size_t nchans   = _config.nchans();
     const std::size_t nbeams   = _config.nbeams();
     const std::size_t ndms     = _dms.size();
     const std::size_t nsamples = tfb_powers.size() / (nbeams * nchans);
     const std::size_t bf       = nbeams * nchans;
-    if(nsamples <= _max_delay) {
+    if(nsamples <= _max_sample_delay) { // if this is thrown something has gone horribly wrong.
         throw std::runtime_error(
-            "Fewer than max_delay samples passed to dedisperse method");
+            "Fewer than max_sample_delay samples passed to dedisperse method");
     }
-    if((nsamples - _max_delay) % _tscrunch != 0) {
+    if((nsamples - _max_sample_delay) % _tscrunch != 0) { // if this is thrown something has gone horribly wrong.
         throw std::runtime_error(
-            "(nsamples - max_delay) must be a multiple of tscrunch;");
+            "(nsamples - max_sample_delay) must be a multiple of tscrunch;");
     }
-    tdb_powers.resize({(nsamples - _max_delay) / _tscrunch, ndms, nbeams});
+    tdb_powers.resize({(nsamples - _max_sample_delay) / _tscrunch, ndms, nbeams});
 #pragma omp parallel
     {
         AccumulatorVectorType powers(nbeams); // Once per thread
 #pragma omp for
-        for(int t_idx = _max_delay; t_idx < nsamples; t_idx += _tscrunch) {
+        for(int t_idx = _max_sample_delay; t_idx < nsamples; t_idx += _tscrunch) {
             int t_output_offset =
-                (t_idx - _max_delay) / _tscrunch * nbeams * ndms;
+                (t_idx - _max_sample_delay) / _tscrunch * nbeams * ndms;
             for(int dm_idx = 0; dm_idx < ndms; ++dm_idx) {
                 int offset = nchans * dm_idx;
                 std::fill(powers.begin(),

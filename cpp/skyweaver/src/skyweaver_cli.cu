@@ -139,7 +139,6 @@ void run_pipeline(Pipeline& pipeline,
     taftp_input_voltage_b->like(*taftp_input_voltage_a);
     NVTX_RANGE_POP();
 
-    VoltageType const& taftp_input_voltage = *taftp_input_voltage_a;
     BOOST_LOG_TRIVIAL(debug)
         << "Input buffer: " << taftp_input_voltage_a->describe();
     std::size_t input_bytes = taftp_input_voltage_a->size() *
@@ -157,7 +156,7 @@ void run_pipeline(Pipeline& pipeline,
     std::size_t offset_nsamps =
         static_cast<std::size_t>(config.start_time() / tsamp);
     offset_nsamps = (offset_nsamps / config.nsamples_per_heap()) *
-                    config.nsamples_per_heap();
+                    config.nsamples_per_heap(); // floor
     pipeline.init(header, offset_nsamps * tsamp);
     std::size_t offset_nbytes = offset_nsamps * bytes_per_sample;
     BOOST_LOG_TRIVIAL(info) << "Starting at " << config.start_time()
@@ -413,12 +412,19 @@ int main(int argc, char** argv)
                  ->default_value(config.gulp_length_samps())
                  ->notifier([&config](std::size_t const& gulp_size) {
                      // Round off to next multiple of 256
-                     if(gulp_size % config.nsamples_per_heap() != 0) {
+                     if(gulp_size % config.nsamples_per_heap() != 0 || //256
+                        gulp_size % config.nsamples_per_block() != 0) { // 32* tscrunch
+                        
+                        std::size_t larger_value = std::max(
+                            config.nsamples_per_heap(),
+                            config.nsamples_per_block());
+
                          BOOST_LOG_TRIVIAL(warning)
-                             << "Rounding up gulp-size to next multiple of 256";
+                             << "Rounding up gulp-size to next multiple of NSAMPLES PER HEAP and NSAMPLES PER BLOCK";
+
                          config.gulp_length_samps(
-                             (gulp_size / config.nsamples_per_heap()) *
-                             config.nsamples_per_heap());
+                             (gulp_size / larger_value) *
+                             larger_value);
                      } else {
                          config.gulp_length_samps(gulp_size);
                      }

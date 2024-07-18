@@ -109,18 +109,9 @@ void StatisticsCalculator::calculate_statistics(
                      ftpa_voltages.nantennas()});
     _stats_d.metalike(ftpa_voltages);
     _stats_d.tsamp(ftpa_voltages.tsamp() * ftpa_voltages.nsamples());
-    _stats_h.resize({ftpa_voltages.nchannels(),
-                     ftpa_voltages.npol(),
-                     ftpa_voltages.nantennas()});
-    _stats_h.metalike(ftpa_voltages);
-    _stats_h.tsamp(ftpa_voltages.tsamp() * ftpa_voltages.nsamples());
+    _stats_h.like(_stats_d);
 
-    int fpa_size = _stats_h.size();
-    if(ftpa_voltages.size() % fpa_size != 0) {
-        throw std::runtime_error(
-            "FTPA voltages are not a multiple of FPA size");
-    }
-    int nsamples = ftpa_voltages.size() / fpa_size;
+    int nsamples = ftpa_voltages.nsamples();
     // call kernel
     char2 const* ftpa_voltages_ptr =
         thrust::raw_pointer_cast(ftpa_voltages.data());

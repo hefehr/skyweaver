@@ -19,26 +19,31 @@ namespace skyweaver
 void create_coherent_dedisperser_config(CoherentDedisperserConfig& config,
                                         PipelineConfig const& pipeline_config)
 {
+    // the centre frequency and bandwidth are for the bridge. This is taken from Observation Header (not from the user)
     float f_low =
         pipeline_config.centre_frequency() - pipeline_config.bandwidth() / 2.0f;
     float f_high =
         pipeline_config.centre_frequency() + pipeline_config.bandwidth() / 2.0f;
     float tsamp  = pipeline_config.nchans() / pipeline_config.bandwidth();
+
+    if(pipeline_config.coherent_dms().empty()) {
+        throw std::runtime_error("No coherent DMs specified");
+    }
+
     auto it      = std::max_element(pipeline_config.coherent_dms().begin(),
                                pipeline_config.coherent_dms().end());
     float max_dm = *it;
     BOOST_LOG_TRIVIAL(debug) << "Constructing coherent dedisperser plan";
-    float max_dm_delay =
-        CoherentDedisperser::get_dm_delay(f_low, f_high, max_dm);
+    std::size_t max_dm_delay_samps = DMSampleDelay(max_dm, f_low, tsamp)(f_high);
 
-    if(max_dm_delay * tsamp > 2 * pipeline_config.gulp_length_samps()) {
+    if(max_dm_delay_samps > 2 * pipeline_config.gulp_length_samps()) {
         throw std::runtime_error(
             "Gulp length must be at least 2 times the maximum DM delay");
     }
 
     create_coherent_dedisperser_config(config,
                                        pipeline_config.gulp_length_samps(),
-                                       max_dm_delay,
+                                       max_dm_delay_samps,
                                        pipeline_config.nchans(),
                                        pipeline_config.npol(),
                                        pipeline_config.nantennas(),
@@ -70,11 +75,11 @@ void create_coherent_dedisperser_config(CoherentDedisperserConfig& config,
     config.npols            = npols;
     config.nantennas        = nantennas;
     config.tsamp            = tsamp;
-
     config.low_freq       = low_freq;
     config.bw             = bw;
     config.high_freq      = low_freq + bw;
     config.coarse_chan_bw = bw / num_coarse_chans;
+    config.filter_delay = tsamp * overlap_samps / 2.0;
 
     /* Precompute DM constants */
     config._h_dms = dms;
@@ -92,7 +97,7 @@ void create_coherent_dedisperser_config(CoherentDedisperserConfig& config,
 
     config.fine_chan_bw = config.coarse_chan_bw / config.fft_length;
 
-    for(int idx = 0; idx < config._d_dm_prefactor.size(); idx++) {
+    for(int idx = 0; idx < config._d_dms.size(); idx++) {
         get_dm_responses(config,
                          config._d_dm_prefactor[idx],
                          config._d_ism_responses[idx]);
@@ -127,11 +132,7 @@ void create_coherent_dedisperser_config(CoherentDedisperserConfig& config,
 
     BOOST_LOG_TRIVIAL(debug) << "FFT plan created";
 }
-double CoherentDedisperser::get_dm_delay(double f1, double f2, double dm)
-{
-    return ((1 / pow(f1 / 1000, 2.0)) - (1 / pow(f2 / 1000, 2.0))) * dm *
-           0.00415;
-}
+
 
 namespace
 {
@@ -145,9 +146,9 @@ void CoherentDedisperser::dedisperse(
     unsigned int dm_idx)
 {
     BOOST_LOG_NAMED_SCOPE("CoherentDedisperser::dedisperse");
-    d_fpa_spectra.resize(d_tpa_voltages_in.size(), {0.0f, 0.0f});
-    d_tpa_voltages_temp.resize(d_tpa_voltages_in.size(), {0.0f, 0.0f});
-    d_tpa_voltages_out_temp.resize(d_tpa_voltages_in.size(), {0.0f, 0.0f});
+    _d_fpa_spectra.resize(d_tpa_voltages_in.size(), {0.0f, 0.0f});
+    _d_tpa_voltages_temp.resize(d_tpa_voltages_in.size(), {0.0f, 0.0f});
+    _d_tpa_voltages_out_temp.resize(d_tpa_voltages_in.size(), {0.0f, 0.0f});
 
     BOOST_LOG_TRIVIAL(debug)
         << "Input TPA voltages to dedisperse, d_tpa_voltages_in.size(): "
@@ -158,7 +159,7 @@ void CoherentDedisperser::dedisperse(
 
     thrust::transform(d_tpa_voltages_in.begin(),
                       d_tpa_voltages_in.end(),
-                      d_tpa_voltages_temp.begin(),
+                      _d_tpa_voltages_temp.begin(),
                       [=] __device__(char2 const& val) {
                           cufftComplex complex_val;
                           complex_val.x = val.x;
@@ -168,9 +169,9 @@ void CoherentDedisperser::dedisperse(
 
     BOOST_LOG_TRIVIAL(debug) << "Transformed voltages to cufftComplex";
 
-    cufftExecC2C(config._fft_plan,
-                 thrust::raw_pointer_cast(d_tpa_voltages_temp.data()),
-                 thrust::raw_pointer_cast(d_fpa_spectra.data()),
+    cufftExecC2C(_config._fft_plan,
+                 thrust::raw_pointer_cast(_d_tpa_voltages_temp.data()),
+                 thrust::raw_pointer_cast(_d_fpa_spectra.data()),
                  CUFFT_FORWARD);
 
     BOOST_LOG_TRIVIAL(debug) << "Executed forward FFT";
@@ -178,39 +179,39 @@ void CoherentDedisperser::dedisperse(
     BOOST_LOG_TRIVIAL(debug) << "freq_idx = " << freq_idx;
     BOOST_LOG_TRIVIAL(debug) << "dm_idx = " << dm_idx;
 
-    multiply_by_chirp(d_fpa_spectra,
-                      d_fpa_spectra,
+    multiply_by_chirp(_d_fpa_spectra,
+                      _d_fpa_spectra,
                       freq_idx,
                       dm_idx); // operating in place..
 
     BOOST_LOG_TRIVIAL(debug) << "Multiplied by chirp";
 
-    cufftExecC2C(config._fft_plan,
-                 thrust::raw_pointer_cast(d_fpa_spectra.data()),
-                 thrust::raw_pointer_cast(d_tpa_voltages_out_temp.data()),
+    cufftExecC2C(_config._fft_plan,
+                 thrust::raw_pointer_cast(_d_fpa_spectra.data()),
+                 thrust::raw_pointer_cast(_d_tpa_voltages_out_temp.data()),
                  CUFFT_INVERSE);
 
     BOOST_LOG_TRIVIAL(debug) << "Executed inverse FFT";
 
-    std::size_t out_offset = freq_idx * config.nantennas * config.npols *
-                             (config.fft_length - config.overlap_samps);
+    std::size_t out_offset = freq_idx * _config.nantennas * _config.npols *
+                             (_config.fft_length - _config.overlap_samps);
     std::size_t discard_size =
-        config.nantennas * config.npols * config.overlap_samps / 2;
+        _config.nantennas * _config.npols * _config.overlap_samps / 2;
 
     BOOST_LOG_TRIVIAL(debug) << "Output offset to write from: " << out_offset;
     BOOST_LOG_TRIVIAL(debug) << "discard_size: " << discard_size;
     BOOST_LOG_TRIVIAL(debug)
         << "copying from input from " << discard_size << " to "
-        << d_tpa_voltages_out_temp.size() - discard_size;
+        << _d_tpa_voltages_out_temp.size() - discard_size;
     BOOST_LOG_TRIVIAL(debug)
         << "copying to output from " << out_offset << " to "
-        << out_offset + d_tpa_voltages_out_temp.size() - 2 * discard_size;
+        << out_offset + _d_tpa_voltages_out_temp.size() - 2 * discard_size;
 
-    std::size_t N = config.fft_length;
+    std::size_t N = _config.fft_length;
 
     // transform: divide by d_tpa_voltages_in.size()
-    thrust::transform(d_tpa_voltages_out_temp.begin() + discard_size,
-                      d_tpa_voltages_out_temp.end() - discard_size,
+    thrust::transform(_d_tpa_voltages_out_temp.begin() + discard_size,
+                      _d_tpa_voltages_out_temp.end() - discard_size,
                       d_ftpa_voltages_out.begin() + out_offset,
                       [=] __device__(cufftComplex const& val) {
                           char2 char2_val;
@@ -220,30 +221,30 @@ void CoherentDedisperser::dedisperse(
                               static_cast<char>(__float2int_rn(val.y / N));
                           return char2_val;
                       });
-    d_ftpa_voltages_out.reference_dm(config._h_dms[dm_idx]);
+    d_ftpa_voltages_out.reference_dm(_config._h_dms[dm_idx]);
 }
 
 void CoherentDedisperser::multiply_by_chirp(
 
-    thrust::device_vector<cufftComplex> const& d_fpa_spectra_in,
-    thrust::device_vector<cufftComplex>& d_fpa_spectra_out,
+    thrust::device_vector<cufftComplex> const& _d_fpa_spectra_in,
+    thrust::device_vector<cufftComplex>& _d_fpa_spectra_out,
     unsigned int freq_idx,
     unsigned int dm_idx)
 {
-    std::size_t total_chans     = config._d_ism_responses[dm_idx].size();
-    std::size_t response_offset = freq_idx * config.fft_length;
+    std::size_t total_chans     = _config._d_ism_responses[dm_idx].size();
+    std::size_t response_offset = freq_idx * _config.fft_length;
 
     BOOST_LOG_TRIVIAL(debug) << "Freq idx: " << freq_idx;
-    BOOST_LOG_TRIVIAL(debug) << "config.fft_length: " << config.fft_length;
+    BOOST_LOG_TRIVIAL(debug) << "_config.fft_length: " << _config.fft_length;
     BOOST_LOG_TRIVIAL(debug) << "response_offset: " << response_offset;
 
-    dim3 blockSize(config.nantennas * config.npols);
-    dim3 gridSize(config.fft_length / NCHANS_PER_BLOCK);
+    dim3 blockSize(_config.nantennas * _config.npols);
+    dim3 gridSize(_config.fft_length / NCHANS_PER_BLOCK);
     kernels::dedisperse<<<gridSize, blockSize>>>(
-        thrust::raw_pointer_cast(config._d_ism_responses[dm_idx].data() +
+        thrust::raw_pointer_cast(_config._d_ism_responses[dm_idx].data() +
                                  response_offset),
-        thrust::raw_pointer_cast(d_fpa_spectra_in.data()),
-        thrust::raw_pointer_cast(d_fpa_spectra_out.data()),
+        thrust::raw_pointer_cast(_d_fpa_spectra_in.data()),
+        thrust::raw_pointer_cast(_d_fpa_spectra_out.data()),
         total_chans);
 }
 } // namespace skyweaver

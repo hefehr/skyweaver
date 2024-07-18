@@ -58,7 +58,7 @@ __global__ void transpose_k(char2 const* __restrict__ input,
                         antenna_set_idx * SKYWEAVER_ST_MAX_ANTENNAS +
                         antenna_idx;
 
-                    // Loop over the TP samples perforing a coalesced read from
+                    // Loop over the TP samples performing a coalesced read from
                     // global memory and a coalesced write to shared memory
                     for(int samppol_idx = threadIdx.x;
                         samppol_idx <
@@ -172,12 +172,6 @@ void Transposer::transpose(InputVoltageTypeD const& taftp_voltages,
         << _config.nsamples_per_heap() * nheap_groups << ", " << _config.npol()
         << ", " << _config.nantennas() << ")";
     BOOST_LOG_TRIVIAL(debug) << "Launching split transpose kernel";
-    size_t mem_tot;
-    size_t mem_free;
-    cudaMemGetInfo(&mem_free, &mem_tot);
-    BOOST_LOG_TRIVIAL(debug)
-        << "Free memory: " << mem_free << " of " << mem_tot << " bytes\n";
-    BOOST_LOG_TRIVIAL(debug) << input_ptr << ", " << output_ptr << "\n";
     kernels::transpose_k<<<grid, block, 0, stream>>>(input_ptr,
                                                      output_ptr,
                                                      input_nantennas,

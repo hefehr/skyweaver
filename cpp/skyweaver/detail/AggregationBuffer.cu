@@ -54,7 +54,7 @@ void AggregationBuffer<T>::push_back(
         throw std::runtime_error(
             "input size is not a multiple of the slot size");
     }
-    std::size_t nslots_to_copy = size / _batch_size;
+    std::size_t nslots_to_copy = size / _batch_size; // for incoherent dedisperser, batch size is FB size
     // BOOST_LOG_TRIVIAL(debug) << "Agg: nslots_to_copy = " << nslots_to_copy;
     while(nslots_to_copy > 0) {
         std::size_t rslots = remaining_slots();

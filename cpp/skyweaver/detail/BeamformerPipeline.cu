@@ -77,10 +77,10 @@ BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
     _weights_manager.reset(new WeightsManager(_config, _processing_stream));
     _stats_manager.reset(new StatisticsCalculator(_config, _processing_stream));
     _transposer.reset(new Transposer(_config));
-    _coherent_beamformer.reset(new CoherentBeamformer(_config));
+    _dispenser.reset(new BufferedDispenser(_config, _processing_stream));
     _coherent_dedisperser.reset(new CoherentDedisperser(_dedisperser_config));
     _incoherent_beamformer.reset(new IncoherentBeamformer(_config));
-    _dispenser.reset(new BufferedDispenser(_config, _processing_stream));
+    _coherent_beamformer.reset(new CoherentBeamformer(_config));
     _nbeamsets = _delay_manager->nbeamsets();
     BOOST_LOG_TRIVIAL(debug)
         << "Delay model contains " << _nbeamsets << " beamsets";
@@ -159,7 +159,6 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
                            _header.nantennas,
                            _processing_stream);
     _timer.stop("transpose TAFTP to FTPA");
-    _ftpa_dedispersed.like(_ftpa_post_transpose);
     NVTX_RANGE_POP();
 
     NVTX_RANGE_PUSH("Calculate statistics");
@@ -190,6 +189,8 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
     _timer.stop("dispenser hoarding");
     NVTX_RANGE_POP();
     NVTX_RANGE_PUSH("Coherent dedispersion - beamforming loop");
+    _ftpa_dedispersed.like(_ftpa_post_transpose);
+    _ftpa_dedispersed.utc_offset(_dedisperser_config.filter_delay);
     for(unsigned int dm_idx = 0; dm_idx < _config.coherent_dms().size();
         ++dm_idx) {
         NVTX_RANGE_PUSH("Coherent dedispersion - all channels");
@@ -204,16 +205,8 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
                                               dm_idx);
             NVTX_RANGE_POP();
         }
-
-        //TODO: Get the filter delay for this DM and set the utc_offset value on _ftpa_dedispersed
-        //Does the coherent dedispersion really induce a delay here?
-
         _timer.stop("coherent dedispersion");
         NVTX_RANGE_POP();
-
-        // BOOST_LOG_TRIVIAL(debug) << "peeking _ftpa_dedispersed";
-        // peek(_ftpa_dedispersed);
-
         NVTX_RANGE_PUSH("Incoherent beamforming");
         _timer.start("incoherent beamforming");
         _incoherent_beamformer->beamform(_ftpa_dedispersed,
@@ -243,9 +236,6 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
                                        _processing_stream);
         _timer.stop("coherent beamforming");
         NVTX_RANGE_POP();
-
-        // BOOST_LOG_TRIVIAL(debug) << "peeking _btf_cbs";
-        // peek(_btf_cbs);
 
         NVTX_RANGE_PUSH("Coherent beamformer handler");
         _timer.start("coherent beam handler");
@@ -292,7 +282,7 @@ operator()(VoltageVectorTypeH const& taftp_on_host)
         static_cast<void*>(thrust::raw_pointer_cast(_taftp_from_host.data())),
         static_cast<void const*>(
             thrust::raw_pointer_cast(taftp_on_host.data())),
-        taftp_on_host.size() * sizeof(char2),
+        taftp_on_host.size() * sizeof(typename decltype(_taftp_from_host)::value_type),
         cudaMemcpyHostToDevice,
         _h2d_copy_stream));
     CUDA_ERROR_CHECK(cudaStreamSynchronize(_h2d_copy_stream));
@@ -300,10 +290,9 @@ operator()(VoltageVectorTypeH const& taftp_on_host)
     // Calculate the unix timestamp for the block that is about to be
     // processed
     _unix_timestamp =
-        _header.utc_start +
+        _header.utc_start + _utc_offset + //This UTC offset is comming from the start-time offset for file reading
         static_cast<long double>(_call_count * _sample_clock_tick_per_block) /
-            _header.sample_clock +
-        _utc_offset; //This UTC offset is comming from the start-time offset for file reading
+            _header.sample_clock;
     process();
     CUDA_ERROR_CHECK(cudaStreamSynchronize(_processing_stream));
     CUDA_ERROR_CHECK(cudaStreamSynchronize(_d2h_copy_stream));

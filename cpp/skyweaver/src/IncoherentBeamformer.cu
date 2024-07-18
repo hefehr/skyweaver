@@ -118,16 +118,12 @@ void IncoherentBeamformer<BfTraits>::beamform(
 {
     // First work out nsamples and resize output if not done already
     BOOST_LOG_TRIVIAL(debug) << "Executing incoherent beamforming";
-    const std::size_t fpa_size =
-        _config.npol() * _config.nantennas() * _config.nchans();
-    if(input.size() % fpa_size != 0) {
-        throw std::runtime_error("Input is not a whole number of FPA blocks");
-    }
+    
     if(nbeamsets <= 0) {
         throw std::runtime_error(
             "Number of beamsets must be greater than zero");
     }
-    std::size_t ntimestamps = input.size() / fpa_size;
+    std::size_t nsamples = input.nsamples();
     std::size_t output_size =
         (input.size() / _config.nantennas() / _config.npol() /
          _config.ib_tscrunch() / _config.ib_fscrunch()) *
@@ -135,12 +131,12 @@ void IncoherentBeamformer<BfTraits>::beamform(
     BOOST_LOG_TRIVIAL(debug) << "Resizing output buffer from " << output.size()
                              << " to " << output_size << " elements";
     output.resize({static_cast<std::size_t>(nbeamsets),
-                   ntimestamps / _config.ib_tscrunch(),
+                    nsamples / _config.ib_tscrunch(),
                    _config.nchans() / _config.ib_fscrunch()});
     output.metalike(input);
     output.tsamp(input.tsamp() * _config.ib_tscrunch());
     output_raw.resize({static_cast<std::size_t>(nbeamsets),
-                       ntimestamps / _config.ib_tscrunch(),
+                        nsamples / _config.ib_tscrunch(),
                        _config.nchans() / _config.ib_fscrunch()});
     output_raw.metalike(input);
     output_raw.tsamp(input.tsamp() * _config.ib_tscrunch());
@@ -157,7 +153,7 @@ void IncoherentBeamformer<BfTraits>::beamform(
             "Antenna weights vector is not nantennas x nbeamsets in size");
     }
     dim3 block(_config.nantennas());
-    dim3 grid(ntimestamps / _config.ib_tscrunch(),
+    dim3 grid(nsamples / _config.ib_tscrunch(),
               _config.nchans() / _config.ib_fscrunch());
     char2 const* ftpa_voltages_ptr = thrust::raw_pointer_cast(input.data());
     float const* output_scale_ptr =
@@ -179,7 +175,7 @@ void IncoherentBeamformer<BfTraits>::beamform(
                                      output_scale_ptr,
                                      output_offset_ptr,
                                      antenna_weights_ptr,
-                                     static_cast<int>(ntimestamps),
+                                     static_cast<int>(nsamples),
                                      nbeamsets);
     CUDA_ERROR_CHECK(cudaStreamSynchronize(stream));
     BOOST_LOG_TRIVIAL(debug) << "Incoherent beamforming kernel complete";

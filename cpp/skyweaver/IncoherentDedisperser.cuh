@@ -25,7 +25,7 @@ class IncoherentDedisperser
     void dedisperse(InputVectorType const& tfb_powers,
                     OutputVectorType& tdb_powers);
     std::vector<int> const& delays() const;
-    int max_delay() const;
+    int max_sample_delay() const;
 
   private:
     void prepare();
@@ -33,7 +33,7 @@ class IncoherentDedisperser
     PipelineConfig const& _config;
     std::vector<float> _dms;
     std::size_t _tscrunch;
-    int _max_delay;
+    int _max_sample_delay;
     float _scale_factor;
     std::vector<int> _delays;
 };

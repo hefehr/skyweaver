@@ -73,7 +73,7 @@ DelayManager::DelayVectorTypeD const& DelayManager::delays(double epoch)
     }
     // Resize the arrays for the delay model on the GPU
     const std::size_t out_nelements = _config.nantennas() * _config.nbeams();
-    _delays_d.resize(out_nelements, {0.0f, 0.0f, 0.0f});
+    _delays_d.resize(out_nelements, {0.0f, 0.0f, 0.0f}); // scalar weights, offset, rate
 
     // In order to ensure that the correct sizes are available for the pipeline
     // implementation, we here pad the delays array out to the maximum number of
@@ -86,7 +86,7 @@ DelayManager::DelayVectorTypeD const& DelayManager::delays(double epoch)
     unsigned dev_pitch  = _config.nantennas() * sizeof(DelayModel);
     unsigned ncols      = _model_header.nantennas * sizeof(DelayModel);
     unsigned nrows      = _model_header.nbeams;
-
+    // This pads out the remaining antennas with zeros
     // This could be made async
     CUDA_ERROR_CHECK(cudaMemcpy2D(dev_ptr,
                                   dev_pitch,
@@ -100,10 +100,7 @@ DelayManager::DelayVectorTypeD const& DelayManager::delays(double epoch)
 
 bool DelayManager::validate_model(double epoch) const
 {
-    if(_model_header.nbeams > _config.nbeams()) {
-        throw std::runtime_error(
-            "Delay model contains too many beams for current skyweaver build");
-    }
+    
     if((_model_header.nbeams != _valid_nbeams) ||
        (_model_header.nantennas != _valid_nantennas)) {
         throw std::runtime_error(
@@ -137,6 +134,11 @@ void DelayManager::read_next_model()
     BOOST_LOG_TRIVIAL(debug) << "Reading delay model from file";
     // Read the model header
     safe_read(reinterpret_cast<char*>(&_model_header), sizeof(_model_header));
+
+    if(_model_header.nbeams > _config.nbeams()) {
+        throw std::runtime_error(
+            "Delay model contains too many beams for current skyweaver build");
+    }
 
     BOOST_LOG_TRIVIAL(debug) << "Delay model read successful";
     BOOST_LOG_TRIVIAL(debug) << "Delay model parameters: " << "Nantennas = "

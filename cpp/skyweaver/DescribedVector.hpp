@@ -447,6 +447,14 @@ struct DescribedVector {
      */
     double utc_offset() const { return _utc_offset; }
 
+
+    /**
+     * @brief Set the latency of this data w.r.t. the stream
+     *
+     * @param offset The latency in seconds
+     */
+    void utc_offset(double offset) { _utc_offset = offset; }
+
     /**
      * @brief Get the sizes of each of the dimensions
      *

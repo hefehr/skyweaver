@@ -93,7 +93,6 @@ class CoherentBeamformer
 
   private:
     PipelineConfig const& _config;
-    std::size_t _size_per_sample; // data size per time sample: F*P*A
 };
 
 extern template class CoherentBeamformer<

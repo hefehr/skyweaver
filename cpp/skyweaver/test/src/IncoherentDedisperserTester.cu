@@ -46,7 +46,7 @@ TYPED_TEST(IncoherentDedisperserTester, zero_dm_delays_test)
     for(int const& delay: delays) {
         EXPECT_EQ(delay, 0) << "Delays not equal to zero";
     }
-    ASSERT_EQ(dedisperser.max_delay(), 0);
+    ASSERT_EQ(dedisperser.max_sample_delay(), 0);
 }
 
 TYPED_TEST(IncoherentDedisperserTester, ones_test)
@@ -60,8 +60,8 @@ TYPED_TEST(IncoherentDedisperserTester, ones_test)
     ASSERT_EQ(delays.size(),
               dms.size() * this->_config.channel_frequencies().size())
         << "Delay vector has unexpected length";
-    ASSERT_GT(dedisperser.max_delay(), 0);
-    std::size_t nsamples = dedisperser.max_delay() * 2;
+    ASSERT_GT(dedisperser.max_sample_delay(), 0);
+    std::size_t nsamples = dedisperser.max_sample_delay() * 2;
     thrust::host_vector<typename Traits::InputType,
                         PinnedAllocator<typename Traits::InputType>>
         data(this->_config.nbeams() * nsamples * this->_config.nchans(),
@@ -69,7 +69,7 @@ TYPED_TEST(IncoherentDedisperserTester, ones_test)
     TDBPowersH<typename Traits::OutputType> output;
     dedisperser.dedisperse(data, output);
     ASSERT_EQ(output.size(),
-              (nsamples - dedisperser.max_delay()) * dms.size() *
+              (nsamples - dedisperser.max_sample_delay()) * dms.size() *
                   this->_config.nbeams());
     for(auto const& val: output) {
         EXPECT_EQ(val,
@@ -87,7 +87,7 @@ TYPED_TEST(IncoherentDedisperserTester, too_few_samples_test)
     IncoherentDedisperser dedisperser(this->_config, dms);
     thrust::host_vector<typename Traits::InputType,
                         PinnedAllocator<typename Traits::InputType>>
-        data(this->_config.nbeams() * dedisperser.max_delay() *
+        data(this->_config.nbeams() * dedisperser.max_sample_delay() *
              this->_config.nchans());
     TDBPowersH<typename Traits::OutputType> output;
     EXPECT_THROW(dedisperser.dedisperse(data, output), std::runtime_error);
@@ -105,9 +105,9 @@ TYPED_TEST(IncoherentDedisperserTester, ones_test_wtscrunch)
     ASSERT_EQ(delays.size(),
               dms.size() * this->_config.channel_frequencies().size())
         << "Delay vector has unexpected length";
-    ASSERT_GT(dedisperser.max_delay(), 0);
+    ASSERT_GT(dedisperser.max_sample_delay(), 0);
     std::size_t nsamples =
-        dedisperser.max_delay() * 2 + dedisperser.max_delay();
+        dedisperser.max_sample_delay() * 2 + dedisperser.max_sample_delay();
     thrust::host_vector<typename Traits::InputType,
                         PinnedAllocator<typename Traits::InputType>>
         data(this->_config.nbeams() * nsamples * this->_config.nchans(),
@@ -115,7 +115,7 @@ TYPED_TEST(IncoherentDedisperserTester, ones_test_wtscrunch)
     TDBPowersH<typename Traits::OutputType> output;
     dedisperser.dedisperse(data, output);
     ASSERT_EQ(output.size(),
-              (nsamples - dedisperser.max_delay()) / tscrunch * dms.size() *
+              (nsamples - dedisperser.max_sample_delay()) / tscrunch * dms.size() *
                   this->_config.nbeams());
     for(auto const& val: output) {
         EXPECT_EQ(val,

@@ -33,6 +33,7 @@ struct CoherentDedisperserConfig {
     std::size_t num_coarse_chans;
     std::size_t npols;
     std::size_t nantennas;
+    double filter_delay;
     double tsamp;
     double bw;
     double low_freq;
@@ -48,7 +49,7 @@ struct CoherentDedisperserConfig {
     std::vector<thrust::device_vector<cufftComplex>> _d_ism_responses;
 
     cufftHandle _fft_plan;
-    // cufftHandle _i_fft_plan;
+    
 };
 
 void get_dm_responses(CoherentDedisperserConfig& config,
@@ -71,9 +72,7 @@ void create_coherent_dedisperser_config(CoherentDedisperserConfig& config,
 class CoherentDedisperser
 {
   public:
-    static double
-    get_dm_delay(double f1, double f2, double dm); // f1 and f2 in MHz
-    CoherentDedisperser(CoherentDedisperserConfig& config): config(config) {}
+    CoherentDedisperser(CoherentDedisperserConfig& config): _config(config) {}
     ~CoherentDedisperser() {};
     void dedisperse(TPAVoltagesD<char2> const& d_tpa_voltages_in,
                     FTPAVoltagesD<char2>& d_ftpa_voltages_out,
@@ -81,13 +80,13 @@ class CoherentDedisperser
                     unsigned int dm_idx);
 
   private:
-    CoherentDedisperserConfig& config;
-    thrust::device_vector<cufftComplex> d_fpa_spectra;
-    thrust::device_vector<cufftComplex> d_tpa_voltages_out_temp;
-    thrust::device_vector<cufftComplex> d_tpa_voltages_temp;
+    CoherentDedisperserConfig& _config;
+    thrust::device_vector<cufftComplex> _d_fpa_spectra;
+    thrust::device_vector<cufftComplex> _d_tpa_voltages_out_temp;
+    thrust::device_vector<cufftComplex> _d_tpa_voltages_temp;
     void multiply_by_chirp(
-        thrust::device_vector<cufftComplex> const& d_fpa_spectra_in,
-        thrust::device_vector<cufftComplex>& d_fpa_spectra_out,
+        thrust::device_vector<cufftComplex> const& _d_fpa_spectra_in,
+        thrust::device_vector<cufftComplex>& _d_fpa_spectra_out,
         unsigned int freq_idx,
         unsigned int dm_idx);
 };

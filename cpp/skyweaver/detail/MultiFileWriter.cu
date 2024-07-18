@@ -185,9 +185,10 @@ MultiFileWriter<VectorType>::get_output_dir(VectorType const& stream_data,
     // <utcstart>/<freq:%f.02>/<stream_id>
     std::stringstream output_dir;
     output_dir << _config.output_dir() << "/"
-               << get_formatted_time(_header.utc_start) << "/" << std::fixed
-               << std::setprecision(0) << std::setfill('0') << std::setw(9)
-               << _header.frequency << "/" << stream_idx;
+               << get_formatted_time(_header.utc_start) << "/" 
+               << stream_idx << "/" 
+               << std::fixed << std::setfill('0') << std::setw(9)
+               << static_cast<int>(_header.frequency);
     return output_dir.str();
 }
 

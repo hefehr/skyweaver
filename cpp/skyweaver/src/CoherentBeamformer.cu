@@ -146,9 +146,6 @@ __global__ void bf_ftpa_general_k(
     int const output_sample_idx = sample_offset / SKYWEAVER_CB_TSCRUNCH;
     int const nsamps_out        = nsamples / SKYWEAVER_CB_TSCRUNCH;
 
-    // Specify BTF order outputs
-    // int const output_idx        = beam_idx * nsamps_out * gridDim.y +
-    //                              output_sample_idx * gridDim.y + blockIdx.y;
 
     // Specify TFB order outputs
     int const output_idx = output_sample_idx * gridDim.y * SKYWEAVER_NBEAMS // T
@@ -180,11 +177,10 @@ __global__ void bf_ftpa_general_k(
 
 template <typename BfTraits>
 CoherentBeamformer<BfTraits>::CoherentBeamformer(PipelineConfig const& config)
-    : _config(config), _size_per_sample(0)
+    : _config(config)
 {
     BOOST_LOG_TRIVIAL(debug) << "Constructing CoherentBeamformer instance";
-    _size_per_sample = _config.npol() * _config.nantennas() * _config.nchans();
-    BOOST_LOG_TRIVIAL(debug) << "Size per sample: " << _size_per_sample;
+
 }
 
 template <typename BfTraits>
@@ -205,12 +201,12 @@ void CoherentBeamformer<BfTraits>::beamform(
     cudaStream_t stream)
 {
     if(output_scale.size() !=
-       SKYWEAVER_NCHANS / SKYWEAVER_CB_FSCRUNCH * nbeamsets) {
+        _config.nchans() / _config.cb_fscrunch() * nbeamsets) {
         throw std::runtime_error(
             "Unexpected number of channels in scaling vector");
     }
     if(output_offset.size() !=
-       SKYWEAVER_NCHANS / SKYWEAVER_CB_FSCRUNCH * nbeamsets) {
+        _config.nchans() / _config.cb_fscrunch() * nbeamsets) {
         throw std::runtime_error(
             "Unexpected number of channels in offset vector ");
     }
@@ -219,14 +215,17 @@ void CoherentBeamformer<BfTraits>::beamform(
     }
     // First work out nsamples and resize output if not done already
     BOOST_LOG_TRIVIAL(debug) << "Executing coherent beamforming";
-    assert(input.size() % _size_per_sample == 0);
-    std::size_t nsamples = input.size() / _size_per_sample;
+    std::size_t nsamples = input.nsamples();
     std::size_t output_size =
         (input.size() / _config.nantennas() / _config.npol() /
          _config.cb_tscrunch() / _config.cb_fscrunch() * _config.nbeams());
-    assert(nsamples % SKYWEAVER_CB_NSAMPLES_PER_BLOCK == 0);
+    if(nsamples % SKYWEAVER_CB_NSAMPLES_PER_BLOCK != 0){
+        throw std::runtime_error("Number of samples must be a multiple of SKYWEAVER_CB_NSAMPLES_PER_BLOCK");
+    }
     std::size_t nsamples_out = nsamples / _config.cb_tscrunch();
-    assert(nsamples_out % SKYWEAVER_CB_NSAMPLES_PER_HEAP == 0);
+    if(nsamples_out % SKYWEAVER_CB_NSAMPLES_PER_HEAP != 0){
+        throw std::runtime_error("Number of samples must be a multiple of SKYWEAVER_CB_NSAMPLES_PER_HEAP");
+    }
     BOOST_LOG_TRIVIAL(debug) << "Resizing output buffer from " << output.size()
                              << " to " << output_size << " elements";
     output.resize({nsamples / _config.cb_tscrunch(),

@@ -33,7 +33,7 @@ void BufferedDispenser::hoard(FTPAVoltagesTypeD const& new_ftpa_voltages_in)
         _d_channeled_tpa_voltages[i].frequencies(freqs[i]);
     }
 
-    char2 zeros{};
+    typename FTPAVoltagesTypeD::value_type zeros{};
     for(std::size_t i = 0; i < _config.nchans(); i++) {
         if(_d_prev_channeled_tpa_voltages.size() ==
            0) { // if first time set overlaps as zeros

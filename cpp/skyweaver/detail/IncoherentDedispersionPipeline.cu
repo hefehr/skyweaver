@@ -21,7 +21,7 @@ IncoherentDedispersionPipeline<InputType, OutputType, Handler>::
             new DedisperserType(_config,
                                 blocks[block_idx].incoherent_dms,
                                 blocks[block_idx].tscrunch));
-        int max_delay = _dedispersers[block_idx]->max_delay();
+        int max_delay = _dedispersers[block_idx]->max_sample_delay();
         BOOST_LOG_TRIVIAL(debug)
             << "Created dedisperser for block = " << block_idx
             << " (max_delay = " << max_delay
@@ -69,9 +69,7 @@ void IncoherentDedispersionPipeline<InputType, OutputType, Handler>::
     BOOST_LOG_TRIVIAL(debug) << "Dedispersion complete, calling handler";
     BOOST_LOG_TRIVIAL(debug) << _output_buffers[ref_dm_idx].vector().size();
     auto const& plan = _config.ddplan();
-    // Set the correct tsamp on the block
-    _output_buffers[ref_dm_idx].tsamp(_output_buffers[ref_dm_idx].tsamp() *
-                                      plan[ref_dm_idx].tscrunch);
+
     // Set the correct DMs on the block
     _output_buffers[ref_dm_idx].dms(plan[ref_dm_idx].incoherent_dms);
     _output_buffers[ref_dm_idx].reference_dm(plan[ref_dm_idx].coherent_dm);
@@ -88,13 +86,14 @@ template <typename InputType, typename OutputType, typename Handler>
 void IncoherentDedispersionPipeline<InputType, OutputType, Handler>::init(
     ObservationHeader const& header)
 {
-    std::size_t nchans = _config.channel_frequencies().size();
+    std::size_t nchans = _config.nchans();
     long double chbw   = _config.bandwidth() / _config.nchans();
-    long double tsamp  = _config.cb_tscrunch() / chbw;
+    long double tsamp  = _config.cb_tscrunch() * 1.0 / chbw;
     std::vector<long double> dm_delays(_config.coherent_dms().size());
     for(std::size_t ref_dm_idx = 0; ref_dm_idx < _config.coherent_dms().size();
         ++ref_dm_idx) {
-        dm_delays[ref_dm_idx] = _dedispersers[ref_dm_idx]->max_delay() * tsamp;
+        dm_delays[ref_dm_idx] =
+            _dedispersers[ref_dm_idx]->max_sample_delay() * tsamp;
     }
     _handler.init(header);
 }
@@ -107,6 +106,9 @@ void IncoherentDedispersionPipeline<InputType, OutputType, Handler>::operator()(
     _output_buffers[ref_dm_idx].metalike(data);
     _output_buffers[ref_dm_idx].tsamp(data.tsamp() *
                                       _config.ddplan()[ref_dm_idx].tscrunch);
+    _output_buffers[ref_dm_idx].utc_offset(
+        data.utc_offset() +
+        _dedispersers[ref_dm_idx]->max_sample_delay() * data.tsamp());
     _agg_buffers[ref_dm_idx]->push_back(data.vector());
 }
 

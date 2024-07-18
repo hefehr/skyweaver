@@ -5,7 +5,7 @@ import scipy.signal as sc
 
 DM_CONST=4.148806423e9
 def dm_delay(nu1, nu2, dm, tsamp):
-   return ((1/pow(nu1/1000,2.0)) - (1/pow(nu2/1000, 2.0)))*dm*0.00415/tsamp
+   return ((1/pow(nu1/1000,2.0)) - (1/pow(nu2/1000, 2.0)))*dm*0.004148806423/tsamp
 
 # create TAFTP voltages
 

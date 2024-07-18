@@ -31,6 +31,7 @@ void read_dada_header(psrdada_cpp::RawBytes& raw_header,
     header.telescope   = parser.get<decltype(header.telescope)>("TELESCOPE");
     header.instrument  = parser.get<decltype(header.instrument)>("INSTRUMENT");
     header.chan0_idx   = parser.get<decltype(header.chan0_idx)>("CHAN0_IDX");
+    header.obs_offset  = parser.get<decltype(header.obs_offset)>("OBS_OFFSET");
 }
 
 void validate_header(ObservationHeader const& header,
@@ -88,7 +89,9 @@ std::string ObservationHeader::to_string() const
         << "  dec: " << dec << "\n"
         << "  telescope: " << telescope << "\n"
         << "  instrument: " << instrument << "\n"
-        << "  chan0_idx: " << chan0_idx << "\n";
+        << "  chan0_idx: " << chan0_idx << "\n"
+        << "  obs_offset: " << obs_offset << "\n";
+
     return oss.str();
 }
 

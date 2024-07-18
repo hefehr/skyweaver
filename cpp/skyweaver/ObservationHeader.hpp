@@ -27,6 +27,7 @@ struct ObservationHeader {
     long double sync_time    = 0.0; // The UNIX epoch of the sampler zero
     long double utc_start    = 0.0; // The UTC start time of the data
     long double mjd_start    = 0.0; // The MJD start time of the data
+    std::size_t obs_offset   = 0;   // The offset of the current file from UTC_START in bytes
     std::string source_name;        // Name of observation target
     std::string ra;                 // Right ascension
     std::string dec;                // Declination

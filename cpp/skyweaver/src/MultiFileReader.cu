@@ -54,7 +54,7 @@ MultiFileReader::MultiFileReader(PipelineConfig const& config)
         f.seekg(0, std::ios::end); // Move to the end of the file
         std::size_t size = f.tellg();
         _total_size += (size - _dada_header_size); // skip header
-        sizes.push_back(size - _dada_header_size);
+        _sizes.push_back(size - _dada_header_size);
         BOOST_LOG_TRIVIAL(debug)
             << "File: " << file << " Binary size:" << size - _dada_header_size;
         f.close();
@@ -70,27 +70,21 @@ MultiFileReader::MultiFileReader(PipelineConfig const& config)
 
 void MultiFileReader::check_contiguity()
 {
-    for(size_t i = 0; i < headers.size() - 1; i++) {
-        auto header1 = headers[i];
-        auto header2 = headers[i + 1];
-        std::size_t header1_nsamples =
-            get_total_size() / (header1.nantennas * header1.nchans *
-                                header1.npol * header1.nbits * 2 / 8);
-        BOOST_LOG_TRIVIAL(debug)
-            << "Header1 mjd_start: " << std::setprecision(15)
-            << header1.mjd_start;
-        BOOST_LOG_TRIVIAL(debug)
-            << "Header2 mjd_start: " << std::setprecision(15)
-            << header2.mjd_start;
-        BOOST_LOG_TRIVIAL(debug) << "Header1 nsamples: " << header1_nsamples;
-        float time1 = header1_nsamples * header1.tsamp / 86400.0;
-        if(header2.mjd_start != header1.mjd_start + time1) {
-            throw std::runtime_error(
-                "These are not contiguous:" + _dada_files[i] + " and " +
-                _dada_files[i + 1] + " -> " +
-                std::to_string(header1.mjd_start + time1) +
-                " != " + std::to_string(header2.mjd_start));
+    std::size_t size_so_far = _sizes[0];
+
+    for(int i=1; i < _sizes.size(); i++) {
+        BOOST_LOG_TRIVIAL(debug) << "Checking contiguity between " << _dada_files[i-1] << " and " << _dada_files[i];
+        BOOST_LOG_TRIVIAL(debug) << "Offset of " << _dada_files[i-1] << " is " << _headers[i-1].obs_offset;
+        BOOST_LOG_TRIVIAL(debug) << "Offset of " << _dada_files[i] << " is " << _headers[i].obs_offset;
+        BOOST_LOG_TRIVIAL(debug) << "Size so far: " << size_so_far;
+        if(_headers[i].obs_offset != size_so_far) {
+            throw std::runtime_error("These are not contiguous:" + _dada_files[i-1] + " and " + _dada_files[i]);
         }
+        size_so_far += _sizes[i];
+       
+    }
+    if(size_so_far != _total_size) {
+        throw std::runtime_error("Total size does not match the sum of individual sizes");
     }
 }
 
@@ -108,26 +102,26 @@ void MultiFileReader::read_header(std::vector<char>& header_bytes)
 
     ObservationHeader header;
     read_dada_header(block, header);
-    headers.push_back(header);
+    _headers.push_back(header);
 
     BOOST_LOG_TRIVIAL(debug) << "Header parameters: " << this->header;
 }
 
 skyweaver::ObservationHeader const& MultiFileReader::get_header() const
 {
-    return headers[0];
+    return _headers[0];
 }
 
 skyweaver::ObservationHeader const& MultiFileReader::get_current_header() const
 {
-    return headers[_current_file_idx];
+    return _headers[_current_file_idx];
 }
 
 void MultiFileReader::open()
 {
     BOOST_LOG_TRIVIAL(debug)
         << "Opening file: " << _dada_files[_current_file_idx]
-        << "of size: " << sizes[_current_file_idx];
+        << "of size: " << _sizes[_current_file_idx];
     _current_stream.open(_dada_files[_current_file_idx],
                          std::ifstream::in | std::ifstream::binary);
     if(_current_stream.good()) {
@@ -148,7 +142,7 @@ void MultiFileReader::open_next()
 {
     BOOST_LOG_TRIVIAL(debug)
         << "Opening next file: " << _dada_files[_current_file_idx]
-        << "of size: " << sizes[_current_file_idx];
+        << "of size: " << _sizes[_current_file_idx];
     _current_file_idx++;
     if(_current_file_idx < _dada_files.size()) {
         _current_stream.close();
@@ -197,10 +191,10 @@ void MultiFileReader::seekg(long pos, std::ios_base::seekdir dir)
 
     std::size_t cumulativeSize = 0;
     for(size_t i = 0; i < _dada_files.size(); i++) {
-        cumulativeSize += sizes[i];
+        cumulativeSize += _sizes[i];
         if(targetPos < cumulativeSize) {
             std::size_t filePos =
-                targetPos - cumulativeSize + sizes[i]; // position in file
+                targetPos - cumulativeSize + _sizes[i]; // position in file
             if(_current_file_idx != i) {
                 _current_stream.close();
                 _current_file_idx = i;

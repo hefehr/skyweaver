@@ -22,6 +22,9 @@ MultiFileReaderTester::MultiFileReaderTester(): ::testing::Test()
     nchans      = header.nchans;
     npols       = header.npol;
     nbits       = header.nbits;
+
+    BOOST_LOG_TRIVIAL(debug) << "Header read,total filesize is:" << multi_file_reader->get_total_size();
+    
 }
 
 MultiFileReaderTester::~MultiFileReaderTester()
@@ -83,7 +86,7 @@ TEST_F(MultiFileReaderTester, testMultiFileReader)
     full_file.read(reinterpret_cast<char*>(
                        thrust::raw_pointer_cast(full_file_voltages.data())),
                    static_cast<std::streamsize>(nantennas * nchans * npols *
-                                                nsamples_gulp));
+                                                nsamples_gulp* sizeof(valType)));
 
     for(int i = 0; i < multi_file_voltages.size(); i++) {
         ASSERT_EQ(multi_file_voltages[i].x, full_file_voltages[i].x);

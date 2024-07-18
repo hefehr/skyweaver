@@ -28,8 +28,8 @@ class skyweaver::MultiFileReader
   private:
     PipelineConfig const& _config;
     std::vector<std::string> _dada_files;
-    std::vector<std::size_t> sizes;
-    std::vector<ObservationHeader> headers;
+    std::vector<std::size_t> _sizes;
+    std::vector<ObservationHeader> _headers;
     std::ifstream _current_stream;
     int _current_file_idx;
     std::size_t _current_position;

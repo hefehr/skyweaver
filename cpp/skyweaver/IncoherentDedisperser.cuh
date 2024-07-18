@@ -6,27 +6,7 @@
 namespace skyweaver
 {
 
-/**
-
-New plan...
-
-Incoherent dedispersion with be done on the host system
-
-There will be one thread per coherent/incoherent DM.
-
-Should accept multiple incoherent DMs per coherent DM but the principal
-use case it to compute one DM per coherent DM.
-
-Should output one file per DM in TB order (beams on inner dimension)
-File writing should be handled by downstream system
-
-Data from the GPU will come in TBTF order
-
-First implement brute force method.
-
-These should be async with respect to the handler
-
-*/
+//TODO: Document this interface
 
 class IncoherentDedisperser
 {

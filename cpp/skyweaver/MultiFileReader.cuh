@@ -21,6 +21,8 @@ namespace skyweaver
 class MultiFileReader;
 }
 
+//TODO: Document this interface
+
 class skyweaver::MultiFileReader
 {
   private:

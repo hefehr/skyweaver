@@ -15,6 +15,8 @@
 #include <thrust/sequence.h>
 #include <thrust/transform.h>
 
+//TODO: Document this interface
+
 namespace skyweaver
 {
 class BufferedDispenser;

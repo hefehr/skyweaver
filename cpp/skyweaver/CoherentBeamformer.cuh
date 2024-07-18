@@ -7,6 +7,8 @@
 #include "skyweaver/beamformer_utils.cuh"
 #include "thrust/device_vector.h"
 
+//TODO: improve documentation to capture the details of the beamsets and IB subtraction
+
 namespace skyweaver
 {
 namespace kernels

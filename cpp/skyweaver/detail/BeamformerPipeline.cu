@@ -204,6 +204,10 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
                                               dm_idx);
             NVTX_RANGE_POP();
         }
+
+        //TODO: Get the filter delay for this DM and set the utc_offset value on _ftpa_dedispersed
+        //Does the coherent dedispersion really induce a delay here?
+
         _timer.stop("coherent dedispersion");
         NVTX_RANGE_POP();
 
@@ -299,7 +303,7 @@ operator()(VoltageVectorTypeH const& taftp_on_host)
         _header.utc_start +
         static_cast<long double>(_call_count * _sample_clock_tick_per_block) /
             _header.sample_clock +
-        _utc_offset;
+        _utc_offset; //This UTC offset is comming from the start-time offset for file reading
     process();
     CUDA_ERROR_CHECK(cudaStreamSynchronize(_processing_stream));
     CUDA_ERROR_CHECK(cudaStreamSynchronize(_d2h_copy_stream));

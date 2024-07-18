@@ -12,9 +12,8 @@
 #include <thrust/host_vector.h>
 #include <vector>
 
-#define DM_CONST 4.148806423e9 // MHz^2 pc^-1 cm^3 us
-#define PI       acos(-1.0)
-#define TWO_PI   2 * acos(-1.0)
+//TODO: Document this interface
+//TODO: Add function to return the filter delay
 
 namespace skyweaver
 {

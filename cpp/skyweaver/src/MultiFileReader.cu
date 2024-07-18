@@ -39,7 +39,7 @@ MultiFileReader::MultiFileReader(PipelineConfig const& config)
     static_assert(sizeof(char2) == 2 * sizeof(char),
                   "Size of char2 is not as expected");
 
-    std::size_t _total_size = 0;
+    this->_total_size       = 0;
     this->_dada_files       = config.input_files();
     this->_dada_header_size = config.dada_header_size();
     std::vector<char> header_bytes(_dada_header_size);

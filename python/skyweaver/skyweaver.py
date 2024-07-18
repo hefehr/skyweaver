@@ -570,10 +570,6 @@ class SessionMetadata:
                         np.timedelta64(1, 's')
                     if duration < min_duration.to(u.s).value:
                         continue
-                    if overlap_end == sentinel_time:
-                        # We convert sentinel time to None to remove any ambiguity
-                        # a value of None implies "to the end of the session"
-                        overlap_end = None
                     overlaps.append((
                         Time(overlap_start),
                         Time(overlap_end),

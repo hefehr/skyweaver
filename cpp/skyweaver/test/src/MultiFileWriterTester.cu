@@ -46,6 +46,7 @@ TEST_F(MultiFileWriterTester, simple_updating_write)
     MultiFileWriter<InputType> mfw(_config);
     _config.max_output_filesize(1000);
     InputType powers({_config.nsamples_per_block(), 64, _config.nbeams()});
+    powers.dms({0.0});
     ObservationHeader header;
     header.nchans = _config.nchans();
     header.tsamp  = 0.000064;

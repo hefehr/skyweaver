@@ -27,7 +27,7 @@ void create_directories(const fs::path& path)
     }
 }
 
-FileStream::File::File(std::string const& fname, std::size_t bytes)
+FileOutputStream::File::File(std::string const& fname, std::size_t bytes)
     : _full_path(fname), _bytes_requested(bytes), _bytes_written(0)
 {
     _stream.exceptions(std::ofstream::failbit | std::ofstream::badbit);
@@ -42,7 +42,7 @@ FileStream::File::File(std::string const& fname, std::size_t bytes)
     }
 }
 
-FileStream::File::~File()
+FileOutputStream::File::~File()
 {
     if(_stream.is_open()) {
         BOOST_LOG_TRIVIAL(info) << "Closing file " << _full_path;
@@ -50,7 +50,7 @@ FileStream::File::~File()
     }
 }
 
-std::size_t FileStream::File::write(char const* ptr, std::size_t bytes)
+std::size_t FileOutputStream::File::write(char const* ptr, std::size_t bytes)
 {
     BOOST_LOG_TRIVIAL(debug)
         << "Writing " << bytes << " bytes to " << _full_path;
@@ -75,7 +75,7 @@ std::size_t FileStream::File::write(char const* ptr, std::size_t bytes)
     }
 }
 
-FileStream::FileStream(std::string const& directory,
+FileOutputStream::FileOutputStream(std::string const& directory,
                        std::string const& base_filename,
                        std::string const& extension,
                        std::size_t bytes_per_file,
@@ -99,14 +99,14 @@ FileStream::FileStream(std::string const& directory,
     create_directories(directory);
 }
 
-FileStream::~FileStream()
+FileOutputStream::~FileOutputStream()
 {
     if(_current_file) {
         _current_file.reset(nullptr);
     }
 }
 
-void FileStream::write(char const* ptr, std::size_t bytes)
+void FileOutputStream::write(char const* ptr, std::size_t bytes)
 {
     BOOST_LOG_TRIVIAL(debug) << "Writing " << bytes << " bytes to file stream";
     if(_current_file) {
@@ -122,7 +122,7 @@ void FileStream::write(char const* ptr, std::size_t bytes)
     }
 }
 
-void FileStream::new_file()
+void FileOutputStream::new_file()
 {
     std::stringstream full_path;
     full_path << _directory << "/" << _base_filename << "_" << std::setfill('0')

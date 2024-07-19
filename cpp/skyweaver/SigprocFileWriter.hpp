@@ -147,7 +147,7 @@ class SigprocFileWriter
     std::size_t _total_bytes;
     bool _new_stream_required;
     FilHead _header;
-    std::unique_ptr<FileStream> _stream;
+    std::unique_ptr<FileOutputStream> _stream;
 };
 } // namespace skyweaver
 

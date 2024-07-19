@@ -130,7 +130,7 @@ void SigprocFileWriter::new_stream()
         base_filename << "_" << _tag;
     }
 
-    _stream.reset(new FileStream(
+    _stream.reset(new FileOutputStream(
         _outdir,
         base_filename.str(),
         _extension,

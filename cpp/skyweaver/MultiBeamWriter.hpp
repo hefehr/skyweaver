@@ -15,21 +15,23 @@
 namespace skyweaver
 {
 
-class Bridge
+struct Bridge
 {
+  private:
+      using  PowerType = std::vector<int8_t>;
   public:
-    typedef std::vector<int8_t> PowerType;
-    std::vector<std::string> tdb_filenames;
-    std::vector<std::string> beam_filenames;
+    std::vector<std::string> _tdb_filenames;
+    std::string freq;
 
 }; // class Bridge
 
 class MultiBeamWriter
 {
   private:
-    std::vector<unsigned int> freqs;
-    std::vector<std::unique_ptr<Bridge>> bridges;
-    std::vector<bool>
+    using FreqType = unsigned int; // up to the nearest Hz
+    std::map<FreqType, std::unique_ptr<Bridge>> _bridges;
+    std::vector<std::string> _beam_filenames;
+
 
         public
         : add_bridge(FreqType freq, std::vector<std::string> tdb_filenames);

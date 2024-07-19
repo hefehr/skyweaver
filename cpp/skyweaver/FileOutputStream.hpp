@@ -10,7 +10,7 @@
 namespace skyweaver
 {
 
-class FileStream
+class FileOutputStream
 {
   public:
     typedef std::function<
@@ -63,13 +63,13 @@ class FileStream
      * @param[in]  header_updater  A callback used to get updates to the header
      * so that it can be kept up to date based on the amount of data written.
      */
-    explicit FileStream(std::string const& directory,
+    explicit FileOutputStream(std::string const& directory,
                         std::string const& base_filename,
                         std::string const& extension,
                         std::size_t bytes_per_file,
                         HeaderUpdateCallback header_updater);
-    FileStream(FileStream const&) = delete;
-    ~FileStream();
+    FileOutputStream(FileOutputStream const&) = delete;
+    ~FileOutputStream();
 
     /**
      * @brief      Write a block of data to the stream

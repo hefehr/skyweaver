@@ -99,7 +99,7 @@ bool MultiFileWriter<VectorType>::has_stream(std::size_t stream_idx)
 }
 
 template <typename VectorType>
-FileStream&
+FileOutputStream&
 MultiFileWriter<VectorType>::create_stream(VectorType const& stream_data,
                                            std::size_t stream_idx)
 {
@@ -114,7 +114,7 @@ MultiFileWriter<VectorType>::create_stream(VectorType const& stream_data,
     BOOST_LOG_TRIVIAL(debug)
         << "Maximum allowed file size = " << filesize << " bytes (+header)";
 
-    _file_streams[stream_idx] = std::make_unique<FileStream>(
+    _file_streams[stream_idx] = std::make_unique<FileOutputStream>(
         get_output_dir(stream_data, stream_idx),
         get_basefilename(stream_data, stream_idx),
         get_extension(stream_data),

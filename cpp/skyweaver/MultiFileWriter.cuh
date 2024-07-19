@@ -46,7 +46,7 @@ class MultiFileWriter
     /**
      * @brief Write data to file(s)
      *
-     * @param stream_data A DescribedVector instance
+     * @param stream_data A DescribedVector instance of streams
      * @param stream_idx  The index of the stream being written to
      * @return true
      * @return false
@@ -64,7 +64,7 @@ class MultiFileWriter
 
   private:
     bool has_stream(std::size_t stream_idx);
-    FileStream& create_stream(VectorType const& stream_data,
+    FileOutputStream& create_stream(VectorType const& stream_data,
                               std::size_t stream_idx);
     std::string get_output_dir(VectorType const& stream_data,
                                std::size_t stream_idx);
@@ -75,7 +75,7 @@ class MultiFileWriter
     PipelineConfig const& _config;
     std::string _tag;
     ObservationHeader _header;
-    std::map<std::size_t, std::unique_ptr<FileStream>> _file_streams;
+    std::map<std::size_t, std::unique_ptr<FileOutputStream>> _file_streams;
     std::map<std::size_t, std::vector<std::size_t>> _stream_dims;
     std::vector<long double> _dm_delays;
 };

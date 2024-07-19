@@ -33,15 +33,18 @@ std::size_t MultiFileReader::safe_read(std::ifstream& input_stream,
 }
 
 MultiFileReader::MultiFileReader(PipelineConfig const& config)
-    : _config(config), _current_file_idx(0), _current_position(0),
-      _eof_flag(false)
-{
+    : MultiFileReader(config.input_files(),
+                      config.dada_header_size(),
+                      config.check_input_contiguity()) { }
+
+MultiFileReader::MultiFileReader(std::vector<std::string> dada_files,std::size_t dada_header_size, bool check_input_contiguity)
+    : _current_file_idx(0), _current_position(0), _eof_flag(false) {
     static_assert(sizeof(char2) == 2 * sizeof(char),
                   "Size of char2 is not as expected");
 
     this->_total_size       = 0;
-    this->_dada_files       = config.input_files();
-    this->_dada_header_size = config.dada_header_size();
+    this->_dada_files       = dada_files;
+    this->_dada_header_size = dada_header_size;
     std::vector<char> header_bytes(_dada_header_size);
 
     for(const auto& file: _dada_files) {
@@ -61,7 +64,7 @@ MultiFileReader::MultiFileReader(PipelineConfig const& config)
     }
     BOOST_LOG_TRIVIAL(debug) << "Total size of data: " << _total_size;
 
-    if(config.check_input_contiguity()) {
+    if(check_input_contiguity) {
         check_contiguity();
     }
 

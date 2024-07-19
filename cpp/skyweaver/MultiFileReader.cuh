@@ -26,7 +26,6 @@ class MultiFileReader;
 class skyweaver::MultiFileReader
 {
   private:
-    PipelineConfig const& _config;
     std::vector<std::string> _dada_files;
     std::vector<std::size_t> _sizes;
     std::vector<ObservationHeader> _headers;
@@ -44,6 +43,7 @@ class skyweaver::MultiFileReader
 
   public:
     MultiFileReader(PipelineConfig const& config);
+    MultiFileReader(std::vector<std::string> dada_files,std::size_t dada_header_size, bool check_contiguity = false);
     void open();
     void open_next();
     void open_previous();

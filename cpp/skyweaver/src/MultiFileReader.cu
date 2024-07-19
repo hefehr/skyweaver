@@ -70,10 +70,13 @@ MultiFileReader::MultiFileReader(PipelineConfig const& config)
 
 void MultiFileReader::check_contiguity()
 {
-    std::size_t size_so_far = _sizes[0];
+    ObservationHeader first_header = _headers[0];
+    std::size_t size_so_far = _sizes[0] + first_header.obs_offset;
 
     for(int i=1; i < _sizes.size(); i++) {
-        BOOST_LOG_TRIVIAL(debug) << "Checking contiguity between " << _dada_files[i-1] << " and " << _dada_files[i];
+        are_headers_similar(first_header, _headers[i]);
+        BOOST_LOG_TRIVIAL(debug) << "Header of " << _dada_files[i-1] << " and " << _dada_files[i] << " are similar";
+        BOOST_LOG_TRIVIAL(debug) << "Checking contiguity between them";
         BOOST_LOG_TRIVIAL(debug) << "Offset of " << _dada_files[i-1] << " is " << _headers[i-1].obs_offset;
         BOOST_LOG_TRIVIAL(debug) << "Offset of " << _dada_files[i] << " is " << _headers[i].obs_offset;
         BOOST_LOG_TRIVIAL(debug) << "Size so far: " << size_so_far;

@@ -49,6 +49,9 @@ void validate_header(ObservationHeader const& header,
                      PipelineConfig const& config);
 void update_config(PipelineConfig& config, ObservationHeader const& header);
 
+bool are_headers_similar(ObservationHeader const& header1,
+                ObservationHeader const& header2);
+
 } // namespace skyweaver
 
 #endif // SKYWEAVER_OBSERVATIONHEADER_HPP

@@ -1,6 +1,7 @@
 
 #include "skyweaver/ObservationHeader.hpp"
-
+#include <type_traits>
+#include <cmath>
 namespace skyweaver
 {
 void read_dada_header(psrdada_cpp::RawBytes& raw_header,
@@ -66,6 +67,38 @@ void update_config(PipelineConfig& config, ObservationHeader const& header)
     config.bandwidth(header.bandwidth);
     config.centre_frequency(header.frequency);
     // TO DO: might need to add other variables in the future.
+}
+
+//template for comparing two floating point objects
+
+template <typename T>
+typename std::enable_if<std::is_floating_point<T>::value, bool>::type
+is_close(T a, T b, T tolerance = 1e-12) {
+    return std::fabs(a - b) < tolerance;
+}
+bool are_headers_similar(ObservationHeader const& header1,
+                     ObservationHeader const& header2)
+{
+    return header1.nchans == header2.nchans &&
+           header1.npol == header2.npol &&
+           header1.nbits == header2.nbits &&
+           header1.nantennas == header2.nantennas &&
+           header1.chan0_idx == header2.chan0_idx &&
+           header1.obs_nchans == header2.obs_nchans &&
+           is_close(header1.bandwidth, header2.bandwidth) &&
+           is_close(header1.obs_bandwidth, header2.obs_bandwidth) &&
+           is_close(header1.frequency, header2.frequency) &&
+           is_close(header1.obs_frequency, header2.obs_frequency) &&
+           is_close(header1.tsamp, header2.tsamp) &&
+           is_close(header1.sample_clock, header2.sample_clock) &&
+           is_close(header1.sync_time, header2.sync_time) &&
+           is_close(header1.utc_start, header2.utc_start) &&
+           is_close(header1.mjd_start, header2.mjd_start) &&
+           header1.source_name == header2.source_name &&
+           header1.ra == header2.ra &&
+           header1.dec == header2.dec &&
+           header1.telescope == header2.telescope &&
+           header1.instrument == header2.instrument;
 }
 
 std::string ObservationHeader::to_string() const

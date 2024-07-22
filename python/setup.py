@@ -8,7 +8,7 @@ setup(
     description='A package for offline beamforming for MeerKAT Baseband data',
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
-    url='https://github.com/erc-compact/skyweaver/tree/pipeline_dev',
+    url='https://github.com/erc-compact/skyweaver/tree/python_wrapper_dev',
     packages=find_packages(include=['skyweaver', 'skyweaver.*', 'skyweaver_test_utils', 'skyweaver_test_utils.*']),
     install_requires=[
         'astropy==6.0.1',
@@ -48,8 +48,8 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'skyweaver=skyweaver.cli:cli',  # Ensure `cli` is the main function in cli.py
-            'sw=skyweaver.cli:cli',         # Adding the alias 'sw' for the same function
+            'skyweaver=skyweaver.cli:cli',  
+            'sw=skyweaver.cli:cli',         # Adding the alias 'sw' 
         ],
     },
     classifiers=[

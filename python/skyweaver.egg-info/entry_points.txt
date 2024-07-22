@@ -1,0 +1,4 @@
+[console_scripts]
+skyweaver = skyweaver.cli:cli
+sw = skyweaver.cli:cli
+

@@ -1,9 +1,0 @@
-LICENSE
-README.md
-setup.py
-skyweaver.egg-info/PKG-INFO
-skyweaver.egg-info/SOURCES.txt
-skyweaver.egg-info/dependency_links.txt
-skyweaver.egg-info/entry_points.txt
-skyweaver.egg-info/requires.txt
-skyweaver.egg-info/top_level.txt

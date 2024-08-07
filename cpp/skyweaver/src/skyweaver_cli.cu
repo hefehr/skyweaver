@@ -450,7 +450,7 @@ int main(int argc, char** argv)
             // Logging options
             ("log-level",
              po::value<std::string>()->default_value("info")->notifier(
-                 [](std::string level) { skyweaver::init_logging(level); }),
+                 [](std::string level) { skyweaver::set_log_level(level); }),
              "The logging level to use (debug, info, warning, error)");
 
         // set options allowed on command line

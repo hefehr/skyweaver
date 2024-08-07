@@ -17,10 +17,23 @@
 namespace skyweaver
 {
 
+void set_log_level(std::string const& severity)
+{
+    using namespace boost::log;
+    if(severity == "debug") {
+        core::get()->set_filter(trivial::severity >= trivial::debug);
+    } else if(severity == "info") {
+        core::get()->set_filter(trivial::severity >= trivial::info);
+    } else if(severity == "warning") {
+        core::get()->set_filter(trivial::severity >= trivial::warning);
+    } else {
+        core::get()->set_filter(trivial::severity >= trivial::error);
+    }
+}
+
 void init_logging(std::string const& severity)
 {
     using namespace boost::log;
-
     add_common_attributes();
     core::get()->add_global_attribute("Scope", attributes::named_scope());
 
@@ -37,15 +50,7 @@ void init_logging(std::string const& severity)
                                                 keywords::depth  = 1)
              << "] " << expressions::smessage));
 
-    if(severity == "debug") {
-        core::get()->set_filter(trivial::severity >= trivial::debug);
-    } else if(severity == "info") {
-        core::get()->set_filter(trivial::severity >= trivial::info);
-    } else if(severity == "warning") {
-        core::get()->set_filter(trivial::severity >= trivial::warning);
-    } else {
-        core::get()->set_filter(trivial::severity >= trivial::error);
-    }
+    set_log_level(severity);
 }
 
 } // namespace skyweaver

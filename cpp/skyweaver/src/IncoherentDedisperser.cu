@@ -91,8 +91,7 @@ void IncoherentDedisperser::dedisperse<InputVectorType, OutputVectorType>(
         AccumulatorVectorType powers(nbeams); // Once per thread
 #pragma omp for
         for(int t_idx = _max_sample_delay; t_idx < nsamples; t_idx += _tscrunch) {
-            int t_output_offset =
-                (t_idx - _max_sample_delay) / _tscrunch * nbeams * ndms;
+            std::size_t t_output_offset = std::size_t(t_idx - _max_sample_delay) / _tscrunch * nbeams * ndms;
             for(int dm_idx = 0; dm_idx < ndms; ++dm_idx) {
                 int offset = nchans * dm_idx;
                 std::fill(powers.begin(),
@@ -101,15 +100,15 @@ void IncoherentDedisperser::dedisperse<InputVectorType, OutputVectorType>(
                               typename decltype(powers)::value_type>::zero());
                 for(int tsub_idx = 0; tsub_idx < _tscrunch; ++tsub_idx) {
                     for(int f_idx = 0; f_idx < nchans; ++f_idx) {
-                        int idx =
-                            ((t_idx + tsub_idx) - _delays[offset + f_idx]) *
+                        std::size_t idx =
+                            std::size_t((t_idx + tsub_idx) - _delays[offset + f_idx]) *
                                 bf +
                             f_idx * nbeams;
                         for(int b_idx = 0; b_idx < nbeams; ++b_idx) {
                             powers[b_idx] += tfb_powers[idx + b_idx];
                         }
                     }
-                    int output_offset = t_output_offset + dm_idx * nbeams;
+                    std::size_t output_offset = t_output_offset + dm_idx * nbeams;
                     std::transform(
                         powers.begin(),
                         powers.end(),

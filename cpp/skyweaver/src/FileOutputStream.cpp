@@ -72,11 +72,11 @@ std::size_t FileOutputStream::File::write(char const* ptr, std::size_t bytes)
         std::string reason;
 
         if(_stream.bad()) {
-            reason = "badbit set";
+            reason = "badbit set.";
         } else if(_stream.fail()) {
-            reason = "failbit set ";
+            reason = "failbit set.";
         } else if(_stream.eof()) {
-            reason = "eofbit" set;
+            reason = "eofbit set.";
         }
 
         BOOST_LOG_TRIVIAL(error) << "Error while writing to " << _full_path

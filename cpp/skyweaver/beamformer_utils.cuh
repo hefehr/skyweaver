@@ -1,6 +1,10 @@
 #ifndef SKYWEAVER_BEAMFORMER_UTILS_CUH
 #define SKYWEAVER_BEAMFORMER_UTILS_CUH
 
+namespace {
+    #define AT(var, idx) accessor<decltype(var)>::template at<idx>(var)
+}
+
 #include "cuComplex.h"
 #include "skyweaver/types.cuh"
 
@@ -139,6 +143,243 @@ calculate_stokes(cuFloatComplex const& p0, cuFloatComplex const& p1)
     }
 }
 
+
+/**
+ * Helpers for getting the underlying storage types
+ * for sets of different Stokes parameters up from
+ * 1 to 4.
+ */
+template <int N> struct stokes_storage_type {};
+template <> struct stokes_storage_type<1> {
+	using QuantisedPowerType = int8_t;
+	using RawPowerType = float;
+};
+template <> struct stokes_storage_type<2> {
+	using QuantisedPowerType = char2;
+	using RawPowerType = float2;
+};
+template <> struct stokes_storage_type<3> {
+	using QuantisedPowerType = char3;
+	using RawPowerType = float3;
+};
+template <> struct stokes_storage_type<4> {
+	using QuantisedPowerType = char4;
+	using RawPowerType = float4;
+};
+
+/**
+ * Helpers for getting the element type of the storage types
+ * for sets of different Stokes parameters.
+ */
+template <typename T> struct element_type {};
+template <> struct element_type<float> { using type = float; };
+template <> struct element_type<float2> { using type = float; };
+template <> struct element_type<float3> { using type = float; };
+template <> struct element_type<float4> { using type = float; };
+template <> struct element_type<int8_t> { using type = int8_t; };
+template <> struct element_type<char2>  { using type = int8_t; };
+template <> struct element_type<char3>  { using type = int8_t; };
+template <> struct element_type<char4>  { using type = int8_t; };
+
+/**
+ * Helpers for getting the Nth value of a vector type by reference
+ * An index of 0 turns into type::x, 1 --> type::y etc.
+ * Direct usage of this struct should be avoided an instead the 
+ * AT preprocessor macro should be used where AT(var, index) will
+ * return a reference to the Nth index of var.   
+ */
+template <typename T>
+struct accessor {
+	// Function to access members based on index
+	using base_type = typename element_type<std::decay_t<T>>::type;
+	using return_type = std::conditional_t<
+	                    std::is_const_v<std::remove_reference_t<T>>,
+	                    base_type const&,
+	                    base_type&>;
+
+	template <int N>
+	static inline __host__ __device__ constexpr return_type at(T in)
+	{
+		if constexpr (std::is_same_v<std::decay_t<T>, float> || std::is_same_v<std::decay_t<T>, int8_t>) {
+			// Handle the case for float and int8_t
+			static_assert(N == 0, "Index out of bounds for float or int8_t");
+			return in;
+		} else {
+			// Handle the case for types with x, y, z, w members
+			if constexpr (N == 0) {
+				return static_cast<return_type>(in.x);
+			} else if constexpr (N == 1) {
+				return static_cast<return_type>(in.y);
+			} else if constexpr (N == 2) {
+				return static_cast<return_type>(in.z);
+			} else if constexpr (N == 3) {
+				return static_cast<return_type>(in.w);
+			} else {
+				static_assert(N < 4, "Index out of bounds for type with x, y, z, w");
+			}
+		}
+	}
+};
+
+// A generic struct to apply arguments to a static callable
+template <int Index, StokesParameter S>
+struct Invoker {
+	template <typename Operator, typename... Args>
+	static inline  __host__ __device__ void apply(Args&&... args)
+	{
+		Operator::template apply<Index, S>(std::forward<Args>(args)...);
+	}
+};
+
+// Base case for recursion: no elements left
+template <int Index, StokesParameter... S>
+struct Iterate {
+	template <typename Operator, typename... Args>
+	static inline  __host__ __device__  void apply(Args&&... args)
+	{
+		// No-op when there are no more values
+	}
+};
+
+// Recursive case: process the first element and recurse
+template <int Index, StokesParameter First, StokesParameter... Rest>
+struct Iterate<Index, First, Rest...> {
+	template <typename Operator, typename... Args>
+	static inline  __host__ __device__  void apply(Args&&... args)
+	{
+		Invoker<Index, First>::template apply<Operator>(
+		    std::forward<Args>(args)...);
+		Iterate<Index + 1, Rest...>::template apply<Operator>(
+		    std::forward<Args>(args)...); // Recurse with the next element
+	}
+};
+
+
+/**
+ * Here we wrap the operations we wish to apply across the 
+ * stokes parameters 
+ */
+struct IntegrateStokes {
+	template <int I, StokesParameter S, typename T>
+	static inline  __host__ __device__ void
+	apply(float2 const& p0, float2 const& p1, T& power)
+	{
+		AT(power, I) += calculate_stokes<S>(p0, p1);
+	}
+};
+
+struct IntegrateWeightedStokes {
+	template <int I, StokesParameter S, typename T>
+	static inline  __host__ __device__  void apply(float2 const& p0,
+	                  float2 const& p1,
+	                  T& power,
+	                  float const& weight)
+	{
+		AT(power, I) += calculate_stokes<S>(p0, p1) * weight;
+	}
+};
+
+struct IncoherentBeamSubtract {
+	template <int I, StokesParameter S, typename T>
+	static inline  __host__ __device__  void apply(T const& power,
+	                  T const& ib_power,
+	                  float const& ib_mutliplier, // 127^2 as default
+	                  float const& scale_factor,
+	                  T& result)
+	{
+		AT(result, I) = rintf((AT(power, I) - AT(ib_power, I) * ib_mutliplier) / scale_factor);
+	}
+};
+
+struct Rescale {
+	template <int I, StokesParameter S, typename T>
+	static inline  __host__ __device__  void apply(T const& power,
+	                  float const& offset,
+	                  float const& scale_factor,
+	                  T& result)
+	{
+		if constexpr(S == StokesParameter::I) {
+			AT(result, I) = rintf((AT(power, I) - offset) / scale_factor);
+		} else {
+			AT(result, I) = rintf(AT(power, I) / scale_factor);
+		}
+	}
+};
+
+struct Clamp {
+	template <int I, StokesParameter S, typename T, typename X>
+	static inline  __host__ __device__ void apply(T const& power, X& result)
+	{
+		using EType = typename element_type<X>::type;
+		AT(result, I) = static_cast<EType>(
+		                    fmaxf(static_cast<float>(
+		                              std::numeric_limits<EType>::lowest()),
+		                          fminf(static_cast<float>(
+		                                    std::numeric_limits<EType>::max()),
+		                                AT(power, I))));
+	}
+};
+
+/**
+ * Here we bring everything together to provide a fully generic StokesTraits implementation 
+ */
+template <StokesParameter... Stokes>
+struct StokesTraits
+{
+	using RawPowerType       =  typename stokes_storage_type<sizeof...(Stokes)>::RawPowerType;
+	using QuantisedPowerType =  typename stokes_storage_type<sizeof...(Stokes)>::QuantisedPowerType;
+	constexpr static const RawPowerType zero_power = RawPowerType{};
+
+	static inline __host__ __device__ void
+	integrate_stokes(float2 const& p0,
+	                 float2 const& p1,
+	                 RawPowerType& power) {
+		Iterate<0, Stokes...>::template apply<IntegrateStokes>(p0, p1, power);
+	}
+
+	static inline __host__ __device__ void
+	integrate_weighted_stokes(float2 const& p0,
+	                          float2 const& p1,
+	                          RawPowerType& power,
+	                          float const& weight) {
+		Iterate<0, Stokes...>::template apply<IntegrateWeightedStokes>(p0, p1, power, weight);
+	}
+
+	static inline __host__ __device__ RawPowerType
+	ib_subtract(RawPowerType const& power,
+	            RawPowerType const& ib_power,
+	            float const& ib_mutliplier,
+	            float const& scale_factor) {
+		RawPowerType result{};
+		Iterate<0, Stokes...>::template apply<IncoherentBeamSubtract>(power, ib_power, ib_mutliplier, scale_factor, result);
+		return result;
+	}
+
+	static inline __host__ __device__ RawPowerType
+	rescale(RawPowerType const& power,
+	        float const& offset,
+	        float const& scale_factor) {
+		RawPowerType result{};
+		Iterate<0, Stokes...>::template apply<Rescale>(power, offset, scale_factor, result);
+		return result;
+	}
+
+	static inline __host__ __device__ QuantisedPowerType
+	clamp(RawPowerType const& power) {
+		QuantisedPowerType result{};
+		Iterate<0, Stokes...>::template apply<Clamp>(power, result);
+		return result;
+	}
+};
+
+// To provide back compatibility we will make typedefs for the existing types
+
+template <StokesParameter Stokes>
+using SingleStokesBeamformerTraits = StokesTraits<Stokes>;
+using FullStokesBeamformerTraits = StokesTraits<I, Q, U, V>;
+
+
+/**OLD code 
 template <StokesParameter Stokes>
 struct SingleStokesBeamformerTraits {
     typedef int8_t QuantisedPowerType;
@@ -276,6 +517,15 @@ struct FullStokesBeamformerTraits {
         return clamped;
     }
 };
+*/
+
+
+
+
+
+
+
+
 
 } // namespace skyweaver
 

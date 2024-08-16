@@ -168,20 +168,6 @@ template <> struct stokes_storage_type<4> {
 };
 
 /**
- * Helpers for getting the element type of the storage types
- * for sets of different Stokes parameters.
- */
-template <typename T> struct element_type {};
-template <> struct element_type<float> { using type = float; };
-template <> struct element_type<float2> { using type = float; };
-template <> struct element_type<float3> { using type = float; };
-template <> struct element_type<float4> { using type = float; };
-template <> struct element_type<int8_t> { using type = int8_t; };
-template <> struct element_type<char2>  { using type = int8_t; };
-template <> struct element_type<char3>  { using type = int8_t; };
-template <> struct element_type<char4>  { using type = int8_t; };
-
-/**
  * Helpers for getting the Nth value of a vector type by reference
  * An index of 0 turns into type::x, 1 --> type::y etc.
  * Direct usage of this struct should be avoided an instead the 
@@ -191,7 +177,7 @@ template <> struct element_type<char4>  { using type = int8_t; };
 template <typename T>
 struct accessor {
 	// Function to access members based on index
-	using base_type = typename element_type<std::decay_t<T>>::type;
+	using base_type = typename value_traits<std::decay_t<T>>::type;
 	using return_type = std::conditional_t<
 	                    std::is_const_v<std::remove_reference_t<T>>,
 	                    base_type const&,
@@ -310,7 +296,7 @@ struct Clamp {
 	template <int I, StokesParameter S, typename T, typename X>
 	static inline  __host__ __device__ void apply(T const& power, X& result)
 	{
-		using EType = typename element_type<X>::type;
+		using EType = typename value_traits<X>::type;
 		AT(result, I) = static_cast<EType>(
 		                    fmaxf(static_cast<float>(
 		                              std::numeric_limits<EType>::lowest()),

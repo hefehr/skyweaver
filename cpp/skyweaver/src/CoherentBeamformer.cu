@@ -277,6 +277,10 @@ template class CoherentBeamformer<
     SingleStokesBeamformerTraits<StokesParameter::U>>;
 template class CoherentBeamformer<
     SingleStokesBeamformerTraits<StokesParameter::V>>;
+template class CoherentBeamformer<
+    StokesTraits<StokesParameter::Q, StokesParameter::U>>;
+template class CoherentBeamformer<
+    StokesTraits<StokesParameter::I, StokesParameter::V>>;
 template class CoherentBeamformer<FullStokesBeamformerTraits>;
 
 } // namespace skyweaver

@@ -102,6 +102,10 @@ extern template class IncoherentBeamformer<
     SingleStokesBeamformerTraits<StokesParameter::U>>;
 extern template class IncoherentBeamformer<
     SingleStokesBeamformerTraits<StokesParameter::V>>;
+extern template class IncoherentBeamformer<
+    StokesTraits<StokesParameter::Q, StokesParameter::U>>;
+extern template class IncoherentBeamformer<
+    StokesTraits<StokesParameter::I, StokesParameter::V>>;
 extern template class IncoherentBeamformer<FullStokesBeamformerTraits>;
 
 } // namespace skyweaver

@@ -130,6 +130,16 @@ template void IncoherentDedisperser::dedisperse<
     thrust::host_vector<int8_t, PinnedAllocator<int8_t>> const& tfb_powers,
     TDBPowersH<int8_t>& tdb_powers);
 template void IncoherentDedisperser::dedisperse<
+    thrust::host_vector<char2, PinnedAllocator<char2>>,
+    TDBPowersH<char2>>(
+    thrust::host_vector<char2, PinnedAllocator<char2>> const& tfb_powers,
+    TDBPowersH<char2>& tdb_powers);
+template void IncoherentDedisperser::dedisperse<
+    thrust::host_vector<char3, PinnedAllocator<char3>>,
+    TDBPowersH<char3>>(
+    thrust::host_vector<char3, PinnedAllocator<char3>> const& tfb_powers,
+    TDBPowersH<char3>& tdb_powers);
+template void IncoherentDedisperser::dedisperse<
     thrust::host_vector<char4, PinnedAllocator<char4>>,
     TDBPowersH<char4>>(
     thrust::host_vector<char4, PinnedAllocator<char4>> const& tfb_powers,

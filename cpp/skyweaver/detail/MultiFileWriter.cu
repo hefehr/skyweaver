@@ -18,52 +18,6 @@ namespace skyweaver
 namespace
 {
 
-/**
- * The expectation is that each file contains data in
- * TBTF order. Need to explicitly update:
- * INNER_T --> the number of timesamples per block that was processed
- * NBEAMS --> the total number of beams in the file
- * DM --> the dispersion measure of this data
- * Freq --> the centre frequency of this subband (???)
- * BW --> the bandwidth of the subband (???)
- * TSAMP --> the sampling interval of the data
- * NPOL --> normally 1 but could be 4 for full stokes
- * CHAN0_IDX --> this comes from the obs header and uniquely identifies the
- * bridge
- */
-std::string default_dada_header = R"(
-HEADER       DADA
-HDR_VERSION  1.0
-HDR_SIZE     4096
-DADA_VERSION 1.0
-
-FILE_SIZE    100000000000
-FILE_NUMBER  0
-
-UTC_START    1708082229.000020336 
-MJD_START    60356.47024305579093
-
-SOURCE       J1644-4559
-RA           16:44:49.27
-DEC          -45:59:09.7
-TELESCOPE    MeerKAT
-INSTRUMENT   CBF-Feng
-RECEIVER     L-band
-FREQ         1284000000.000000
-BW           856000000.000000
-TSAMP        4.7850467290
-STOKES       I
-
-NBIT         8
-NDIM         1
-NPOL         1
-NCHAN        64
-NBEAM       800
-ORDER        TFB
-
-CHAN0_IDX 2688
-)";
-
 std::string get_formatted_time(long double unix_timestamp)
 {
     char formatted_time[80];
@@ -74,6 +28,97 @@ std::string get_formatted_time(long double unix_timestamp)
 }
 
 } // namespace
+
+
+template <typename T, typename Enable = void> struct HeaderFormatter;
+
+template <typename T>
+struct HeaderFormatter<T, typename std::enable_if_t <
+    std::is_same<T, FPAStatsH<typename T::value_type>>::value || 
+    std::is_same<T, FPAStatsD<typename T::value_type>>::value>>
+{
+    void operator()(T const& stream_data, 
+                    ObservationHeader const& obs_header,
+                    PipelineConfig const& config,
+                    Header& output_header){
+        output_header.set<std::size_t>("NCHAN", stream_data.nchannels());
+        output_header.set<std::size_t>("NSAMP", stream_data.nsamples());
+        output_header.set<std::string>("STOKES_MODE", "I");
+        output_header.set<std::size_t>("NPOL", stream_data.npol());
+        output_header.set<std::size_t>("NDIM", 1);
+        output_header.set<std::size_t>("NBIT", 32);
+        output_header.set<std::size_t>("NANT", stream_data.nantennas());
+        output_header.set<std::string>("DTYPE", "MOMENTS");       
+    }
+};
+
+template <typename T> 
+struct HeaderFormatter<T, typename std::enable_if_t <
+    std::is_same<T, TDBPowersH<typename T::value_type>>::value || 
+    std::is_same<T, TDBPowersD<typename T::value_type>>::value>>
+{
+    void operator()(T const& stream_data, 
+                    ObservationHeader const& obs_header,
+                    PipelineConfig const& config,
+                    Header& output_header){
+        output_header.set<std::size_t>("NCHAN", stream_data.nchannels());
+        output_header.set<std::size_t>("NSAMP", stream_data.nsamples());
+        output_header.set<std::size_t>("NBEAM", stream_data.nbeams());
+        output_header.set<std::size_t>("NDMS", stream_data.ndms());
+        output_header.set("DMS", stream_data.dms(), 7);
+        output_header.set<long double>("COHERENT_DM",
+                static_cast<long double>(stream_data.reference_dm()));
+        output_header.set<std::string>("STOKES_MODE", config.stokes_mode());
+        output_header.set<std::size_t>("NPOL", config.stokes_mode().size());
+        output_header.set<std::size_t>("NDIM", 1);
+        output_header.set<std::size_t>("NBIT", sizeof(typename T::value_type) * 8);
+        output_header.set<std::string>("DTYPE", "INTENSITIES");     
+    }
+};
+
+template <typename T> 
+struct HeaderFormatter<T, typename std::enable_if_t <
+    std::is_same<T, TFBPowersH<typename T::value_type>>::value || 
+    std::is_same<T, TFBPowersD<typename T::value_type>>::value>>
+{
+    void operator()(T const& stream_data, 
+                    ObservationHeader const& obs_header,
+                    PipelineConfig const& config,
+                    Header& output_header){
+        output_header.set<std::size_t>("NCHAN", stream_data.nchannels());
+        output_header.set<std::size_t>("NSAMP", stream_data.nsamples());
+        output_header.set<std::size_t>("NBEAM", stream_data.nbeams());
+        output_header.set<long double>("COHERENT_DM",
+                static_cast<long double>(stream_data.reference_dm()));
+        output_header.set<std::string>("STOKES_MODE", config.stokes_mode());
+        output_header.set<std::size_t>("NPOL", config.stokes_mode().size());
+        output_header.set<std::size_t>("NDIM", 1);
+        output_header.set<std::size_t>("NBIT", sizeof(typename T::value_type) * 8);
+        output_header.set<std::string>("DTYPE", "INTENSITIES");  
+    }
+};
+
+template <typename T> 
+struct HeaderFormatter<T, typename std::enable_if_t <
+    std::is_same<T, BTFPowersH<typename T::value_type>>::value || 
+    std::is_same<T, BTFPowersD<typename T::value_type>>::value>>
+{
+    void operator()(T const& stream_data, 
+                    ObservationHeader const& obs_header,
+                    PipelineConfig const& config,
+                    Header& output_header){
+        output_header.set<std::size_t>("NCHAN", stream_data.nchannels());
+        output_header.set<std::size_t>("NSAMP", stream_data.nsamples());
+        output_header.set<std::size_t>("NBEAM", stream_data.nbeams());
+        output_header.set<long double>("COHERENT_DM",
+                static_cast<long double>(stream_data.reference_dm()));
+        output_header.set<std::string>("STOKES_MODE", config.stokes_mode());
+        output_header.set<std::size_t>("NPOL", config.stokes_mode().size());
+        output_header.set<std::size_t>("NDIM", 1);
+        output_header.set<std::size_t>("NBIT", sizeof(typename T::value_type) * 8);
+        output_header.set<std::string>("DTYPE", "INTENSITIES");
+    }
+};
 
 template <typename VectorType>
 MultiFileWriter<VectorType>::MultiFileWriter(PipelineConfig const& config,
@@ -126,48 +171,52 @@ MultiFileWriter<VectorType>::create_stream(VectorType const& stream_data,
             header_size       = _config.dada_header_size();
             char* temp_header = new char[header_size];
             std::fill(temp_header, temp_header + header_size, 0);
-            std::memcpy(temp_header,
-                        default_dada_header.c_str(),
-                        default_dada_header.size());
             psrdada_cpp::RawBytes bytes(temp_header,
                                         header_size,
                                         header_size,
                                         false);
             Header header_writer(bytes);
-            header_writer.set<std::size_t>("NBEAM", stream_data.nbeams());
-            header_writer.set<std::size_t>("NCHAN", stream_data.nchannels());
+
+            // Default boilerplate keys
+            header_writer.set<std::string>("HEADER", "DADA");
+            header_writer.set<std::string>("HDR_VERSION", "1.0");
+            header_writer.set<std::size_t>("HDR_SIZE", 4096);
+            header_writer.set<std::string>("DADA_VERSION", "1.0");
+
+            // Specific pointing and telescope info
+            header_writer.set<std::string>("SOURCE", _header.source_name);
+            header_writer.set<std::string>("RA", _header.ra);
+            header_writer.set<std::string>("DEC", _header.dec);
+            header_writer.set<std::string>("TELESCOPE", _header.telescope);
+            header_writer.set<std::string>("INSTRUMENT", _header.instrument);
+
+            // Params describing the whole observation
             header_writer.set<std::size_t>("OBS_NCHAN", _header.obs_nchans);
             header_writer.set<long double>("OBS_FREQUENCY",
                                            _header.obs_frequency);
             header_writer.set<long double>("OBS_BW", _header.obs_bandwidth);
-            header_writer.set<std::size_t>("NSAMP", stream_data.nsamples());
-            if(stream_data.ndms()) {
-                header_writer.set<std::size_t>("NDMS", stream_data.ndms());
-                header_writer.set("DMS", stream_data.dms(), 7);
-            }
-            header_writer.set<long double>(
-                "COHERENT_DM",
-                static_cast<long double>(stream_data.reference_dm()));
+
+            // General params specific to this processing
             header_writer.set<long double>("FREQ", _header.frequency);
             header_writer.set<long double>("BW", _header.bandwidth);
             header_writer.set<long double>("TSAMP", stream_data.tsamp() * 1e6);
-            if(_config.stokes_mode() == "IQUV") {
-                header_writer.set<std::size_t>("NPOL", 4);
-            } else {
-                header_writer.set<std::size_t>("NPOL", 1);
-            }
-            header_writer.set<std::string>("STOKES_MODE",
-                                           _config.stokes_mode());
-            header_writer.set<std::string>("ORDER",
-                                           stream_data.dims_as_string());
             header_writer.set<std::size_t>("CHAN0_IDX", _header.chan0_idx);
-            header_writer.set<std::size_t>("FILE_SIZE", filesize);
-            header_writer.set<std::size_t>("FILE_NUMBER", file_idx);
-            header_writer.set<std::size_t>("OBS_OFFSET", bytes_written);
-            header_writer.set<std::size_t>("OBS_OVERLAP", 0);
             header_writer.set<long double>("UTC_START",
                                            _header.utc_start +
                                                stream_data.utc_offset());
+            header_writer.set<std::string>("ORDER", stream_data.dims_as_string());
+
+            // File writing management params
+            header_writer.set<std::size_t>("FILE_SIZE", filesize);
+            header_writer.set<std::size_t>("FILE_NUMBER", file_idx);
+            header_writer.set<std::size_t>("OBS_OFFSET", bytes_written);
+            header_writer.set<std::size_t>("OBS_OVERLAP", 0);  
+
+            // Below we make a callback to type specific helpers
+            // this is done as the handling of things like NPOL,
+            // NDIM, STOKES_MODE, etc. is type specific. 
+            HeaderFormatter<VectorType>()(stream_data, _header, _config, header_writer);
+
             std::shared_ptr<char const> header_ptr(
                 temp_header,
                 std::default_delete<char[]>());

@@ -5,6 +5,8 @@
 #include "skyweaver/DescribedVector.hpp"
 #include "skyweaver/MultiFileReader.cuh"
 #include "skyweaver/PipelineConfig.hpp"
+#include "skyweaver/CoherentDedisperser.cuh"
+
 
 #include <cassert>
 #include <memory>
@@ -41,10 +43,14 @@ class skyweaver::BufferedDispenser
                                         // all channels in FTPA order
     std::vector<TPAVoltagesTypeD>
         _d_channeled_tpa_voltages; // NCHANS=64 * TPA vectors
+
+    std::vector<bool> _first_hoard; // flag to know if we are hoarding for the
+                                    // first time
+    
     cudaStream_t _stream;
 
   public:
-    BufferedDispenser(PipelineConfig const& config, cudaStream_t stream);
+    BufferedDispenser(PipelineConfig const& config, CoherentDedisperserConfig const& dedisp_config,  cudaStream_t stream);
     void hoard(FTPAVoltagesTypeD const& ftpa_voltages_in);
     TPAVoltagesTypeD const& dispense(std::size_t chan_idx) const;
 };

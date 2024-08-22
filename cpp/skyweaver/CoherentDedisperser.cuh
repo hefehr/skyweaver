@@ -28,7 +28,7 @@ __global__ void dedisperse(cufftComplex const* __restrict__ _d_ism_response,
 }
 
 struct CoherentDedisperserConfig {
-    std::size_t fft_length; // i.e gulp length, number of fine channels
+    std::size_t gulp_samps; // i.e gulp length, number of fine channels
     std::size_t overlap_samps;
     std::size_t num_coarse_chans;
     std::size_t npols;
@@ -60,7 +60,7 @@ void create_coherent_dedisperser_config(CoherentDedisperserConfig& config,
                                         PipelineConfig const& pipeline_config);
 
 void create_coherent_dedisperser_config(CoherentDedisperserConfig& config,
-                                        std::size_t fft_length,
+                                        std::size_t gulp_samps,
                                         std::size_t overlap_samps,
                                         std::size_t num_coarse_chans,
                                         std::size_t npols,
@@ -82,8 +82,8 @@ class CoherentDedisperser
   private:
     CoherentDedisperserConfig& _config;
     thrust::device_vector<cufftComplex> _d_fpa_spectra;
-    thrust::device_vector<cufftComplex> _d_tpa_voltages_out_temp;
-    thrust::device_vector<cufftComplex> _d_tpa_voltages_temp;
+    thrust::device_vector<cufftComplex> _d_tpa_voltages_dedispersed;
+    thrust::device_vector<cufftComplex> _d_tpa_voltages_in_cufft;
     void multiply_by_chirp(
         thrust::device_vector<cufftComplex> const& _d_fpa_spectra_in,
         thrust::device_vector<cufftComplex>& _d_fpa_spectra_out,

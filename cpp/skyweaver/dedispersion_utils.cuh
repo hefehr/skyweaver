@@ -31,8 +31,8 @@ struct DMSampleDelay {
 
     __host__ __device__ int operator()(double const& freq)
     {
-        return static_cast<int>(dm_delay<double>(_f_ref, freq, _dm) / _tsamp +
-                                0.5);
+        return static_cast<int>(ceil(dm_delay<double>(_f_ref, freq, _dm) / _tsamp +
+                                0.5));
     }
 
     double _dm;

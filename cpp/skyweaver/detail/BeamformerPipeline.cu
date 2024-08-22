@@ -77,7 +77,7 @@ BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
     _weights_manager.reset(new WeightsManager(_config, _processing_stream));
     _stats_manager.reset(new StatisticsCalculator(_config, _processing_stream));
     _transposer.reset(new Transposer(_config));
-    _dispenser.reset(new BufferedDispenser(_config, _processing_stream));
+    _dispenser.reset(new BufferedDispenser(_config, _dedisperser_config, _processing_stream));
     _coherent_dedisperser.reset(new CoherentDedisperser(_dedisperser_config));
     _incoherent_beamformer.reset(new IncoherentBeamformer(_config));
     _coherent_beamformer.reset(new CoherentBeamformer(_config));
@@ -199,6 +199,7 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
             ++freq_idx) {
             NVTX_RANGE_PUSH("Coherent dedispersion - one channels");
             auto const& tpa_voltages = _dispenser->dispense(freq_idx);
+            BOOST_LOG_TRIVIAL(debug) << "TPA voltages before dedispersion: " << tpa_voltages.describe();
             _coherent_dedisperser->dedisperse(tpa_voltages,
                                               _ftpa_dedispersed,
                                               freq_idx,

@@ -10,7 +10,7 @@ namespace skyweaver
 PipelineConfig::PipelineConfig()
     : _input_files({}), _check_input_contiguity(false), _dada_header_size(4096),
       _delay_file(""), _output_dir("./"), _max_output_filesize(10000000000000),
-      _output_file_prefix(""), _dedisp_max_delay_samps(0),
+      _output_file_prefix(""), 
       _enable_incoherent_dedispersion(true), _cfreq(1284000000.0),
       _bw(13375000.0), _channel_frequencies_stale(true),
       _gulp_length_samps(4096), _start_time(0.0f),
@@ -157,15 +157,7 @@ DedispersionPlan const& PipelineConfig::ddplan() const
     return _ddplan;
 }
 
-void PipelineConfig::dedisp_max_delay_samps(std::size_t max_delay)
-{
-    _dedisp_max_delay_samps = max_delay;
-}
 
-std::size_t PipelineConfig::dedisp_max_delay_samps() const
-{
-    return _dedisp_max_delay_samps;
-}
 
 void PipelineConfig::enable_incoherent_dedispersion(bool enable)
 {

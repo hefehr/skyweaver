@@ -53,7 +53,7 @@ void create_coherent_dedisperser_config(CoherentDedisperserConfig& config,
                                        pipeline_config.coherent_dms());
 }
 /*
- * @brief      Create a new CoherentDedisperser object, mostly used only for
+ * @brief      Create a new CoherentDedis§rser object, mostly used only for
  * testing
  *
  * @param      config  The config reference

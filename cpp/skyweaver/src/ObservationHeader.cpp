@@ -1,29 +1,44 @@
 
 #include "skyweaver/ObservationHeader.hpp"
-#include <type_traits>
+
 #include <cmath>
+#include <type_traits>
 namespace skyweaver
 {
 void read_dada_header(psrdada_cpp::RawBytes& raw_header,
                       ObservationHeader& header)
 {
     Header parser(raw_header);
-    header.nchans     = parser.get<decltype(header.nchans)>("NCHAN");
+    header.order = parser.get<std::string>("ORDER");
+
+    if(header.order.find("A") != std::string::npos) {
+        header.nantennas = parser.get<decltype(header.nantennas)>("NANT");
+        header.sample_clock =
+            parser.get<decltype(header.sample_clock)>("SAMPLE_CLOCK");
+        header.sample_clock_start =
+            parser.get<decltype(header.sample_clock_start)>(
+                "SAMPLE_CLOCK_START");
+
+        header.sync_time = parser.get<decltype(header.sync_time)>("SYNC_TIME");
+    }
+    else {
+
+        header.refdm = parser.get<decltype(header.refdm)>("COHERENT_DM");
+
+    }
+    header.obs_frequency =
+            parser.get<decltype(header.obs_frequency)>("OBS_FREQUENCY");
     header.obs_nchans = parser.get<decltype(header.obs_nchans)>("OBS_NCHAN");
     header.npol       = parser.get<decltype(header.npol)>("NPOL");
     header.nbits      = parser.get<decltype(header.nbits)>("NBIT");
-    header.nantennas  = parser.get<decltype(header.nantennas)>("NANT");
-    header.sample_clock_start =
-        parser.get<decltype(header.sample_clock_start)>("SAMPLE_CLOCK_START");
+    header.nchans     = parser.get<decltype(header.nchans)>("NCHAN");
+
     header.bandwidth     = parser.get<decltype(header.bandwidth)>("BW");
     header.obs_bandwidth = parser.get<decltype(header.obs_bandwidth)>("OBS_BW");
     header.frequency     = parser.get<decltype(header.frequency)>("FREQ");
-    header.obs_frequency =
-        parser.get<decltype(header.obs_frequency)>("OBS_FREQ");
+
     header.tsamp = parser.get<decltype(header.tsamp)>("TSAMP");
-    header.sample_clock =
-        parser.get<decltype(header.sample_clock)>("SAMPLE_CLOCK");
-    header.sync_time   = parser.get<decltype(header.sync_time)>("SYNC_TIME");
+
     header.utc_start   = parser.get<decltype(header.utc_start)>("UTC_START");
     header.mjd_start   = parser.get<decltype(header.mjd_start)>("MJD_START");
     header.source_name = parser.get<decltype(header.source_name)>("SOURCE");
@@ -34,7 +49,6 @@ void read_dada_header(psrdada_cpp::RawBytes& raw_header,
     header.chan0_idx   = parser.get<decltype(header.chan0_idx)>("CHAN0_IDX");
     header.obs_offset  = parser.get<decltype(header.obs_offset)>("OBS_OFFSET");
 }
-
 void validate_header(ObservationHeader const& header,
                      PipelineConfig const& config)
 {
@@ -61,7 +75,6 @@ void validate_header(ObservationHeader const& header,
             "currently only 8-bit input supported");
     }
 }
-
 void update_config(PipelineConfig& config, ObservationHeader const& header)
 {
     config.bandwidth(header.bandwidth);
@@ -69,18 +82,11 @@ void update_config(PipelineConfig& config, ObservationHeader const& header)
     // TO DO: might need to add other variables in the future.
 }
 
-//template for comparing two floating point objects
 
-template <typename T>
-typename std::enable_if<std::is_floating_point<T>::value, bool>::type
-is_close(T a, T b, T tolerance = 1e-12) {
-    return std::fabs(a - b) < tolerance;
-}
 bool are_headers_similar(ObservationHeader const& header1,
-                     ObservationHeader const& header2)
+                         ObservationHeader const& header2)
 {
-    return header1.nchans == header2.nchans &&
-           header1.npol == header2.npol &&
+    return header1.nchans == header2.nchans && header1.npol == header2.npol &&
            header1.nbits == header2.nbits &&
            header1.nantennas == header2.nantennas &&
            header1.chan0_idx == header2.chan0_idx &&
@@ -95,12 +101,10 @@ bool are_headers_similar(ObservationHeader const& header1,
            is_close(header1.utc_start, header2.utc_start) &&
            is_close(header1.mjd_start, header2.mjd_start) &&
            header1.source_name == header2.source_name &&
-           header1.ra == header2.ra &&
-           header1.dec == header2.dec &&
+           header1.ra == header2.ra && header1.dec == header2.dec &&
            header1.telescope == header2.telescope &&
            header1.instrument == header2.instrument;
 }
-
 std::string ObservationHeader::to_string() const
 {
     std::ostringstream oss;
@@ -124,6 +128,24 @@ std::string ObservationHeader::to_string() const
         << "  instrument: " << instrument << "\n"
         << "  chan0_idx: " << chan0_idx << "\n"
         << "  obs_offset: " << obs_offset << "\n";
+    if(sigproc_params)
+    {
+        
+        oss << " Sigproc parameters:\n"
+            << "  az: " << az << "\n"
+            << "  za: " << za << "\n"
+            << "  machineid: " << machineid << "\n"
+            << "  nifs: " << nifs << "\n"
+            << "  telescopeid: " << telescopeid << "\n"
+            << "  datatype: " << datatype << "\n"
+            << "  barycentric: " << barycentric << "\n"
+            << "  ibeam: " << ibeam << "\n"
+            << "  nbeams: " << nbeams << "\n"
+            << "  rawfile: " << rawfile << "\n"
+            << "  fch1" << fch1 << "\n"
+            << " foff" << foff << "\n"
+            << " tsamp" << tsamp << "\n";
+    }
 
     return oss.str();
 }

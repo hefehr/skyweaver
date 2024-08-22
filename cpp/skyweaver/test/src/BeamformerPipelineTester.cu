@@ -146,9 +146,9 @@ TYPED_TEST(BeamformerPipelineTester, full_pipeline_test)
     read_dada_header(raw_header, header);
     validate_header(header, this->_config);
     update_config(this->_config, header);
-
-    MultiFileWriter<TDBPowersH<typename BfTraits::QuantisedPowerType>>
-        cb_handler(this->_config, "cb");
+    using WriterType = MultiFileWriter<TDBPowersH<BfTraits::QuantisedPowerType>>;
+    typename WriterType::CreateStreamCallBackType create_stream_callback = detail::create_dada_file_stream<TDBPowersH<BfTraits::QuantisedPowerType>>;
+    WriterType  cb_handler(_config, "cb", create_stream_callback);
     NullHandler ib_handler;
     NullHandler stats_handler;
     using IDPipelineType =

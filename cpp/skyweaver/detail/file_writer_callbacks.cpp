@@ -1,0 +1,301 @@
+
+
+#include "skyweaver/FileOutputStream.hpp"
+#include "skyweaver/MultiFileWriter.cuh"
+#include "skyweaver/ObservationHeader.hpp"
+#include "skyweaver/SigprocHeader.hpp"
+#include <boost/log/trivial.hpp>
+#include <ctime>
+#include <memory>
+#include <string>
+#include <vector>
+#include <cmath>
+#include <iostream>
+#include <ostream>
+#include <iomanip>
+#include <fstream>
+
+
+
+namespace {
+     /**
+ * The expectation is that each file contains data in
+ * TBTF order. Need to explicitly update:
+ * INNER_T --> the number of timesamples per block that was processed
+ * NBEAMS --> the total number of beams in the file
+ * DM --> the dispersion measure of this data
+ * Freq --> the centre frequency of this subband (???)
+ * BW --> the bandwidth of the subband (???)
+ * TSAMP --> the sampling interval of the data
+ * NPOL --> normally 1 but could be 4 for full stokes
+ * CHAN0_IDX --> this comes from the obs header and uniquely identifies the
+ * bridge
+ */
+std::string default_dada_header = R"(
+  HEADER       DADA
+  HDR_VERSION  1.0
+  HDR_SIZE     4096
+  DADA_VERSION 1.0
+  
+  FILE_SIZE    100000000000
+  FILE_NUMBER  0
+  
+  UTC_START    1708082229.000020336 
+  MJD_START    60356.47024305579093
+  
+  SOURCE       J1644-4559
+  RA           16:44:49.27
+  DEC          -45:59:09.7
+  TELESCOPE    MeerKAT
+  INSTRUMENT   CBF-Feng
+  RECEIVER     L-band
+  FREQ         1284000000.000000
+  BW           856000000.000000
+  TSAMP        4.7850467290
+  STOKES       I
+  
+  NBIT         8
+  NDIM         1
+  NPOL         1
+  NCHAN        64
+  NBEAM       800
+  ORDER        TFB
+  
+  CHAN0_IDX 2688
+  )";
+}
+namespace skyweaver
+{
+namespace detail 
+{
+template <typename VectorType> inline
+std::unique_ptr<FileOutputStream>  create_dada_file_stream(MultiFileWriterConfig const& config,
+            ObservationHeader const& header,
+            VectorType const& stream_data,
+            std::size_t stream_idx)
+{
+    BOOST_LOG_TRIVIAL(debug) << "Creating stream based on stream prototype: "
+                             << stream_data.describe();
+    // Here we round the file size to a multiple of the stream prototype
+    std::size_t filesize =
+        std::max(1ul,
+                 config.max_file_size / stream_data.size() /
+                     sizeof(typename VectorType::value_type)) *
+        stream_data.size();
+        
+    BOOST_LOG_TRIVIAL(debug)
+        << "Maximum allowed file size = " << filesize << " bytes (+header)";
+
+    std::unique_ptr<FileOutputStream> file_stream = std::make_unique<FileOutputStream>(
+        config.output_dir,
+        config.prefix,
+        config.extension,
+        filesize,
+        [&, header, stream_data, stream_idx, filesize](
+            std::size_t& header_size,
+            std::size_t bytes_written,
+            std::size_t file_idx) -> std::shared_ptr<char const> {
+            header_size       = config.header_size;
+            char* temp_header = new char[header_size];
+            std::fill(temp_header, temp_header + header_size, 0);
+            std::memcpy(temp_header,
+                        default_dada_header.c_str(),
+                        default_dada_header.size());
+            psrdada_cpp::RawBytes bytes(temp_header,
+                                        header_size,
+                                        header_size,
+                                        false);
+            Header header_writer(bytes);
+            header_writer.set<std::size_t>("NBEAM", stream_data.nbeams());
+            header_writer.set<std::size_t>("NCHAN", stream_data.nchannels());
+            header_writer.set<std::size_t>("OBS_NCHAN", header.obs_nchans);
+            header_writer.set<long double>("OBS_FREQUENCY",
+                                           header.obs_frequency);
+            header_writer.set<long double>("OBS_BW", header.obs_bandwidth);
+            header_writer.set<std::size_t>("NSAMP", stream_data.nsamples());
+            if(stream_data.ndms()) {
+                header_writer.set<std::size_t>("NDMS", stream_data.ndms());
+                header_writer.set("DMS", stream_data.dms(), 7);
+            }
+            header_writer.set<long double>(
+                "COHERENT_DM",
+                static_cast<long double>(stream_data.reference_dm()));
+            header_writer.set<long double>("FREQ", header.frequency);
+            header_writer.set<long double>("BW", header.bandwidth);
+            header_writer.set<long double>("TSAMP", stream_data.tsamp() * 1e6);
+            if(config.stokes_mode == "IQUV") {
+                header_writer.set<std::size_t>("NPOL", 4);
+            } else {
+                header_writer.set<std::size_t>("NPOL", 1);
+            }
+            header_writer.set<std::string>("STOKES_MODE",
+                                           config.stokes_mode);
+            header_writer.set<std::string>("ORDER",
+                                           stream_data.dims_as_string());
+            header_writer.set<std::size_t>("CHAN0_IDX", header.chan0_idx);
+            header_writer.set<std::size_t>("FILE_SIZE", filesize);
+            header_writer.set<std::size_t>("FILE_NUMBER", file_idx);
+            header_writer.set<std::size_t>("OBS_OFFSET", bytes_written);
+            header_writer.set<std::size_t>("OBS_OVERLAP", 0);
+            header_writer.set<long double>("UTC_START",
+                                           header.utc_start +
+                                               stream_data.utc_offset());
+            std::shared_ptr<char const> header_ptr(
+                temp_header,
+                std::default_delete<char[]>());
+            return header_ptr;
+        });
+    return file_stream;
+}
+
+template <typename VectorType> inline
+std::unique_ptr<FileOutputStream>  create_sigproc_file_stream(MultiFileWriterConfig const& config,
+            ObservationHeader const& obs_header,
+            VectorType const& stream_data,
+            std::size_t stream_idx)
+{
+        
+        
+
+    BOOST_LOG_TRIVIAL(debug) << "Creating stream based on stream prototype: "
+                             << stream_data.describe();
+
+    ObservationHeader header = obs_header;
+
+    BOOST_LOG_TRIVIAL(debug) << "Header: " << header.to_string();
+                             
+    // Here we round the file size to a multiple of the stream prototype
+    std::size_t filesize =
+        std::max(1ul,
+                 config.max_file_size / stream_data.size() /
+                     sizeof(typename VectorType::value_type)) *
+        stream_data.size();
+    BOOST_LOG_TRIVIAL(debug)
+        << "Maximum allowed file size = " << filesize << " bytes (+header)";        
+
+    
+    double foff = -1* static_cast<double>(header.obs_bandwidth / header.nchans)/1e6;// MHz
+    double fch1 =  static_cast<double>(header.obs_frequency + header.obs_bandwidth / 2.0)/1e6 + 0.5 * foff; // MHz
+    double tstart = static_cast<double>(header.mjd_start);
+    uint32_t datatype = 0; 
+    uint32_t barycentric = 0;
+    // uint32_t ibeam = 0;
+    double az = 0.0;
+    double za = 0.0;
+    uint32_t machineid = 0;
+    uint32_t nifs = header.npol;
+    uint32_t telescopeid = 0;
+
+    header.sigproc_params = true;
+    header.rawfile = std::string("unset");
+    header.fch1 = fch1;
+    header.foff = foff;
+    header.tsamp = header.tsamp/1e6;
+    header.az = az;
+    header.za = za;
+    header.datatype = datatype;
+    header.barycentric = barycentric;
+    header.nifs = nifs;
+    header.telescopeid = telescopeid;
+
+
+
+    BOOST_LOG_TRIVIAL(info) << "Creating Sigproc file stream";
+    BOOST_LOG_TRIVIAL(info) << "fch1: " << header.obs_frequency + header.obs_bandwidth / 2.0;
+    
+    BOOST_LOG_TRIVIAL(info) << "rawfile: " << header.rawfile;
+    BOOST_LOG_TRIVIAL(info) << "source: " << header.source_name;
+    BOOST_LOG_TRIVIAL(info) << "ra: " << header.ra;
+    BOOST_LOG_TRIVIAL(info) << "dec: " << header.dec;
+    BOOST_LOG_TRIVIAL(info) << "fch1: " << fch1;
+    BOOST_LOG_TRIVIAL(info) << "foff: " << foff;
+    BOOST_LOG_TRIVIAL(info) << "rdm: " << header.refdm;
+    BOOST_LOG_TRIVIAL(info) << "tsamp: " << header.tsamp;
+    BOOST_LOG_TRIVIAL(info) << "tstart: " << tstart;
+    BOOST_LOG_TRIVIAL(info) << "az: " << az;
+    BOOST_LOG_TRIVIAL(info) << "za: " << za;
+    BOOST_LOG_TRIVIAL(info) << "datatype: " << header.datatype;
+    BOOST_LOG_TRIVIAL(info) << "barycentric: " << header.barycentric;
+    BOOST_LOG_TRIVIAL(info) << "ibeam: " << header.ibeam;
+    BOOST_LOG_TRIVIAL(info) << "machineid: " << machineid;
+    BOOST_LOG_TRIVIAL(info) << "nbeams: " << header.nbeams;
+    BOOST_LOG_TRIVIAL(info) << "nbits: " << header.nbits;
+    BOOST_LOG_TRIVIAL(info) << "nchans: " << header.nchans;
+    BOOST_LOG_TRIVIAL(info) << "nifs: " << nifs;
+    BOOST_LOG_TRIVIAL(info) << "telescopeid: " << telescopeid;
+    BOOST_LOG_TRIVIAL(info) << "outdir: " << config.output_dir;
+    BOOST_LOG_TRIVIAL(info) << "prefix: " << config.prefix;
+    BOOST_LOG_TRIVIAL(info) << "extension: " << config.extension;
+    // // Here we should update the tstart of the default header to be the
+    // // start of the stream
+    // // reset the total bytes counter to keep the time tracked correctly
+    // // Generate the new base filename in <utc>_<tag> format
+    // std::stringstream base_filename;
+    // // Get UTC time string
+    // std::time_t unix_time =
+    //     static_cast<std::time_t>(( header.mjd_start  - 40587.0) * 86400.0);
+    // struct std::tm* ptm = std::gmtime(&unix_time);
+
+    // // Swapped out put_time call for strftime due to put_time
+    // // causing compiler bugs prior to g++ 5.x
+    // char formatted_time[80];
+    // strftime(formatted_time, 80, "%Y-%m-%d-%H:%M:%S", ptm);
+    // base_filename << formatted_time;
+
+
+
+    std::unique_ptr<FileOutputStream> file_stream = std::make_unique<FileOutputStream>(
+        config.output_dir,
+        config.prefix,
+        config.extension,
+        filesize,
+        [header](std::size_t& header_size,
+            std::size_t bytes_written,
+            std::size_t file_idx) -> std::shared_ptr<char const> {
+            // We do not explicitly delete[] this array
+            // Cleanup is handled by the shared pointer
+            // created below
+            std::ostringstream header_stream;
+            // get ostream from temp_header
+            BOOST_LOG_TRIVIAL(info) << "Creating Sigproc header";
+            BOOST_LOG_TRIVIAL(info) << "rawfile: " << header.rawfile;
+            BOOST_LOG_TRIVIAL(info) << "source: " << header.source_name;
+            BOOST_LOG_TRIVIAL(info) << "ra: " << header.ra;
+            BOOST_LOG_TRIVIAL(info) << "dec: " << header.dec;
+            BOOST_LOG_TRIVIAL(info) << "fch1: " << header.fch1;
+            BOOST_LOG_TRIVIAL(info) << "foff: " << header.foff;
+            BOOST_LOG_TRIVIAL(info) << "rdm: " << header.refdm;
+            BOOST_LOG_TRIVIAL(info) << "tsamp: " << header.tsamp;
+            BOOST_LOG_TRIVIAL(info) << "tstart: " << header.mjd_start;
+            BOOST_LOG_TRIVIAL(info) << "az: " << header.az;
+            BOOST_LOG_TRIVIAL(info) << "za: " << header.za;
+            BOOST_LOG_TRIVIAL(info) << "datatype: " << header.datatype;
+            BOOST_LOG_TRIVIAL(info) << "barycentric: " << header.barycentric;
+            BOOST_LOG_TRIVIAL(info) << "ibeam: " << header.ibeam;
+            BOOST_LOG_TRIVIAL(info) << "machineid: " << header.machineid;
+            BOOST_LOG_TRIVIAL(info) << "nbeams: " << header.nbeams;
+            BOOST_LOG_TRIVIAL(info) << "nbits: " << header.nbits;
+            BOOST_LOG_TRIVIAL(info) << "nchans: " << header.nchans;
+            BOOST_LOG_TRIVIAL(info) << "nifs: " << header.nifs;
+            BOOST_LOG_TRIVIAL(info) << "telescopeid: " << header.telescopeid;
+
+            SigprocHeader sigproc_header(header);
+            double mjd_offset = (((bytes_written / (header.nbits / 8.0)) / (header.nchans)) *
+                                    header.tsamp) /
+                                        (86400.0);
+            sigproc_header.add_time_offset(mjd_offset);
+            sigproc_header.write_header(header_stream);
+            std::string header_str = header_stream.str();
+            header_size = header_str.size();
+            char* header_cstr = new char[header_size];
+            std::copy(header_str.begin(), header_str.end(), header_cstr);
+            std::shared_ptr<char const> header_ptr(
+                header_cstr,
+                std::default_delete<char[]>());
+            return header_ptr;
+        });
+    return file_stream;
+}
+
+} // namespace detail
+} // namespace skyweaver

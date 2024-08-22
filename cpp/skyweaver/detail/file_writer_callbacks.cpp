@@ -106,6 +106,9 @@ std::unique_ptr<FileOutputStream>  create_dada_file_stream(MultiFileWriterConfig
                                         header_size,
                                         false);
             Header header_writer(bytes);
+            header_writer.set<std::string>("SOURCE", header.source_name);
+            header_writer.set<std::string>("RA", header.ra);
+            header_writer.set<std::string>("DEC", header.dec);
             header_writer.set<std::size_t>("NBEAM", stream_data.nbeams());
             header_writer.set<std::size_t>("NCHAN", stream_data.nchannels());
             header_writer.set<std::size_t>("OBS_NCHAN", header.obs_nchans);
@@ -184,7 +187,7 @@ std::unique_ptr<FileOutputStream>  create_sigproc_file_stream(MultiFileWriterCon
     double za = 0.0;
     uint32_t machineid = 0;
     uint32_t nifs = header.npol;
-    uint32_t telescopeid = 0;
+    uint32_t telescopeid = 64;
 
     header.sigproc_params = true;
     header.rawfile = std::string("unset");

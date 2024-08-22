@@ -79,15 +79,18 @@ class NullHandler
     };
 };
 
-BeamformerPipelineTester::BeamformerPipelineTester(): ::testing::Test()
+template <typename BfTraits>
+BeamformerPipelineTester<BfTraits>::BeamformerPipelineTester(): ::testing::Test()
 {
 }
 
-BeamformerPipelineTester::~BeamformerPipelineTester()
+template <typename BfTraits>
+BeamformerPipelineTester<BfTraits>::~BeamformerPipelineTester()
 {
 }
 
-void BeamformerPipelineTester::SetUp()
+template <typename BfTraits>
+void BeamformerPipelineTester<BfTraits>::SetUp()
 {
     if(_config.nantennas() < 57) {
         GTEST_SKIP();
@@ -97,31 +100,42 @@ void BeamformerPipelineTester::SetUp()
     }
 }
 
-void BeamformerPipelineTester::TearDown()
+template <typename BfTraits>
+void BeamformerPipelineTester<BfTraits>::TearDown()
 {
 }
 
-TEST_F(BeamformerPipelineTester, instantiate)
+typedef ::testing::Types<SingleStokesBeamformerTraits<StokesParameter::I>,
+                         SingleStokesBeamformerTraits<StokesParameter::Q>,
+                         SingleStokesBeamformerTraits<StokesParameter::U>,
+                         SingleStokesBeamformerTraits<StokesParameter::V>,
+                         StokesTraits<StokesParameter::Q, StokesParameter::U>,
+                         StokesTraits<StokesParameter::I, StokesParameter::V>,
+                         FullStokesBeamformerTraits>
+    StokesTypes;
+TYPED_TEST_SUITE(BeamformerPipelineTester, StokesTypes);
+
+TYPED_TEST(BeamformerPipelineTester, instantiate)
 {
-    using BfTraits = SingleStokesBeamformerTraits<StokesParameter::I>;
-    _config.ddplan().add_block(0.0f, 1);
-    _config.output_dir("/tmp/");
-    _config.delay_file("data/test_delays.bin");
+    using BfTraits = typename TestFixture::BfTraitsType;
+    this->_config.ddplan().add_block(0.0f, 1);
+    this->_config.output_dir("/tmp/");
+    this->_config.delay_file("data/test_delays.bin");
     NullHandler cb_handler;
     NullHandler ib_handler;
     NullHandler stats_handler;
     BeamformerPipeline<decltype(cb_handler),
                        decltype(ib_handler),
                        decltype(stats_handler),
-                       BfTraits>(_config, cb_handler, ib_handler, stats_handler);
+                       BfTraits>(this->_config, cb_handler, ib_handler, stats_handler);
 }
 
-TEST_F(BeamformerPipelineTester, full_pipeline_test)
+TYPED_TEST(BeamformerPipelineTester, full_pipeline_test)
 {
-    using BfTraits = SingleStokesBeamformerTraits<StokesParameter::I>;
-    _config.ddplan().add_block(0.0f, 1);
-    _config.output_dir("/tmp/");
-    _config.delay_file("data/test_delays.bin");
+    using BfTraits = typename TestFixture::BfTraitsType;
+    this->_config.ddplan().add_block(0.0f, 1);
+    this->_config.output_dir("/tmp/");
+    this->_config.delay_file("data/test_delays.bin");
     ObservationHeader header;
     std::vector<char> header_bytes(default_dada_header.size() + 1);
     std::strcpy(header_bytes.data(), default_dada_header.c_str());
@@ -130,11 +144,11 @@ TEST_F(BeamformerPipelineTester, full_pipeline_test)
                                      default_dada_header.size(),
                                      false);
     read_dada_header(raw_header, header);
-    validate_header(header, _config);
-    update_config(_config, header);
+    validate_header(header, this->_config);
+    update_config(this->_config, header);
 
     MultiFileWriter<TDBPowersH<typename BfTraits::QuantisedPowerType>>
-        cb_handler(_config, "cb");
+        cb_handler(this->_config, "cb");
     NullHandler ib_handler;
     NullHandler stats_handler;
     using IDPipelineType =
@@ -147,20 +161,20 @@ TEST_F(BeamformerPipelineTester, full_pipeline_test)
                                                 BfTraits>;
     using InputVectorTypeH = typename BPipelineType::VoltageVectorTypeH;
 
-    IDPipelineType dedispersion_pipeline(_config, cb_handler);
-    BPipelineType pipeline(_config,
+    IDPipelineType dedispersion_pipeline(this->_config, cb_handler);
+    BPipelineType pipeline(this->_config,
                            dedispersion_pipeline,
                            ib_handler,
                            stats_handler);
 
     InputVectorTypeH input({
-        _config.gulp_length_samps() / _config.nsamples_per_heap(), // T
+        this->_config.gulp_length_samps() / this->_config.nsamples_per_heap(), // T
         header.nantennas,                                        // A
-        _config.nchans(),                                         // F
-        _config.nsamples_per_heap(),                              // T
-        _config.npol()                                            // P
+        this->_config.nchans(),                                         // F
+        this->_config.nsamples_per_heap(),                              // T
+        this->_config.npol()                                            // P
     });
-    input.frequencies(_config.channel_frequencies());
+    input.frequencies(this->_config.channel_frequencies());
     input.dms({0.0f});
     pipeline.init(header);
     for(int ii = 0; ii < 100; ++ii) { pipeline(input); }

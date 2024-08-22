@@ -103,6 +103,10 @@ extern template class CoherentBeamformer<
     SingleStokesBeamformerTraits<StokesParameter::U>>;
 extern template class CoherentBeamformer<
     SingleStokesBeamformerTraits<StokesParameter::V>>;
+extern template class CoherentBeamformer<
+    StokesTraits<StokesParameter::Q, StokesParameter::U>>;
+extern template class CoherentBeamformer<
+    StokesTraits<StokesParameter::I, StokesParameter::V>>;
 extern template class CoherentBeamformer<FullStokesBeamformerTraits>;
 
 } // namespace skyweaver

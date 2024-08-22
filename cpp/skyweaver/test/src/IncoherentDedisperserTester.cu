@@ -32,6 +32,8 @@ void IncoherentDedisperserTester<Traits>::TearDown()
 }
 
 typedef ::testing::Types<IDTesterTraits<int8_t, int8_t>,
+                         IDTesterTraits<char2, char2>,
+                         IDTesterTraits<char3, char3>,
                          IDTesterTraits<char4, char4>>
     TestTypes;
 TYPED_TEST_SUITE(IncoherentDedisperserTester, TestTypes);

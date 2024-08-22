@@ -531,13 +531,21 @@ int main(int argc, char** argv)
                 setup_pipeline<skyweaver::SingleStokesBeamformerTraits<
                                    skyweaver::StokesParameter::V>,
                                true>(config);
+            } else if(config.stokes_mode() == "QU") {
+                setup_pipeline<skyweaver::StokesTraits<
+                                   skyweaver::StokesParameter::Q, skyweaver::StokesParameter::U>,
+                               true>(config);
+            } else if(config.stokes_mode() == "IV") {
+                setup_pipeline<skyweaver::StokesTraits<
+                                   skyweaver::StokesParameter::I, skyweaver::StokesParameter::V>,
+                               true>(config);             
             } else if(config.stokes_mode() == "IQUV") {
                 setup_pipeline<skyweaver::FullStokesBeamformerTraits, true>(
                     config);
             } else {
                 throw std::runtime_error(
                     "Invalid Stokes mode passed, must be one "
-                    "of I, Q, U, V or IQUV");
+                    "of I, Q, U, V, QU, IV or IQUV");
             }
         } else {
             BOOST_LOG_TRIVIAL(info) << "Incoherent dedispersion disabled";
@@ -557,13 +565,21 @@ int main(int argc, char** argv)
                 setup_pipeline<skyweaver::SingleStokesBeamformerTraits<
                                    skyweaver::StokesParameter::V>,
                                false>(config);
+            } else if(config.stokes_mode() == "QU") {
+                setup_pipeline<skyweaver::StokesTraits<
+                                   skyweaver::StokesParameter::Q, skyweaver::StokesParameter::U>,
+                               false>(config);
+            } else if(config.stokes_mode() == "IV") {
+                setup_pipeline<skyweaver::StokesTraits<
+                                   skyweaver::StokesParameter::I, skyweaver::StokesParameter::V>,
+                               false>(config); 
             } else if(config.stokes_mode() == "IQUV") {
                 setup_pipeline<skyweaver::FullStokesBeamformerTraits, false>(
                     config);
             } else {
                 throw std::runtime_error(
                     "Invalid Stokes mode passed, must be one "
-                    "of I, Q, U, V or IQUV");
+                    "of I, Q, U, V, QU, IV or IQUV");
             }
         }
     } catch(std::exception& e) {

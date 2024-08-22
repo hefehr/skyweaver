@@ -81,13 +81,17 @@ expect_near(T const& a, T const& b, X const& c)
 }
 
 template <typename T, typename X>
-typename std::enable_if<is_vec4_v<T>, void>::type
+typename std::enable_if<is_vecN_v<T>, void>::type
 expect_near(T const& a, T const& b, X const& c)
 {
     EXPECT_NEAR(a.x, b.x, c);
     EXPECT_NEAR(a.y, b.y, c);
-    EXPECT_NEAR(a.z, b.z, c);
-    EXPECT_NEAR(a.w, b.w, c);
+    if constexpr (value_traits<T>::size() > 2){
+        EXPECT_NEAR(a.z, b.z, c);
+    }
+    if constexpr (value_traits<T>::size() > 3){
+        EXPECT_NEAR(a.w, b.w, c);
+    }
 }
 
 template <typename T, typename X>
@@ -98,13 +102,17 @@ expect_relatively_near(T const& a, T const& b, X const& c)
 }
 
 template <typename T, typename X>
-typename std::enable_if<is_vec4_v<T>, void>::type
+typename std::enable_if<is_vecN_v<T>, void>::type
 expect_relatively_near(T const& a, T const& b, X const& c)
 {
     EXPECT_NEAR(a.x, b.x, std::abs(a.x * c));
     EXPECT_NEAR(a.y, b.y, std::abs(a.y * c));
-    EXPECT_NEAR(a.z, b.z, std::abs(a.z * c));
-    EXPECT_NEAR(a.w, b.w, std::abs(a.w * c));
+    if constexpr (value_traits<T>::size() > 2){
+        EXPECT_NEAR(a.z, b.z, std::abs(a.z * c));
+    }
+    if constexpr (value_traits<T>::size() > 3){
+        EXPECT_NEAR(a.w, b.w, std::abs(a.w * c));
+    }
 }
 
 template <typename T>

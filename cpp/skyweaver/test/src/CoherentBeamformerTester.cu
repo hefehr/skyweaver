@@ -197,6 +197,8 @@ typedef ::testing::Types<SingleStokesBeamformerTraits<StokesParameter::I>,
                          SingleStokesBeamformerTraits<StokesParameter::Q>,
                          SingleStokesBeamformerTraits<StokesParameter::U>,
                          SingleStokesBeamformerTraits<StokesParameter::V>,
+                         StokesTraits<StokesParameter::Q, StokesParameter::U>,
+                         StokesTraits<StokesParameter::I, StokesParameter::V>,
                          FullStokesBeamformerTraits>
     StokesTypes;
 TYPED_TEST_SUITE(CoherentBeamformerTester, StokesTypes);

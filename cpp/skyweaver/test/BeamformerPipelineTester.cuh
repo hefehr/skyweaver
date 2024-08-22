@@ -11,6 +11,7 @@ namespace skyweaver
 namespace test
 {
 
+template <typename BfTraits>
 class BeamformerPipelineTester: public ::testing::Test
 {
   
@@ -19,6 +20,7 @@ class BeamformerPipelineTester: public ::testing::Test
     void TearDown() override;
 
   public:
+    using BfTraitsType = BfTraits;
     BeamformerPipelineTester();
     ~BeamformerPipelineTester();
   protected:

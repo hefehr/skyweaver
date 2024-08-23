@@ -22,9 +22,16 @@ void create_coherent_dedisperser_config(CoherentDedisperserConfig& config,
     // the centre frequency and bandwidth are for the bridge. This is taken from Observation Header (not from the user)
     float f_low =
         pipeline_config.centre_frequency() - pipeline_config.bandwidth() / 2.0f;
-    float f_high =
-        pipeline_config.centre_frequency() + pipeline_config.bandwidth() / 2.0f;
+
+    float f_high = f_low + pipeline_config.bandwidth()/pipeline_config.nchans();
+    
+        // pipeline_config.centre_frequency() + pipeline_config.bandwidth() / 2.0f;
     float tsamp  = pipeline_config.nchans() / pipeline_config.bandwidth();
+
+    BOOST_LOG_TRIVIAL(debug) << "Coherent Dedisperser Config: Centre frequency: " << std::setprecision(15) << pipeline_config.centre_frequency(); 
+    BOOST_LOG_TRIVIAL(debug) << "Coherent Dedisperser Config: Bandwidth: " << std::setprecision(15) << pipeline_config.bandwidth();
+    BOOST_LOG_TRIVIAL(debug) << "Coherent Dedisperser Config: f_low: " << std::setprecision(15) << f_low;
+    BOOST_LOG_TRIVIAL(debug) << "Coherent Dedisperser Config: f_high: " << std::setprecision(15) << f_high;
 
     if(pipeline_config.coherent_dms().empty()) {
         throw std::runtime_error("No coherent DMs specified");

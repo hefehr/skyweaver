@@ -26,6 +26,8 @@ void create_coherent_dedisperser_config(CoherentDedisperserConfig& config,
         pipeline_config.centre_frequency() + pipeline_config.bandwidth() / 2.0f;
     float tsamp  = pipeline_config.nchans() / pipeline_config.bandwidth();
 
+    
+
     if(pipeline_config.coherent_dms().empty()) {
         throw std::runtime_error("No coherent DMs specified");
     }

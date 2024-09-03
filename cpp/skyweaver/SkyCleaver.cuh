@@ -47,6 +47,7 @@ class SkyCleaver
     SkyCleaverConfig const& _config;
     std::map<FreqType, std::unique_ptr<MultiFileReader>> _bridge_readers;
     std::map<FreqType, std::unique_ptr<InputVectorType>> _bridge_data; // shared ptr so that we can reuse zero data
+    
     std::vector<FreqType> _expected_freqs;
     std::vector<FreqType> _available_freqs;
     std::size_t _nsamples_to_read;

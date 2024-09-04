@@ -123,7 +123,16 @@ std::unique_ptr<FileOutputStream>  create_dada_file_stream(MultiFileWriterConfig
             header_writer.set<long double>(
                 "COHERENT_DM",
                 static_cast<long double>(stream_data.reference_dm()));
-            header_writer.set<long double>("FREQ", header.frequency);
+            try{
+                header_writer.set<long double>("FREQ", std::accumulate(
+                                                stream_data.frequencies().begin(),
+                                                stream_data.frequencies().end(),
+                                                0.0)/stream_data.frequencies().size());
+            } catch(std::runtime_error& ){
+                BOOST_LOG_TRIVIAL(warning) << "Warning: Frequencies array was stale, using the centre frequency from the header";
+                header_writer.set<long double>("FREQ", header.frequency);
+            }
+
             header_writer.set<long double>("BW", header.bandwidth);
             header_writer.set<long double>("TSAMP", stream_data.tsamp() * 1e6);
             if(config.stokes_mode == "IQUV") {

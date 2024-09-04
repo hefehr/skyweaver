@@ -48,6 +48,10 @@ void create_coherent_dedisperser_config(CoherentDedisperserConfig& config,
             "Gulp length must be at least 2 times the maximum DM delay");
     }
 
+    if(max_dm_delay_samps %2 !=0) {
+        max_dm_delay_samps++;
+    }
+
     create_coherent_dedisperser_config(config,
                                        pipeline_config.gulp_length_samps(),
                                        max_dm_delay_samps,
@@ -87,6 +91,10 @@ void create_coherent_dedisperser_config(CoherentDedisperserConfig& config,
     config.high_freq      = low_freq + bw;
     config.coarse_chan_bw = bw / num_coarse_chans;
     config.filter_delay = tsamp * overlap_samps / 2.0;
+    BOOST_LOG_TRIVIAL(warning) << "tsamp in create_coherent_dedisperser_config: " << config.tsamp;
+    BOOST_LOG_TRIVIAL(warning) << "overlap_samps in create_coherent_dedisperser_config: " << config.overlap_samps;
+    BOOST_LOG_TRIVIAL(warning) << "Filter delay: " << config.filter_delay;
+
 
     /* Precompute DM constants */
     config._h_dms = dms;

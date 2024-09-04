@@ -190,7 +190,7 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
     NVTX_RANGE_POP();
     NVTX_RANGE_PUSH("Coherent dedispersion - beamforming loop");
     _ftpa_dedispersed.like(_ftpa_post_transpose);
-    _ftpa_dedispersed.utc_offset(_dedisperser_config.filter_delay);
+    _ftpa_dedispersed.utc_offset(-1 * _dedisperser_config.filter_delay);
     for(unsigned int dm_idx = 0; dm_idx < _config.coherent_dms().size();
         ++dm_idx) {
         NVTX_RANGE_PUSH("Coherent dedispersion - all channels");

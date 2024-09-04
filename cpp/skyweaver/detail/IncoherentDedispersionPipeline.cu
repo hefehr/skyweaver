@@ -73,7 +73,9 @@ void IncoherentDedispersionPipeline<InputType, OutputType, Handler>::
     // Set the correct DMs on the block
     _output_buffers[ref_dm_idx].dms(plan[ref_dm_idx].incoherent_dms);
     _output_buffers[ref_dm_idx].reference_dm(plan[ref_dm_idx].coherent_dm);
-    _output_buffers[ref_dm_idx].frequencies({_config.centre_frequency()});
+    _output_buffers[ref_dm_idx].frequencies({_config.centre_frequency() - _config.bandwidth() / 2.0});
+
+    BOOST_LOG_TRIVIAL(debug) << "setting centre frequency to " << _output_buffers[ref_dm_idx].frequencies()[0];
 
     BOOST_LOG_TRIVIAL(debug) << "Passing output buffer to handler: "
                              << _output_buffers[ref_dm_idx].describe();
@@ -109,6 +111,12 @@ void IncoherentDedispersionPipeline<InputType, OutputType, Handler>::operator()(
     _output_buffers[ref_dm_idx].utc_offset(
         data.utc_offset() +
         _dedispersers[ref_dm_idx]->max_sample_delay() * data.tsamp());
+    BOOST_LOG_TRIVIAL(warning) << "Old UTC offset was " << data.utc_offset();
+    BOOST_LOG_TRIVIAL(warning) << "Incoherent Max delay is "
+                            << _dedispersers[ref_dm_idx]->max_sample_delay();
+    BOOST_LOG_TRIVIAL(warning) << "tsamp is " << data.tsamp();
+    BOOST_LOG_TRIVIAL(warning) << "Setting UTC offset to "
+                            << _output_buffers[ref_dm_idx].utc_offset();
     _agg_buffers[ref_dm_idx]->push_back(data.vector());
 }
 

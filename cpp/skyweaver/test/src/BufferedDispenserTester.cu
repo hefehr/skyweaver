@@ -2,6 +2,7 @@
 #include "skyweaver/PipelineConfig.hpp"
 #include "skyweaver/test/BufferedDispenserTester.cuh"
 #include "skyweaver/test/test_utils.cuh"
+#include "skyweaver/dedispersion_utils.cuh"
 
 #include <random>
 #include <thrust/device_vector.h>
@@ -13,8 +14,46 @@ namespace test
 {
 BufferedDispenserTester::BufferedDispenserTester(): ::testing::Test()
 {
-    pipeline_config.dedisp_max_delay_samps(2);
     pipeline_config.gulp_length_samps(64);
+    std::vector<float> dms;
+    dms.push_back(0);
+    dms.push_back(1000);
+    std::size_t fft_length   = 1024;
+    double tsamp = 4096 / 856e6;
+
+    // dms.push_back(200);
+    nantennas        = 64;
+    nchans           = 64;
+    npols            = 2;
+    double f_low     = 856.0 * 1e6;
+    double bridge_bw = 13.375 * 1e6;
+
+    double f1 = f_low;
+    double f2 = f_low + 856.0 * 1e6 / 4096;
+
+    double max_dm = *(std::max_element(dms.begin(), dms.end()));
+    BOOST_LOG_TRIVIAL(info) << "Max DM: " << max_dm;
+    BOOST_LOG_TRIVIAL(info) << "tsamp: " << tsamp;
+    BOOST_LOG_TRIVIAL(info) << "f_low: " << f_low;
+    BOOST_LOG_TRIVIAL(info) << "f1: " << f1;
+    BOOST_LOG_TRIVIAL(info) << "f2: " << f2;
+    double max_dm_delay = dm_delay(f1, f2, max_dm);
+    max_delay_samps     = std::ceil(max_dm_delay / tsamp);
+
+    BOOST_LOG_TRIVIAL(info)
+        << "Max dm delay per subband is: " << max_dm_delay
+        << " seconds which is about " << max_delay_samps << " samples.";
+
+    create_coherent_dedisperser_config(dedisp_config,
+                                       fft_length,
+                                       max_delay_samps,
+                                       nchans,
+                                       npols,
+                                       nantennas,
+                                       tsamp,
+                                       f_low,
+                                       bridge_bw,
+                                       dms);
 }
 
 BufferedDispenserTester::~BufferedDispenserTester()
@@ -33,7 +72,7 @@ TEST_F(BufferedDispenserTester, testBufferedDispenser)
 {
     // std::vector<float> coherent_dms;
     // coherent_dms.push_back(0.0);
-    BufferedDispenser bufferedDispenser(pipeline_config, nullptr);
+    BufferedDispenser bufferedDispenser(pipeline_config, dedisp_config, nullptr);
 
     nantennas         = pipeline_config.nantennas();
     nchans            = pipeline_config.nchans();
@@ -57,7 +96,7 @@ TEST_F(BufferedDispenserTester, testBufferedDispenser)
 
     const std::size_t size_TPA = nantennas * npols * nsamples_gulp;
     const std::size_t max_delay_tpa =
-        pipeline_config.dedisp_max_delay_samps() * nantennas * npols;
+        max_delay_samps * nantennas * npols;
     const std::size_t size_tpa = size_TPA + max_delay_tpa;
 
     /* hoard the voltages_1 */

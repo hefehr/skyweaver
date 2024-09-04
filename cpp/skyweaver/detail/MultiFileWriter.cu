@@ -148,7 +148,16 @@ MultiFileWriter<VectorType>::create_stream(VectorType const& stream_data,
             header_writer.set<long double>(
                 "COHERENT_DM",
                 static_cast<long double>(stream_data.reference_dm()));
-            header_writer.set<long double>("FREQ", _header.frequency);
+            try{
+                header_writer.set<long double>("FREQ", std::accumulate(
+                                                stream_data.frequencies().begin(),
+                                                stream_data.frequencies().end(),
+                                                0.0)/stream_data.frequencies().size());
+            } catch(std::runtime_error& ){
+                BOOST_LOG_TRIVIAL(warning) << "Warning: Frequencies array was stale, using the centre frequency from the header";
+                header_writer.set<long double>("FREQ", _header.frequency);
+            }
+    
             header_writer.set<long double>("BW", _header.bandwidth);
             header_writer.set<long double>("TSAMP", stream_data.tsamp() * 1e6);
             if(_config.stokes_mode() == "IQUV") {
@@ -165,6 +174,10 @@ MultiFileWriter<VectorType>::create_stream(VectorType const& stream_data,
             header_writer.set<std::size_t>("FILE_NUMBER", file_idx);
             header_writer.set<std::size_t>("OBS_OFFSET", bytes_written);
             header_writer.set<std::size_t>("OBS_OVERLAP", 0);
+            BOOST_LOG_TRIVIAL(debug) << "utc_offset is " << std::setprecision(15) << stream_data.utc_offset();
+            BOOST_LOG_TRIVIAL(debug) << "UTC_START is " << std::setprecision(15) << _header.utc_start;
+            BOOST_LOG_TRIVIAL(debug) << "Setting UTC_START to " << std::setprecision(15)
+                                    << _header.utc_start + stream_data.utc_offset();
             header_writer.set<long double>("UTC_START",
                                            _header.utc_start +
                                                stream_data.utc_offset());

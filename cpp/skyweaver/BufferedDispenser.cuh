@@ -46,6 +46,7 @@ class skyweaver::BufferedDispenser
 
     std::vector<bool> _first_hoard; // flag to know if we are hoarding for the
                                     // first time
+                                    
     
     cudaStream_t _stream;
 

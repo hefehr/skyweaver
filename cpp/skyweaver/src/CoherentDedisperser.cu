@@ -22,8 +22,10 @@ void create_coherent_dedisperser_config(CoherentDedisperserConfig& config,
     // the centre frequency and bandwidth are for the bridge. This is taken from Observation Header (not from the user)
     float f_low =
         pipeline_config.centre_frequency() - pipeline_config.bandwidth() / 2.0f;
-    float f_high =
-        pipeline_config.centre_frequency() + pipeline_config.bandwidth() / 2.0f;
+
+    float f_high = f_low + pipeline_config.bandwidth()/pipeline_config.nchans();
+    
+        // pipeline_config.centre_frequency() + pipeline_config.bandwidth() / 2.0f;
     float tsamp  = pipeline_config.nchans() / pipeline_config.bandwidth();
 
     
@@ -41,6 +43,10 @@ void create_coherent_dedisperser_config(CoherentDedisperserConfig& config,
     if(max_dm_delay_samps > 2 * pipeline_config.gulp_length_samps()) {
         throw std::runtime_error(
             "Gulp length must be at least 2 times the maximum DM delay");
+    }
+
+    if(max_dm_delay_samps %2 !=0) {
+        max_dm_delay_samps++;
     }
 
     create_coherent_dedisperser_config(config,
@@ -82,6 +88,10 @@ void create_coherent_dedisperser_config(CoherentDedisperserConfig& config,
     config.high_freq      = low_freq + bw;
     config.coarse_chan_bw = bw / num_coarse_chans;
     config.filter_delay = tsamp * overlap_samps / 2.0;
+    BOOST_LOG_TRIVIAL(warning) << "tsamp in create_coherent_dedisperser_config: " << config.tsamp;
+    BOOST_LOG_TRIVIAL(warning) << "overlap_samps in create_coherent_dedisperser_config: " << config.overlap_samps;
+    BOOST_LOG_TRIVIAL(warning) << "Filter delay: " << config.filter_delay;
+
 
     /* Precompute DM constants */
     config._h_dms = dms;

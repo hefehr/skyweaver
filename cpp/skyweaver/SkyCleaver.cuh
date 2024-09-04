@@ -35,7 +35,7 @@ class SkyCleaver
 {
   public:
     using InputType = int8_t;
-    using OutputType = int8_t;
+    using OutputType = uint8_t;
     using InputVectorType = TDBPowersH<InputType>;
     using OutputVectorType = TFPowersH<OutputType>;
     using FreqType = std::size_t; // up to the nearest Hz
@@ -46,7 +46,7 @@ class SkyCleaver
   private:   
     SkyCleaverConfig const& _config;
     std::map<FreqType, std::unique_ptr<MultiFileReader>> _bridge_readers;
-    std::map<FreqType, std::unique_ptr<InputVectorType>> _bridge_data; // shared ptr so that we can reuse zero data
+    std::map<FreqType, std::unique_ptr<InputVectorType>> _bridge_data; 
     
     std::vector<FreqType> _expected_freqs;
     std::vector<FreqType> _available_freqs;

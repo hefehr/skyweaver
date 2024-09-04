@@ -5,14 +5,16 @@
 #include <omp.h>
 #include <regex>
 #include <type_traits>
-namespace fs = std::filesystem;
-
+#include "skyweaver/types.cuh"
 #include "skyweaver/SkyCleaver.cuh"
+
+namespace fs = std::filesystem;
+using SkyCleaver       = skyweaver::SkyCleaver;
+
 
 using FreqType         = skyweaver::SkyCleaver::FreqType;
 using BridgeReader     = skyweaver::BridgeReader;
 using MultiFileReader  = skyweaver::MultiFileReader;
-using SkyCleaver       = skyweaver::SkyCleaver;
 using OutputVectorType = skyweaver::SkyCleaver::OutputVectorType;
 using InputVectorType  = skyweaver::SkyCleaver::InputVectorType;
 
@@ -101,12 +103,12 @@ void SkyCleaver::init_readers()
     std::vector<std::string> freq_dirs =
         get_subdirs(root_dir + "/" + std::to_string(stream_id));
 
-    BOOST_LOG_TRIVIAL(info) << "Found " << freq_dirs.size() << " frequency directories in root directory: " << root_dir;
-
+    BOOST_LOG_TRIVIAL(info)
+        << "Found " << freq_dirs.size()
+        << " frequency directories in root directory: " << root_dir;
 
     std::map<FreqType, long double> bridge_timestamps;
     long double latest_timestamp = 0.0;
-
 
     for(const auto& freq_dir: freq_dirs) {
         std::vector<std::string> tdb_files = get_files(
@@ -142,7 +144,8 @@ void SkyCleaver::init_readers()
     std::size_t gulp_size =
         _config.nsamples_per_block() * _config.ndms() * _config.nbeams();
 
-    ObservationHeader const& header = (*_bridge_readers.begin()).second->get_header();
+    ObservationHeader const& header =
+        (*_bridge_readers.begin()).second->get_header();
     BOOST_LOG_TRIVIAL(info)
         << "Read header from first file: " << header.to_string();
 
@@ -173,9 +176,9 @@ void SkyCleaver::init_readers()
     std::size_t smallest_data_size = std::numeric_limits<std::size_t>::max();
 
     for(const auto& [freq, reader]: _bridge_readers) {
-
-        // at this point, all non-existed frequencies have been added with zero data
-        // now check if there are any unexpected frequencies in the bridge readers. 
+        // at this point, all non-existed frequencies have been added with zero
+        // data now check if there are any unexpected frequencies in the bridge
+        // readers.
         if(std::find(_expected_freqs.begin(), _expected_freqs.end(), freq) ==
            _expected_freqs.end()) {
             throw std::runtime_error("Frequency " + std::to_string(freq) +
@@ -185,12 +188,14 @@ void SkyCleaver::init_readers()
         // now time align all the bridges to the latest timestamp
         long double timestamp = bridge_timestamps[freq];
         long double time_diff = latest_timestamp - timestamp;
-        long double tsamp = reader->get_header().tsamp * 1e-6; // Header has it in microseconds, converting to seconds
+        long double tsamp =
+            reader->get_header().tsamp *
+            1e-6; // Header has it in microseconds, converting to seconds
         std::size_t nsamples = std::floor(time_diff / tsamp);
 
         BOOST_LOG_TRIVIAL(info)
-            << "Frequency: " << freq << " Timestamp: " << timestamp << "tsamp: " << tsamp
-            << " Latest timestamp: " << latest_timestamp
+            << "Frequency: " << freq << " Timestamp: " << timestamp
+            << "tsamp: " << tsamp << " Latest timestamp: " << latest_timestamp
             << " Time difference: " << time_diff
             << " Number of samples to skip: " << nsamples;
 
@@ -198,19 +203,22 @@ void SkyCleaver::init_readers()
             << "Seeking " << nsamples * _config.ndms() * _config.nbeams()
             << " bytes in bridge reader for frequency: " << freq;
 
-        std::size_t bytes_seeking = nsamples * _config.ndms() * _config.nbeams() *
+        std::size_t bytes_seeking = nsamples * _config.ndms() *
+                                    _config.nbeams() *
                                     sizeof(InputVectorType::value_type);
 
-        _bridge_readers[freq]->seekg(nsamples *  _config.ndms() * _config.nbeams() * sizeof(InputVectorType::value_type),
+        _bridge_readers[freq]->seekg(nsamples * _config.ndms() *
+                                         _config.nbeams() *
+                                         sizeof(InputVectorType::value_type),
                                      std::ios_base::beg);
 
-        std::size_t data_size = _bridge_readers[freq]->get_total_size() - bytes_seeking;
+        std::size_t data_size =
+            _bridge_readers[freq]->get_total_size() - bytes_seeking;
         BOOST_LOG_TRIVIAL(debug)
             << "Data size for frequency: " << freq << " is " << data_size;
         if(data_size < smallest_data_size) {
             smallest_data_size = data_size;
         }
-
     }
 
     BOOST_LOG_TRIVIAL(debug) << "Smallest data size: " << smallest_data_size;
@@ -238,10 +246,9 @@ void SkyCleaver::init_readers()
     BOOST_LOG_TRIVIAL(info)
         << "Added " << _bridge_data.size() << " bridge readers to SkyCleaver";
 
-
-    _header        = _bridge_readers[_available_freqs[0]]->get_header();
+    _header = _bridge_readers[_available_freqs[0]]->get_header();
     BOOST_LOG_TRIVIAL(info) << "Adding first header to SkyCleaver";
-    BOOST_LOG_TRIVIAL(info) << "Header: " << _header.to_string();    
+    BOOST_LOG_TRIVIAL(info) << "Header: " << _header.to_string();
     _header.nchans = _header.nchans * _config.nbridges();
     _header.nbeams = _config.nbeams();
 }
@@ -385,23 +392,21 @@ void SkyCleaver::cleave()
         std::size_t nbeams             = _config.nbeams();
 
 #pragma omp parallel for schedule(static) collapse(2)
-        for(std::size_t idm = 0; idm < ndms; idm++) {
-            for(std::size_t ibeam = 0; ibeam < nbeams; ibeam++) {
+        for(std::size_t ibeam = 0; ibeam < nbeams; ibeam++) {
+            for(std::size_t idm = 0; idm < ndms; idm++) {
 #pragma omp simd
-                for(std::size_t isample = 0; isample < nsamples_per_block;
-                    isample++) {
-                    const std::size_t base_index = isample * ndms * nbeams 
-                                                    + idm * nbeams + ibeam;
+                for(std::size_t isample = 0; isample < nsamples_per_block; isample++) {
+                    const std::size_t base_index =
+                        isample * ndms * nbeams + idm * nbeams + ibeam;
 
                     std::size_t ifreq      = 0;
-                    std::size_t out_offset = isample * nbridges;
-                    for(const auto& [freq, ifreq_data]: _bridge_data) { // for each frequency
+                    const std::size_t out_offset = isample * nbridges;
+                    for(const auto& [freq, ifreq_data]:
+                        _bridge_data) { // for each frequency
                         _beam_data[idm][ibeam]->at(out_offset + nbridges - 1 -
-                                                   ifreq++) =
-                            ifreq_data->at(base_index);
+                                                   ifreq) = clamp<uint8_t>(127 + ifreq_data->at(base_index));
+                        ++ifreq;
                     }
-
-                    
                 }
             }
         }
@@ -413,7 +418,8 @@ void SkyCleaver::cleave()
 #pragma omp parallel for schedule(static) collapse(2)
         for(int idm = 0; idm < _config.ndms(); idm++) {
             for(int ibeam = 0; ibeam < _config.nbeams(); ibeam++) {
-                _beam_writers[idm][ibeam]->write(*_beam_data[idm][ibeam], _config.stream_id());
+                _beam_writers[idm][ibeam]->write(*_beam_data[idm][ibeam],
+                                                 _config.stream_id());
             }
         }
 

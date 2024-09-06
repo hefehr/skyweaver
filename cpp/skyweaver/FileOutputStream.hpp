@@ -45,6 +45,8 @@ class FileOutputStream
         std::size_t write(char const* ptr, std::size_t bytes);
 
       private:
+        void wait_for_space(size_t requested_bytes);
+      private:
         std::string _full_path;
         std::size_t _bytes_requested;
         std::size_t _bytes_written;

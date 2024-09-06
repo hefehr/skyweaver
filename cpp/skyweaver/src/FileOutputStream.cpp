@@ -57,12 +57,14 @@ std::size_t FileOutputStream::File::write(char const* ptr, std::size_t bytes)
     std::size_t bytes_remaining = _bytes_requested - _bytes_written;
     try {
         if(bytes > bytes_remaining) {
+            wait_for_space(bytes_remaining);
             _stream.write(ptr, bytes_remaining);
             _bytes_written += bytes_remaining;
             BOOST_LOG_TRIVIAL(debug)
                 << "Partial write of " << bytes_remaining << " bytes";
             return bytes_remaining;
         } else {
+            wait_for_space(bytes);
             _stream.write(ptr, bytes);
             _bytes_written += bytes;
             BOOST_LOG_TRIVIAL(debug) << "Completed write";
@@ -84,6 +86,25 @@ std::size_t FileOutputStream::File::write(char const* ptr, std::size_t bytes)
        
         throw;
     }
+}
+
+FileOUtputStream::File::wait_for_space(size_t requested_bytes)
+{
+    std::filesystem::space_info space = std::filesystem::space(_full_path);
+    if(space.available >= requested_bytes)
+        return;
+
+    BOOST_LOG_TRIVIAL(warning)
+        << space.available
+        << " bytes available space is not enough for writing "
+        << requested_bytes << " bytes to " << _full_path << ".";
+    BOOST_LOG_TRIVIAL(warning) << "Start pausing.";
+
+    while(space.available < requested_bytes) {
+        sleep(10);
+        space = std::filesystem::space(_full_path);
+    }
+    BOOST_LOG_TRIVIAL(warning) << "Space has been freed up. Will proceed.";
 }
 
 FileOutputStream::FileOutputStream(std::string const& directory,

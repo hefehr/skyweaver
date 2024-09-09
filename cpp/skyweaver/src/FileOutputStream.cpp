@@ -88,7 +88,7 @@ std::size_t FileOutputStream::File::write(char const* ptr, std::size_t bytes)
     }
 }
 
-FileOUtputStream::File::wait_for_space(size_t requested_bytes)
+void FileOutputStream::File::wait_for_space(size_t requested_bytes)
 {
     std::filesystem::space_info space = std::filesystem::space(_full_path);
     if(space.available >= requested_bytes)

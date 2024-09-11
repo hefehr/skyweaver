@@ -15,6 +15,13 @@ namespace skyweaver
  */
 class PipelineConfig
 {
+  struct WaitStruct
+  {
+    bool is_enabled;
+    int iterations;
+    int sleep_time;
+    std::size_t min_free_space;
+  };
   public:
     PipelineConfig();
     ~PipelineConfig();

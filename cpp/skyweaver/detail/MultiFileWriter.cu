@@ -49,6 +49,8 @@ MultiFileWriter<VectorType>::MultiFileWriter(PipelineConfig const& config,
     writer_config.header_size = config.dada_header_size();
     writer_config.max_file_size = config.max_output_filesize();
     writer_config.stokes_mode = config.stokes_mode();
+    writer_config.output_dir = config.output_dir();
+
     _config = writer_config;
 }
 
@@ -84,15 +86,21 @@ MultiFileWriter<VectorType>::create_stream(VectorType const& stream_data,
                                            std::size_t stream_idx)
 {
 
-    // config.output_dir = get_output_dir(stream_data, stream_idx);
-    // config.prefix = get_basefilename(stream_data, stream_idx);
-    // config.extension = get_extension(stream_data);
 
     BOOST_LOG_TRIVIAL(info) << "Creating stream " << stream_idx << " in " << _config.output_dir;
     BOOST_LOG_TRIVIAL(info) << "Prefix: " << _config.prefix;
     BOOST_LOG_TRIVIAL(info) << "Extension: " << _config.extension;
     BOOST_LOG_TRIVIAL(info) << "Output directory: " << _config.output_dir;
 
+    if(_config.output_dir.empty()) {
+        _config.output_dir = get_output_dir(stream_data, stream_idx);
+    }
+
+    if(_config.extension.empty()) {
+        _config.extension = get_extension(stream_data);
+    }
+
+    _config.output_basename = get_basefilename(stream_data, stream_idx);
     _file_streams[stream_idx] = _create_stream_callback(_config, _header, stream_data, stream_idx);
 
     return *_file_streams[stream_idx];
@@ -128,8 +136,7 @@ MultiFileWriter<VectorType>::get_basefilename(VectorType const& stream_data,
     base_filename << get_formatted_time(_header.utc_start) << "_" << stream_idx
                   << "_" << std::fixed << std::setprecision(3)
                   << std::setfill('0') << std::setw(9)
-                  << stream_data.reference_dm() << "_" << std::setprecision(0)
-                  << std::setfill('0') << std::setw(9) << _header.frequency;
+                  << stream_data.reference_dm();
     if(!_tag.empty()) {
         base_filename << "_" << _tag;
     }
@@ -142,6 +149,12 @@ MultiFileWriter<VectorType>::get_extension(VectorType const& stream_data)
 {
     std::string dims = stream_data.dims_as_string();
     for(auto& c: dims) { c = std::tolower(static_cast<unsigned char>(c)); }
+    if(dims =="t") {
+        return ".dat";
+    }
+    else if(dims == "tf") {
+        return ".fil";
+    }
     return "." + dims;
 }
 

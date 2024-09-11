@@ -14,6 +14,7 @@
 #include <ostream>
 #include <iomanip>
 #include <fstream>
+#include <sstream>
 
 
 
@@ -86,9 +87,19 @@ std::unique_ptr<FileOutputStream>  create_dada_file_stream(MultiFileWriterConfig
     BOOST_LOG_TRIVIAL(debug)
         << "Maximum allowed file size = " << filesize << " bytes (+header)";
 
+    std::stringstream output_dir;
+    output_dir << config.output_dir << "/" 
+               << std::fixed << std::setfill('0') << std::setw(9)
+               << static_cast<int>(header.frequency);
+
+     std::stringstream output_basename;
+     output_basename <<  config.output_basename << "_"
+               << std::fixed << std::setfill('0') << std::setw(9)
+               << static_cast<int>(header.frequency);
+
     std::unique_ptr<FileOutputStream> file_stream = std::make_unique<FileOutputStream>(
-        config.output_dir,
-        config.prefix,
+        output_dir.str(),
+        output_basename.str(),
         config.extension,
         filesize,
         [&, header, stream_data, stream_idx, filesize](
@@ -238,6 +249,7 @@ std::unique_ptr<FileOutputStream>  create_sigproc_file_stream(MultiFileWriterCon
     BOOST_LOG_TRIVIAL(info) << "outdir: " << config.output_dir;
     BOOST_LOG_TRIVIAL(info) << "prefix: " << config.prefix;
     BOOST_LOG_TRIVIAL(info) << "extension: " << config.extension;
+    BOOST_LOG_TRIVIAL(info) << "output_basename: " << config.output_basename;
     // // Here we should update the tstart of the default header to be the
     // // start of the stream
     // // reset the total bytes counter to keep the time tracked correctly
@@ -252,8 +264,7 @@ std::unique_ptr<FileOutputStream>  create_sigproc_file_stream(MultiFileWriterCon
     // // causing compiler bugs prior to g++ 5.x
     // char formatted_time[80];
     // strftime(formatted_time, 80, "%Y-%m-%d-%H:%M:%S", ptm);
-    // base_filename << formatted_time;
-
+    // base_filename << formatted_time;             
 
 
     std::unique_ptr<FileOutputStream> file_stream = std::make_unique<FileOutputStream>(
@@ -269,27 +280,8 @@ std::unique_ptr<FileOutputStream>  create_sigproc_file_stream(MultiFileWriterCon
             // created below
             std::ostringstream header_stream;
             // get ostream from temp_header
-            BOOST_LOG_TRIVIAL(info) << "Creating Sigproc header";
-            BOOST_LOG_TRIVIAL(info) << "rawfile: " << header.rawfile;
-            BOOST_LOG_TRIVIAL(info) << "source: " << header.source_name;
-            BOOST_LOG_TRIVIAL(info) << "ra: " << header.ra;
-            BOOST_LOG_TRIVIAL(info) << "dec: " << header.dec;
-            BOOST_LOG_TRIVIAL(info) << "fch1: " << header.fch1;
-            BOOST_LOG_TRIVIAL(info) << "foff: " << header.foff;
-            BOOST_LOG_TRIVIAL(info) << "rdm: " << header.refdm;
-            BOOST_LOG_TRIVIAL(info) << "tsamp: " << header.tsamp;
-            BOOST_LOG_TRIVIAL(info) << "tstart: " << header.mjd_start;
-            BOOST_LOG_TRIVIAL(info) << "az: " << header.az;
-            BOOST_LOG_TRIVIAL(info) << "za: " << header.za;
-            BOOST_LOG_TRIVIAL(info) << "datatype: " << header.datatype;
-            BOOST_LOG_TRIVIAL(info) << "barycentric: " << header.barycentric;
-            BOOST_LOG_TRIVIAL(info) << "ibeam: " << header.ibeam;
-            BOOST_LOG_TRIVIAL(info) << "machineid: " << header.machineid;
-            BOOST_LOG_TRIVIAL(info) << "nbeams: " << header.nbeams;
-            BOOST_LOG_TRIVIAL(info) << "nbits: " << header.nbits;
-            BOOST_LOG_TRIVIAL(info) << "nchans: " << header.nchans;
-            BOOST_LOG_TRIVIAL(info) << "nifs: " << header.nifs;
-            BOOST_LOG_TRIVIAL(info) << "telescopeid: " << header.telescopeid;
+
+  
 
             SigprocHeader sigproc_header(header);
             double mjd_offset = (((bytes_written / (header.nbits / 8.0)) / (header.nchans)) *

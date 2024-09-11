@@ -50,7 +50,7 @@ FileOutputStream::File::~File()
     }
 }
 
-std::size_t FileOutputStream::File::write(char const* ptr, std::size_t bytes)
+std::size_t FileOutputStream::File::write(PipelineConfig const& config, char const* ptr, std::size_t bytes)
 {
     BOOST_LOG_TRIVIAL(debug)
         << "Writing " << bytes << " bytes to " << _full_path;
@@ -88,7 +88,7 @@ std::size_t FileOutputStream::File::write(char const* ptr, std::size_t bytes)
     }
 }
 
-void FileOutputStream::File::wait_for_space(size_t requested_bytes)
+void FileOutputStream::File::wait_for_space(PipelineConfig const& config, size_t requested_bytes)
 {
     std::filesystem::space_info space = std::filesystem::space(_full_path);
     if(space.available >= requested_bytes)

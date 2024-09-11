@@ -91,7 +91,7 @@ std::size_t FileOutputStream::File::write(PipelineConfig const& config, char con
 void FileOutputStream::File::wait_for_space(PipelineConfig const& config, size_t requested_bytes)
 {
     std::filesystem::space_info space = std::filesystem::space(_full_path);
-    if(space.available >= requested_bytes)
+    if(space.available >= config.get_wait_config().min_free_space)
         return;
 
     BOOST_LOG_TRIVIAL(warning)
@@ -99,12 +99,18 @@ void FileOutputStream::File::wait_for_space(PipelineConfig const& config, size_t
         << " bytes available space is not enough for writing "
         << requested_bytes << " bytes to " << _full_path << ".";
     BOOST_LOG_TRIVIAL(warning) << "Start pausing.";
-
-    while(space.available < requested_bytes) {
-        sleep(10);
+    int incrementor = (config.get_wait_config().iterations == 0) ? 0 : 1;
+    for (int i = 0; i < config.get_wait_config().iterations; i+= incrementor)
+    {
+        sleep(config.get_wait_config().sleep_time);
         space = std::filesystem::space(_full_path);
+        if (space.available >= config.get_wait_config().min_free_space)
+        {
+          BOOST_LOG_TRIVIAL(warning) << "Space has been freed up. Will proceed.";
+          return;
+        }
     }
-    BOOST_LOG_TRIVIAL(warning) << "Space has been freed up. Will proceed.";
+    throw std::runtime_error("Space for writing hasn't been freed up in time.");
 }
 
 FileOutputStream::FileOutputStream(PipelineConfig const& config,
@@ -143,7 +149,7 @@ void FileOutputStream::write(char const* ptr, std::size_t bytes)
 {
     BOOST_LOG_TRIVIAL(debug) << "Writing " << bytes << " bytes to file stream";
     if(_current_file) {
-        std::size_t bytes_written = _current_file->write(ptr, bytes);
+        std::size_t bytes_written = _current_file->write(_config, ptr, bytes);
         _total_bytes_written += bytes_written;
         if(bytes_written < bytes) {
             new_file();

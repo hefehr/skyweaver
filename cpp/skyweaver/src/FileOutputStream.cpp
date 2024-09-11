@@ -57,14 +57,28 @@ std::size_t FileOutputStream::File::write(PipelineConfig const& config, char con
     std::size_t bytes_remaining = _bytes_requested - _bytes_written;
     try {
         if(bytes > bytes_remaining) {
-            wait_for_space(bytes_remaining);
+            if (config.get_wait_config().is_enabled) {
+              try {
+                  wait_for_space(config, bytes_remaining);
+              } catch (std::runtime_error& e) {
+                  std::cout << "Wait loop exception: " << e.what() << std::endl;
+                  throw;
+              }
+            }
             _stream.write(ptr, bytes_remaining);
             _bytes_written += bytes_remaining;
             BOOST_LOG_TRIVIAL(debug)
                 << "Partial write of " << bytes_remaining << " bytes";
             return bytes_remaining;
         } else {
-            wait_for_space(bytes);
+            if (config.get_wait_config().is_enabled) {
+              try {
+                wait_for_space(config, bytes);
+              } catch (std::runtime_error& e) {
+                  std::cout << "Wait loop exception: " << e.what() << std::endl;
+                  throw;
+              }
+            }
             _stream.write(ptr, bytes);
             _bytes_written += bytes;
             BOOST_LOG_TRIVIAL(debug) << "Completed write";
@@ -153,6 +167,15 @@ void FileOutputStream::write(char const* ptr, std::size_t bytes)
         _total_bytes_written += bytes_written;
         if(bytes_written < bytes) {
             new_file();
+            if (_config.get_wait_config().is_enabled)
+            {
+                try {
+                    _current_file->wait_for_space(_config, bytes - bytes_written);
+                } catch (std::runtime_error& e) {
+                    std::cout << "Wait loop exception: " << e.what() << std::endl;
+                    throw;
+                }
+            }
             write(ptr + bytes_written, bytes - bytes_written);
         }
     } else {
@@ -179,7 +202,16 @@ void FileOutputStream::new_file()
     // Here we are directly invoking the write method on the File object
     // to avoid potential bugs when the header is not completely written
     BOOST_LOG_TRIVIAL(debug) << "Writing updated header";
-    if(_current_file->write(header_ptr.get(), header_bytes) != header_bytes) {
+    if (_config.get_wait_config().is_enabled)
+    {
+      try {
+          _current_file->wait_for_space(_config, header_bytes);
+      } catch (std::runtime_error& e) {
+          std::cout << "Wait loop exception: " << e.what() << std::endl;
+          throw;
+      }
+    }
+    if(_current_file->write(_config, header_ptr.get(), header_bytes) != header_bytes) {
         throw std::runtime_error("Unable to write header to File instance");
     }
     ++_file_count;

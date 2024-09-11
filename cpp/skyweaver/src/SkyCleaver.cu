@@ -203,13 +203,11 @@ void SkyCleaver::init_readers()
             << "Seeking " << nsamples * _config.ndms() * _config.nbeams()
             << " bytes in bridge reader for frequency: " << freq;
 
-        std::size_t bytes_seeking = nsamples * _config.ndms() *
+        std::size_t bytes_seeking = (nsamples * _config.ndms() *
                                     _config.nbeams() *
-                                    sizeof(InputVectorType::value_type);
+                                    sizeof(InputVectorType::value_type));
 
-        _bridge_readers[freq]->seekg(nsamples * _config.ndms() *
-                                         _config.nbeams() *
-                                         sizeof(InputVectorType::value_type),
+        _bridge_readers[freq]->seekg(bytes_seeking,
                                      std::ios_base::beg);
 
         std::size_t data_size =

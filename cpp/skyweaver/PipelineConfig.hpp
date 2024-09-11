@@ -333,8 +333,16 @@ class PipelineConfig
     {
         return SKYWEAVER_NSAMPLES_PER_HEAP;
     }
+    /**
+     * @brief Returns the wait config
+     */
+    WaitStruct get_wait_config() const
+    {
+        return _wait;
+    }
 
   private:
+    std::size_t convertMemorySize(const std::string& str) const;
     void calculate_channel_frequencies() const;
     void update_power_offsets_and_scalings();
 
@@ -361,6 +369,7 @@ class PipelineConfig
     std::string _stokes_mode;
     float _output_level;
     DedispersionPlan _ddplan;
+    WaitStruct _wait;
     mutable std::vector<double> _channel_frequencies;
 };
 

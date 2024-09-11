@@ -161,6 +161,11 @@ class PipelineConfig
     DedispersionPlan const& ddplan() const;
 
     /**
+     * @brief      configures wait for filesystem space
+     */
+    void configure_wait(std::string argument);
+
+    /**
      * @brief      Enable/disable incoherent dedispersion based fscrunch after
      * beamforming
      */

@@ -157,6 +157,47 @@ DedispersionPlan const& PipelineConfig::ddplan() const
     return _ddplan;
 }
 
+std::size_t PipelineConfig::convertMemorySize(const std::string& str) const {
+    std::size_t lastCharPos = str.find_last_not_of("0123456789");
+    std::string numberPart = str.substr(0, lastCharPos);
+    std::string unitPart = str.substr(lastCharPos);
+
+    std::size_t number = std::stoull(numberPart);
+
+    if (unitPart.empty())
+        return number;
+    else if (unitPart == "K" || unitPart == "k")
+        return number * 1024;
+    else if (unitPart == "M" || unitPart == "m")
+        return number * 1024 * 1024;
+    else if (unitPart == "G" || unitPart == "g")
+        return number * 1024 * 1024 * 1024;
+    else
+        throw std::runtime_error("Invalid unit!");
+}
+
+void PipelineConfig::configure_wait(std::string argument)
+{
+    std::vector<std::string> tokens;
+    std::string token;
+    std::istringstream tokenStream(argument);
+    int indx = 0;
+    _wait.is_enabled = true;
+    while (std::getline(tokenStream, token, ':')) {
+        if(indx == 0)
+            _wait.iterations = std::stoi(token);
+        else if(indx == 1)
+            _wait.sleep_time = std::stoi(token);
+        else if(indx == 2)
+            if (!token.empty() && std::all_of(token.begin(), token.end(), ::isdigit))
+            {
+               _wait.min_free_space = std::stoull(token);
+            } else {
+               _wait.min_free_space = convertMemorySize(token);
+            }
+        indx++;
+    }
+}
 
 
 void PipelineConfig::enable_incoherent_dedispersion(bool enable)

@@ -107,7 +107,8 @@ void FileOutputStream::File::wait_for_space(size_t requested_bytes)
     BOOST_LOG_TRIVIAL(warning) << "Space has been freed up. Will proceed.";
 }
 
-FileOutputStream::FileOutputStream(std::string const& directory,
+FileOutputStream::FileOutputStream(PipelineConfig const& config,
+                       std::string const& directory,
                        std::string const& base_filename,
                        std::string const& extension,
                        std::size_t bytes_per_file,
@@ -115,7 +116,7 @@ FileOutputStream::FileOutputStream(std::string const& directory,
     : _directory(directory), _base_filename(base_filename),
       _extension(extension), _bytes_per_file(bytes_per_file),
       _header_update_callback(header_update_callback), _total_bytes_written(0),
-      _current_file(nullptr), _file_count(0)
+      _current_file(nullptr), _file_count(0), _config(config)
 {
     if(_bytes_per_file == 0) {
         throw std::runtime_error(

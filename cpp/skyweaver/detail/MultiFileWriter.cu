@@ -115,6 +115,7 @@ MultiFileWriter<VectorType>::create_stream(VectorType const& stream_data,
         << "Maximum allowed file size = " << filesize << " bytes (+header)";
 
     _file_streams[stream_idx] = std::make_unique<FileOutputStream>(
+        _config,
         get_output_dir(stream_data, stream_idx),
         get_basefilename(stream_data, stream_idx),
         get_extension(stream_data),

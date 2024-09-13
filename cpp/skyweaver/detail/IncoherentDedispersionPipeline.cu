@@ -131,8 +131,8 @@ void IncoherentDedispersionPipeline<InputType, OutputType, Handler>::operator()(
         BOOST_LOG_TRIVIAL(warning) << "tsamp is " << data.tsamp();
         BOOST_LOG_TRIVIAL(warning) << "Setting UTC offset to "
                                    << _output_buffers[ref_dm_idx][g].utc_offset();
-        _agg_buffers[ref_dm_idx]->push_back(data.vector());
     }
+    _agg_buffers[ref_dm_idx]->push_back(data.vector());
 }
 
 } // namespace skyweaver

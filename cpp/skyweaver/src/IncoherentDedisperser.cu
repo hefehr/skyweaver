@@ -75,7 +75,7 @@ void IncoherentDedisperser::dedisperse<InputVectorType, OutputVectorType>(
     const std::size_t nchans   = _config.nchans();
     const std::size_t nbeams   = _config.nbeams();
     const std::size_t nbeams_per_file   = _config.nbeams_per_file();
-    const std::size_t nbatches   = nbeams / nbeams_per_file;
+    const std::size_t n_tdb_files   = nbeams / nbeams_per_file;
     const std::size_t ndms     = _dms.size();
     const std::size_t nsamples = tfb_powers.size() / (nbeams * nchans);
     const std::size_t bf       = nbeams * nchans;
@@ -87,9 +87,9 @@ void IncoherentDedisperser::dedisperse<InputVectorType, OutputVectorType>(
         throw std::runtime_error(
             "(nsamples - max_sample_delay) must be a multiple of tscrunch;");
     }
-    for (int beam_batch_idx = 0; beam_batch_idx < nbatches; beam_batch_idx++)
+    for (int tdb_file_idx = 0; tdb_file_idx < n_tdb_files; tdb_file_idx++)
     {
-        tdb_powers[beam_batch_idx].resize({(nsamples - _max_sample_delay) / _tscrunch, ndms, nbeams_per_file});
+        tdb_powers[tdb_file_idx].resize({(nsamples - _max_sample_delay) / _tscrunch, ndms, nbeams_per_file});
     }
 
 #pragma omp parallel
@@ -116,13 +116,13 @@ void IncoherentDedisperser::dedisperse<InputVectorType, OutputVectorType>(
                     }
                 }
                     
-                for (int beam_batch_idx = 0; beam_batch_idx < nbatches; beam_batch_idx++)
+                for (int tdb_file_idx = 0; tdb_file_idx < nfiles; tdb_file_idx++)
                 {
                     std::size_t output_offset = t_output_offset + dm_idx * nbeams_per_file;
                     std::transform(
-                        &powers[beam_batch_idx * nbeams_per_file],
-                        &powers[(beam_batch_idx + 1) * nbeams_per_file],
-                        tdb_powers[beam_batch_idx].begin() + output_offset,
+                        &powers[tdb_file_idx * nbeams_per_file],
+                        &powers[(tdb_file_idx + 1) * nbeams_per_file],
+                        tdb_powers[tdb_file_idx].begin() + output_offset,
                         [this](AccumulatorType const& value) {
                             return clamp<typename OutputVectorType::value_type>(
                                 value / _scale_factor);

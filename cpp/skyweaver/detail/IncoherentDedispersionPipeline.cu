@@ -17,10 +17,10 @@ IncoherentDedispersionPipeline<InputType, OutputType, Handler>::
     _agg_buffers.resize(blocks.size());
     _output_buffers.resize(blocks.size());
 
-    const std::size_t G = _config.nbeams() / _config.nbeams_per_file(); 
+    const std::size_t n_tdb_files = _config.nbeams() / _config.nbeams_per_file();
             
     for(std::size_t block_idx = 0; block_idx < blocks.size(); ++block_idx) {
-        _output_buffers[block_idx].resize(G);
+        _output_buffers[block_idx].resize(n_tdb_files);
         _dedispersers[block_idx].reset(
             new DedisperserType(_config,
                                 blocks[block_idx].incoherent_dms,
@@ -69,7 +69,7 @@ void IncoherentDedispersionPipeline<InputType, OutputType, Handler>::
         << "Agg buffer callback called for ref_dm_idx = " << ref_dm_idx;
     _timer.start("incoherent dedispersion");
 
-    const std::size_t G = _config.nbeams() / _config.nbeams_per_file(); 
+    const std::size_t n_tdb_files = _config.nbeams() / _config.nbeams_per_file();
         
     _dedispersers[ref_dm_idx]->dedisperse(buffer, _output_buffers[ref_dm_idx]);
     _timer.stop("incoherent dedispersion");
@@ -77,19 +77,19 @@ void IncoherentDedispersionPipeline<InputType, OutputType, Handler>::
     BOOST_LOG_TRIVIAL(debug) << _output_buffers[ref_dm_idx][0].vector().size();
     auto const& plan = _config.ddplan();
 
-    for (int g = 0; g < G; g++)
+    for (int tdb_file_idx = 0; tdb_file_idx < n_tdb_files ; tdb_file_idx++)
     {
         // Set the correct DMs on the block
-        _output_buffers[ref_dm_idx][g].dms(plan[ref_dm_idx].incoherent_dms);
-        _output_buffers[ref_dm_idx][g].reference_dm(plan[ref_dm_idx].coherent_dm);
-        _output_buffers[ref_dm_idx][g].frequencies({_config.centre_frequency() - _config.bandwidth() / 2.0});
+        _output_buffers[ref_dm_idx][tdb_file_idx].dms(plan[ref_dm_idx].incoherent_dms);
+        _output_buffers[ref_dm_idx][tdb_file_idx].reference_dm(plan[ref_dm_idx].coherent_dm);
+        _output_buffers[ref_dm_idx][tdb_file_idx].frequencies({_config.centre_frequency() - _config.bandwidth() / 2.0});
         
-        BOOST_LOG_TRIVIAL(debug) << "setting centre frequency to " << _output_buffers[ref_dm_idx][g].frequencies()[0];
+        BOOST_LOG_TRIVIAL(debug) << "setting centre frequency to " << _output_buffers[ref_dm_idx][tdb_file_idx].frequencies()[0];
         
         BOOST_LOG_TRIVIAL(debug) << "Passing output buffer to handler: "
-                                 << _output_buffers[ref_dm_idx][g].describe();
+                                 << _output_buffers[ref_dm_idx][tdb_file_idx].describe();
         _timer.start("file writing");
-        _handler(_output_buffers[ref_dm_idx][g], ref_dm_idx * G + g);
+        _handler(_output_buffers[ref_dm_idx][tdb_file_idx], ref_dm_idx * n_tdb_files + tdb_file_idx);
         _timer.stop("file writing");
     }
 }
@@ -115,14 +115,14 @@ void IncoherentDedispersionPipeline<InputType, OutputType, Handler>::operator()(
     InputVectorType const& data,
     std::size_t ref_dm_idx)
 {
-    const std::size_t G = _config.nbeams() / _config.nbeams_per_file(); 
+    const std::size_t n_tdb_files = _config.nbeams() / _config.nbeams_per_file();
 
-    for (int g = 0; g < G; g++)
+    for (int tdb_file_idx = 0; tdb_file_idx < n_tdb_files; tdb_file_idx++)
     {
-        _output_buffers[ref_dm_idx][g].metalike(data);
-        _output_buffers[ref_dm_idx][g].tsamp(data.tsamp() *
+        _output_buffers[ref_dm_idx][tdb_file_idx].metalike(data);
+        _output_buffers[ref_dm_idx][tdb_file_idx].tsamp(data.tsamp() *
                                       _config.ddplan()[ref_dm_idx].tscrunch);
-        _output_buffers[ref_dm_idx][g].utc_offset(
+        _output_buffers[ref_dm_idx][tdb_file_idx].utc_offset(
         data.utc_offset() +
         _dedispersers[ref_dm_idx]->max_sample_delay() * data.tsamp());
         BOOST_LOG_TRIVIAL(warning) << "Old UTC offset was " << data.utc_offset();
@@ -130,7 +130,7 @@ void IncoherentDedispersionPipeline<InputType, OutputType, Handler>::operator()(
                                    << _dedispersers[ref_dm_idx]->max_sample_delay();
         BOOST_LOG_TRIVIAL(warning) << "tsamp is " << data.tsamp();
         BOOST_LOG_TRIVIAL(warning) << "Setting UTC offset to "
-                                   << _output_buffers[ref_dm_idx][g].utc_offset();
+                                   << _output_buffers[ref_dm_idx][tdb_file_idx].utc_offset();
     }
     _agg_buffers[ref_dm_idx]->push_back(data.vector());
 }

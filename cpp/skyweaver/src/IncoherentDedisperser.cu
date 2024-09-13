@@ -116,7 +116,7 @@ void IncoherentDedisperser::dedisperse<InputVectorType, OutputVectorType>(
                     }
                 }
                     
-                for (int tdb_file_idx = 0; tdb_file_idx < nfiles; tdb_file_idx++)
+                for (int tdb_file_idx = 0; tdb_file_idx < n_tdb_files; tdb_file_idx++)
                 {
                     std::size_t output_offset = t_output_offset + dm_idx * nbeams_per_file;
                     std::transform(

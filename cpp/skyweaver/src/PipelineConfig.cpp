@@ -15,7 +15,7 @@ PipelineConfig::PipelineConfig()
       _bw(13375000.0), _channel_frequencies_stale(true),
       _gulp_length_samps(4096), _start_time(0.0f),
       _duration(std::numeric_limits<float>::infinity()), _total_nchans(4096),
-      _stokes_mode("I"), _output_level(24.0f)
+      _stokes_mode("I"), _output_level(24.0f), _wait({false, 0, 0, 0})
 {
 }
 

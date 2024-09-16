@@ -71,7 +71,7 @@ class MultiFileWriter
     std::string get_basefilename(VectorType const& stream_data,
                                  std::size_t stream_idx);
     std::string get_extension(VectorType const& stream_data);
-
+    void wait_for_space();
     PipelineConfig const& _config;
     std::string _tag;
     ObservationHeader _header;

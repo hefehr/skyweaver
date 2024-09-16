@@ -4,6 +4,7 @@
 #include <cstring>
 #include <ctime>
 #include <iomanip>
+#include <filesystem>
 #include <sstream>
 #include <string>
 
@@ -115,7 +116,6 @@ MultiFileWriter<VectorType>::create_stream(VectorType const& stream_data,
         << "Maximum allowed file size = " << filesize << " bytes (+header)";
 
     _file_streams[stream_idx] = std::make_unique<FileOutputStream>(
-        _config,
         get_output_dir(stream_data, stream_idx),
         get_basefilename(stream_data, stream_idx),
         get_extension(stream_data),
@@ -242,23 +242,73 @@ bool MultiFileWriter<VectorType>::operator()(VectorType const& stream_data,
                                              std::size_t stream_idx)
 {
     if(!has_stream(stream_idx)) {
+        if (_config.get_wait_config().is_enabled) {
+            try {
+                wait_for_space();
+            } catch (std::runtime_error& e) {
+                std::cout << "Wait loop exception: " << e.what() << std::endl;
+                throw;
+            }
+        }
+
         create_stream(stream_data, stream_idx);
     }
     if constexpr(is_device_vector<VectorType>::value) {
         thrust::host_vector<typename VectorType::value_type> stream_data_h =
             stream_data.vector();
+        if (_config.get_wait_config().is_enabled) {
+            try {
+                wait_for_space();
+            } catch (std::runtime_error& e) {
+                std::cout << "Wait loop exception: " << e.what() << std::endl;
+                throw;
+            }
+        }
         _file_streams.at(stream_idx)
             ->write(reinterpret_cast<char const*>(stream_data_h.data()),
-                    stream_data_h.size() *
-                        sizeof(typename VectorType::value_type));
+                stream_data_h.size() * sizeof(typename VectorType::value_type));
     } else {
+        if (_config.get_wait_config().is_enabled) {
+             try {
+                 wait_for_space();
+             } catch (std::runtime_error& e) {
+                 std::cout << "Wait loop exception: " << e.what() << std::endl;
+                 throw;
+             }
+        }
         _file_streams.at(stream_idx)
-            ->write(reinterpret_cast<char const*>(
-                        thrust::raw_pointer_cast(stream_data.data())),
-                    stream_data.size() *
-                        sizeof(typename VectorType::value_type));
+            ->write(reinterpret_cast<char const*>( thrust::raw_pointer_cast(stream_data.data())),
+                stream_data.size() * sizeof(typename VectorType::value_type));
     }
     return false;
 }
+
+template <typename VectorType>
+void MultiFileWriter<VectorType>::wait_for_space()
+{
+    std::filesystem::space_info space = std::filesystem::space(_config.output_dir());
+    if(space.available >= _config.get_wait_config().min_free_space)
+        return;
+
+    BOOST_LOG_TRIVIAL(warning)
+        << space.available
+        << " bytes available space is not enough for configured minimum of "
+        << _config.get_wait_config().min_free_space
+        << " bytes to " << _config.output_dir() << ".";
+    BOOST_LOG_TRIVIAL(warning) << "Start pausing.";
+    int incrementor = (_config.get_wait_config().iterations == 0) ? 0 : 1;
+    for (int i = 0; i < _config.get_wait_config().iterations; i+= incrementor)
+    {
+        sleep(_config.get_wait_config().sleep_time);
+        space = std::filesystem::space(_config.output_dir());
+        if (space.available >= _config.get_wait_config().min_free_space)
+        {
+          BOOST_LOG_TRIVIAL(warning) << "Space has been freed up. Will proceed.";
+          return;
+        }
+    }
+    throw std::runtime_error("Space for writing hasn't been freed up in time.");
+}
+
 
 } // namespace skyweaver

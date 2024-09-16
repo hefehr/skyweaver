@@ -241,41 +241,25 @@ template <typename VectorType>
 bool MultiFileWriter<VectorType>::operator()(VectorType const& stream_data,
                                              std::size_t stream_idx)
 {
-    if(!has_stream(stream_idx)) {
-        if (_config.get_wait_config().is_enabled) {
-            try {
-                wait_for_space();
-            } catch (std::runtime_error& e) {
-                std::cout << "Wait loop exception: " << e.what() << std::endl;
-                throw;
-            }
+    if (_config.get_wait_config().is_enabled) {
+        try {
+            wait_for_space();
+        } catch (std::runtime_error& e) {
+            std::cout << "Wait loop exception: " << e.what() << std::endl;
+            throw;
         }
+    }
 
-        create_stream(stream_data, stream_idx);
+    if(!has_stream(stream_idx)) {
+                create_stream(stream_data, stream_idx);
     }
     if constexpr(is_device_vector<VectorType>::value) {
         thrust::host_vector<typename VectorType::value_type> stream_data_h =
             stream_data.vector();
-        if (_config.get_wait_config().is_enabled) {
-            try {
-                wait_for_space();
-            } catch (std::runtime_error& e) {
-                std::cout << "Wait loop exception: " << e.what() << std::endl;
-                throw;
-            }
-        }
         _file_streams.at(stream_idx)
             ->write(reinterpret_cast<char const*>(stream_data_h.data()),
                 stream_data_h.size() * sizeof(typename VectorType::value_type));
     } else {
-        if (_config.get_wait_config().is_enabled) {
-             try {
-                 wait_for_space();
-             } catch (std::runtime_error& e) {
-                 std::cout << "Wait loop exception: " << e.what() << std::endl;
-                 throw;
-             }
-        }
         _file_streams.at(stream_idx)
             ->write(reinterpret_cast<char const*>( thrust::raw_pointer_cast(stream_data.data())),
                 stream_data.size() * sizeof(typename VectorType::value_type));

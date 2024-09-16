@@ -290,7 +290,7 @@ void MultiFileWriter<VectorType>::wait_for_space()
     if(space.available >= _config.get_wait_config().min_free_space)
         return;
 
-    BOOST_LOG_TRIVIAL(warning)
+    BOOST_LOG_TRIVIAL(info)
         << space.available
         << " bytes available space is not enough for configured minimum of "
         << _config.get_wait_config().min_free_space
@@ -303,7 +303,7 @@ void MultiFileWriter<VectorType>::wait_for_space()
         space = std::filesystem::space(_config.output_dir());
         if (space.available >= _config.get_wait_config().min_free_space)
         {
-          BOOST_LOG_TRIVIAL(warning) << "Space has been freed up. Will proceed.";
+          BOOST_LOG_TRIVIAL(info) << "Space has been freed up. Will proceed.";
           return;
         }
     }

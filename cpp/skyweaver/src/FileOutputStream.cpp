@@ -50,85 +50,32 @@ FileOutputStream::File::~File()
     }
 }
 
-std::size_t FileOutputStream::File::write(PipelineConfig const& config, char const* ptr, std::size_t bytes)
+std::size_t FileOutputStream::File::write(char const* ptr, std::size_t bytes)
 {
     BOOST_LOG_TRIVIAL(debug)
         << "Writing " << bytes << " bytes to " << _full_path;
     std::size_t bytes_remaining = _bytes_requested - _bytes_written;
     try {
         if(bytes > bytes_remaining) {
-            if (config.get_wait_config().is_enabled) {
-              try {
-                  wait_for_space(config, bytes_remaining);
-              } catch (std::runtime_error& e) {
-                  std::cout << "Wait loop exception: " << e.what() << std::endl;
-                  throw;
-              }
-            }
             _stream.write(ptr, bytes_remaining);
             _bytes_written += bytes_remaining;
             BOOST_LOG_TRIVIAL(debug)
                 << "Partial write of " << bytes_remaining << " bytes";
             return bytes_remaining;
         } else {
-            if (config.get_wait_config().is_enabled) {
-              try {
-                wait_for_space(config, bytes);
-              } catch (std::runtime_error& e) {
-                  std::cout << "Wait loop exception: " << e.what() << std::endl;
-                  throw;
-              }
-            }
             _stream.write(ptr, bytes);
             _bytes_written += bytes;
             BOOST_LOG_TRIVIAL(debug) << "Completed write";
             return bytes;
         }
     } catch(const std::ofstream::failure& e) {
-        std::string reason;
-
-        if(_stream.bad()) {
-            reason = "badbit set.";
-        } else if(_stream.fail()) {
-            reason = "failbit set.";
-        } else if(_stream.eof()) {
-            reason = "eofbit set.";
-        }
-
         BOOST_LOG_TRIVIAL(error) << "Error while writing to " << _full_path
-                                 << " (" << e.what() << ") because of reason: " << reason;
-       
+                                 << " (" << e.what() << ")";
         throw;
     }
 }
 
-void FileOutputStream::File::wait_for_space(PipelineConfig const& config, size_t requested_bytes)
-{
-    std::filesystem::space_info space = std::filesystem::space(_full_path);
-    if(space.available >= config.get_wait_config().min_free_space)
-        return;
-
-    BOOST_LOG_TRIVIAL(warning)
-        << space.available
-        << " bytes available space is not enough for writing "
-        << requested_bytes << " bytes to " << _full_path << ".";
-    BOOST_LOG_TRIVIAL(warning) << "Start pausing.";
-    int incrementor = (config.get_wait_config().iterations == 0) ? 0 : 1;
-    for (int i = 0; i < config.get_wait_config().iterations; i+= incrementor)
-    {
-        sleep(config.get_wait_config().sleep_time);
-        space = std::filesystem::space(_full_path);
-        if (space.available >= config.get_wait_config().min_free_space)
-        {
-          BOOST_LOG_TRIVIAL(warning) << "Space has been freed up. Will proceed.";
-          return;
-        }
-    }
-    throw std::runtime_error("Space for writing hasn't been freed up in time.");
-}
-
-FileOutputStream::FileOutputStream(PipelineConfig const& config,
-                       std::string const& directory,
+FileOutputStream::FileOutputStream(std::string const& directory,
                        std::string const& base_filename,
                        std::string const& extension,
                        std::size_t bytes_per_file,
@@ -136,7 +83,7 @@ FileOutputStream::FileOutputStream(PipelineConfig const& config,
     : _directory(directory), _base_filename(base_filename),
       _extension(extension), _bytes_per_file(bytes_per_file),
       _header_update_callback(header_update_callback), _total_bytes_written(0),
-      _current_file(nullptr), _file_count(0), _config(config)
+      _current_file(nullptr), _file_count(0)
 {
     if(_bytes_per_file == 0) {
         throw std::runtime_error(
@@ -163,19 +110,10 @@ void FileOutputStream::write(char const* ptr, std::size_t bytes)
 {
     BOOST_LOG_TRIVIAL(debug) << "Writing " << bytes << " bytes to file stream";
     if(_current_file) {
-        std::size_t bytes_written = _current_file->write(_config, ptr, bytes);
+        std::size_t bytes_written = _current_file->write(ptr, bytes);
         _total_bytes_written += bytes_written;
         if(bytes_written < bytes) {
             new_file();
-            if (_config.get_wait_config().is_enabled)
-            {
-                try {
-                    _current_file->wait_for_space(_config, bytes - bytes_written);
-                } catch (std::runtime_error& e) {
-                    std::cout << "Wait loop exception: " << e.what() << std::endl;
-                    throw;
-                }
-            }
             write(ptr + bytes_written, bytes - bytes_written);
         }
     } else {
@@ -202,16 +140,7 @@ void FileOutputStream::new_file()
     // Here we are directly invoking the write method on the File object
     // to avoid potential bugs when the header is not completely written
     BOOST_LOG_TRIVIAL(debug) << "Writing updated header";
-    if (_config.get_wait_config().is_enabled)
-    {
-      try {
-          _current_file->wait_for_space(_config, header_bytes);
-      } catch (std::runtime_error& e) {
-          std::cout << "Wait loop exception: " << e.what() << std::endl;
-          throw;
-      }
-    }
-    if(_current_file->write(_config, header_ptr.get(), header_bytes) != header_bytes) {
+    if(_current_file->write(header_ptr.get(), header_bytes) != header_bytes) {
         throw std::runtime_error("Unable to write header to File instance");
     }
     ++_file_count;

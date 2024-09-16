@@ -2,7 +2,6 @@
 #define SKYWEAVER_FILEOUTPUTSTREAM_HPP
 
 #include "boost/log/trivial.hpp"
-#include "skyweaver/PipelineConfig.hpp"
 
 #include <fstream>
 #include <functional>
@@ -43,11 +42,10 @@ class FileOutputStream
          *
          * @return     The number of bytes written in this execution
          */
-        std::size_t write(PipelineConfig const& config, char const* ptr, std::size_t bytes);
-        void wait_for_space(PipelineConfig const& config, size_t requested_bytes);
+        std::size_t write(char const* ptr, std::size_t bytes);
+
       private:
         std::string _full_path;
-        PipelineConfig _config;
         std::size_t _bytes_requested;
         std::size_t _bytes_written;
         std::ofstream _stream;
@@ -65,7 +63,7 @@ class FileOutputStream
      * @param[in]  header_updater  A callback used to get updates to the header
      * so that it can be kept up to date based on the amount of data written.
      */
-    explicit FileOutputStream(PipelineConfig const& config, std::string const& directory,
+    explicit FileOutputStream(std::string const& directory,
                         std::string const& base_filename,
                         std::string const& extension,
                         std::size_t bytes_per_file,
@@ -98,7 +96,6 @@ class FileOutputStream
     std::size_t _total_bytes_written;
     std::unique_ptr<File> _current_file;
     std::size_t _file_count;
-    PipelineConfig const& _config;
 };
 
 } // namespace skyweaver

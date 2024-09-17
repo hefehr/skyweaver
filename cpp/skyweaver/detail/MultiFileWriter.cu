@@ -280,7 +280,7 @@ void MultiFileWriter<VectorType>::wait_for_space()
         << _config.get_wait_config().min_free_space
         << " bytes to " << _config.output_dir() << ".";
     BOOST_LOG_TRIVIAL(warning) << "Start pausing.";
-    int max_interations = (_config.get_wait_config().iterations == 0) ? INT_MAX : _config.get_wait_config().iterations;
+    int max_iterations = (_config.get_wait_config().iterations == 0) ? INT_MAX : _config.get_wait_config().iterations;
     for (int i = 0; i < max_iterations; i++)
     {
         sleep(_config.get_wait_config().sleep_time);

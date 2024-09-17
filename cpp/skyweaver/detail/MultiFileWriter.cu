@@ -241,9 +241,10 @@ template <typename VectorType>
 bool MultiFileWriter<VectorType>::operator()(VectorType const& stream_data,
                                              std::size_t stream_idx)
 {
+    size_t data_size = stream_data.size() * sizeof(typename VectorType::value_type);
     if (_config.get_wait_config().is_enabled) {
         try {
-            wait_for_space();
+            wait_for_space(data_size);
         } catch (std::runtime_error& e) {
             std::cout << "Wait loop exception: " << e.what() << std::endl;
             throw;
@@ -262,30 +263,31 @@ bool MultiFileWriter<VectorType>::operator()(VectorType const& stream_data,
     } else {
         _file_streams.at(stream_idx)
             ->write(reinterpret_cast<char const*>( thrust::raw_pointer_cast(stream_data.data())),
-                stream_data.size() * sizeof(typename VectorType::value_type));
+                data_size);
     }
     return false;
 }
 
 template <typename VectorType>
-void MultiFileWriter<VectorType>::wait_for_space()
+void MultiFileWriter<VectorType>::wait_for_space(size_t size)
 {
     std::filesystem::space_info space = std::filesystem::space(_config.output_dir());
-    if(space.available >= _config.get_wait_config().min_free_space)
+    size_t limit = std::min(_config.get_wait_config().min_free_space, size);
+    if(space.available >= limit)
         return;
 
     BOOST_LOG_TRIVIAL(info)
         << space.available
-        << " bytes available space is not enough for configured minimum of "
-        << _config.get_wait_config().min_free_space
-        << " bytes to " << _config.output_dir() << ".";
+        << " bytes available space is not enough. Need at least "
+        << limit
+        << " bytes in " << _config.output_dir() << ".";
     BOOST_LOG_TRIVIAL(warning) << "Start pausing.";
     int max_iterations = (_config.get_wait_config().iterations == 0) ? INT_MAX : _config.get_wait_config().iterations;
     for (int i = 0; i < max_iterations; i++)
     {
         sleep(_config.get_wait_config().sleep_time);
         space = std::filesystem::space(_config.output_dir());
-        if (space.available >= _config.get_wait_config().min_free_space)
+        if (space.available >= limit)
         {
           BOOST_LOG_TRIVIAL(info) << "Space has been freed up. Will proceed.";
           return;

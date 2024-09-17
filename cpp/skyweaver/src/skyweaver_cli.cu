@@ -448,17 +448,11 @@ int main(int argc, char** argv)
              "The number of threads to use for incoherent dedispersion")
 
             ("wait-for-space",
-              po::value<std::vector<std::string>>()
-                 ->multitoken()
-                 ->required()
+              po::value<std::string>()
                  ->notifier(
-                     [&config](std::vector<std::string> const& descriptors) {
-                         for(auto const& descriptor: descriptors) {
-                             config.configure_wait(descriptor);
-                         }
-                     }),
+                     [&config](std::string key) { config.configure_wait(key); }),
              "Wait for enough disk space for the output. "
-             "(<nr_of_cycles (0 for infinity)>:<sleep_time_per_cycle [s]>:<minimum_size(e.g. 200M or 32G)>")
+             "<nr_of_cycles (0 for infinity)>:<sleep_time_per_cycle [s]>:<minimum_size(e.g. 200M or 32G)>")
 
           // Logging options
             ("log-level",

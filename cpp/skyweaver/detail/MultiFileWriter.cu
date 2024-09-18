@@ -84,6 +84,14 @@ MultiFileWriter<VectorType>::MultiFileWriter(PipelineConfig const& config,
 }
 
 template <typename VectorType>
+MultiFileWriter<VectorType>::MultiFileWriter(PipelineConfig const& config,
+                                             PreWriteCallback&& pre_write_callback,
+                                             std::string tag)
+    : _config(config), _tag(tag), _pre_write_callback(pre_write_callback)
+{
+}
+
+template <typename VectorType>
 MultiFileWriter<VectorType>::~MultiFileWriter(){};
 
 template <typename VectorType>
@@ -241,10 +249,10 @@ template <typename VectorType>
 bool MultiFileWriter<VectorType>::operator()(VectorType const& stream_data,
                                              std::size_t stream_idx)
 {
-    size_t data_size = stream_data.size() * sizeof(typename VectorType::value_type);
+    std::size_t data_size = stream_data.size() * sizeof(typename VectorType::value_type);
     if (_config.get_wait_config().is_enabled) {
         try {
-            wait_for_space(data_size);
+            _pre_write_callback(data_size, _config);
         } catch (std::runtime_error& e) {
             std::cout << "Wait loop exception: " << e.what() << std::endl;
             throw;
@@ -267,34 +275,5 @@ bool MultiFileWriter<VectorType>::operator()(VectorType const& stream_data,
     }
     return false;
 }
-
-template <typename VectorType>
-void MultiFileWriter<VectorType>::wait_for_space(size_t size)
-{
-    std::filesystem::space_info space = std::filesystem::space(_config.output_dir());
-    size_t limit = std::min(_config.get_wait_config().min_free_space, size);
-    if(space.available >= limit)
-        return;
-
-    BOOST_LOG_TRIVIAL(info)
-        << space.available
-        << " bytes available space is not enough. Need at least "
-        << limit
-        << " bytes in " << _config.output_dir() << ".";
-    BOOST_LOG_TRIVIAL(warning) << "Start pausing.";
-    int max_iterations = (_config.get_wait_config().iterations == 0) ? INT_MAX : _config.get_wait_config().iterations;
-    for (int i = 0; i < max_iterations; i++)
-    {
-        sleep(_config.get_wait_config().sleep_time);
-        space = std::filesystem::space(_config.output_dir());
-        if (space.available >= limit)
-        {
-          BOOST_LOG_TRIVIAL(info) << "Space has been freed up. Will proceed.";
-          return;
-        }
-    }
-    throw std::runtime_error("Space for writing hasn't been freed up in time.");
-}
-
 
 } // namespace skyweaver

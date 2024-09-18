@@ -20,6 +20,7 @@ template <typename VectorType>
 class MultiFileWriter
 {
   public:
+     using PreWriteCallback = std::function<void(std::size_t, PipelineConfig const&)>;
     /**
      * @brief Construct a new Multi File Writer object
      *
@@ -28,6 +29,8 @@ class MultiFileWriter
      *                (used to avoid clashing file names).
      */
     MultiFileWriter(PipelineConfig const& config, std::string tag = "");
+    MultiFileWriter(PipelineConfig const& config, PreWriteCallback&& callback,
+                    std::string tag = " ");
     MultiFileWriter(MultiFileWriter const&) = delete;
 
     /**
@@ -71,13 +74,13 @@ class MultiFileWriter
     std::string get_basefilename(VectorType const& stream_data,
                                  std::size_t stream_idx);
     std::string get_extension(VectorType const& stream_data);
-    void wait_for_space(size_t size);
     PipelineConfig const& _config;
     std::string _tag;
     ObservationHeader _header;
     std::map<std::size_t, std::unique_ptr<FileOutputStream>> _file_streams;
     std::map<std::size_t, std::vector<std::size_t>> _stream_dims;
     std::vector<long double> _dm_delays;
+    PreWriteCallback _pre_write_callback;
 };
 
 } // namespace skyweaver

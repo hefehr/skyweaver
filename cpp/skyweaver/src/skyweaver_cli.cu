@@ -239,6 +239,33 @@ void run_pipeline(Pipeline& pipeline,
     stopwatch.show_all_timings();
 }
 
+auto pre_write_callback = [] (std::size_t size, skyweaver::PipelineConfig const& config)
+{
+    std::filesystem::space_info space = std::filesystem::space(config.output_dir());
+    size_t limit = std::min(config.get_wait_config().min_free_space, size);
+    if(space.available >= limit)
+        return;
+
+    BOOST_LOG_TRIVIAL(info)
+        << space.available
+        << " bytes available space is not enough. Need at least "
+        << limit
+        << " bytes in " << config.output_dir() << ".";
+    BOOST_LOG_TRIVIAL(warning) << "Start pausing.";
+    int max_iterations = (config.get_wait_config().iterations == 0) ? INT_MAX : config.get_wait_config().iterations;
+    for (int i = 0; i < max_iterations; i++)
+    {
+        sleep(config.get_wait_config().sleep_time);
+        space = std::filesystem::space(config.output_dir());
+        if (space.available >= limit)
+        {
+            BOOST_LOG_TRIVIAL(info) << "Space has been freed up. Will proceed.";
+            return;
+        }
+    }
+    throw std::runtime_error("Space for writing hasn't been freed up in time.");
+};
+
 template <typename BfTraits, bool enable_incoherent_dedispersion>
 void setup_pipeline(skyweaver::PipelineConfig& config)
 {
@@ -254,14 +281,16 @@ void setup_pipeline(skyweaver::PipelineConfig& config)
     update_config(config, header);
     BOOST_LOG_TRIVIAL(debug) << "Creating pipeline handlers";
     using OutputType = typename BfTraits::QuantisedPowerType;
-    skyweaver::MultiFileWriter<skyweaver::BTFPowersH<OutputType>> ib_handler(
+
+        skyweaver::MultiFileWriter<skyweaver::BTFPowersH<OutputType>> ib_handler(
         config,
+        pre_write_callback,
         "ib");
     skyweaver::MultiFileWriter<skyweaver::FPAStatsD<skyweaver::Statistics>>
-        stats_handler(config, "stats");
+        stats_handler(config, pre_write_callback, "stats");
     if constexpr(enable_incoherent_dedispersion) {
         skyweaver::MultiFileWriter<skyweaver::TDBPowersH<OutputType>>
-            cb_file_writer(config, "cb");
+            cb_file_writer(config, pre_write_callback, "cb");
         skyweaver::IncoherentDedispersionPipeline<OutputType,
                                                   OutputType,
                                                   decltype(cb_file_writer)>
@@ -277,7 +306,7 @@ void setup_pipeline(skyweaver::PipelineConfig& config)
         run_pipeline(pipeline, config, file_reader, header);
     } else {
         skyweaver::MultiFileWriter<skyweaver::TFBPowersD<OutputType>>
-            cb_file_writer(config, "cb");
+            cb_file_writer(config, pre_write_callback, "cb");
         skyweaver::BeamformerPipeline<decltype(cb_file_writer),
                                       decltype(ib_handler),
                                       decltype(stats_handler),

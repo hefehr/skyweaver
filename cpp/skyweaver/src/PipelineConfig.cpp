@@ -185,31 +185,33 @@ void PipelineConfig::configure_wait(std::string argument)
     _wait.is_enabled = true;
     while (std::getline(tokenStream, token, ':')) {
         if(indx == 0)
+        {
             errno = 0;
             _wait.iterations = std::stoi(token);
             if (errno == ERANGE) {
               throw std::runtime_error("Wait iteration number out of range!");
             }
             if (_wait.iterations < 0) _wait.iterations = 0;
-        else if(indx == 1)
+        } else if(indx == 1) {
             errno = 0;
             _wait.sleep_time = std::stoi(token);
             if (errno == ERANGE) {
               throw std::runtime_error("Sleep time out of range!");
             }
             if (_wait.sleep_time < 1) _wait.sleep_time = 1;
-        else if(indx == 2)
+        } else if(indx == 2) {
             if (!token.empty() && std::all_of(token.begin(), token.end(), ::isdigit))
             {
-               _wait.min_free_space = std::stoull(token);
+                _wait.min_free_space = std::stoull(token);
             } else {
-              try {
-                _wait.min_free_space = convertMemorySize(token);
-              } catch (std::runtime_error& e) {
-                std::cout << "Memory conversion error: " << e.what() << std::endl;
-            throw;
-        }
+                try {
+                    _wait.min_free_space = convertMemorySize(token);
+                } catch (std::runtime_error& e) {
+                    std::cout << "Memory conversion error: " << e.what() << std::endl;
+                    throw;
+                }
             }
+        }
         indx++;
     }
 }

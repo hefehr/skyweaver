@@ -33,36 +33,36 @@ namespace {
  * bridge
  */
 std::string default_dada_header = R"(
-  HEADER       DADA
-  HDR_VERSION  1.0
-  HDR_SIZE     4096
-  DADA_VERSION 1.0
-  
-  FILE_SIZE    100000000000
-  FILE_NUMBER  0
-  
-  UTC_START    1708082229.000020336 
-  MJD_START    60356.47024305579093
-  
-  SOURCE       J1644-4559
-  RA           16:44:49.27
-  DEC          -45:59:09.7
-  TELESCOPE    MeerKAT
-  INSTRUMENT   CBF-Feng
-  RECEIVER     L-band
-  FREQ         1284000000.000000
-  BW           856000000.000000
-  TSAMP        4.7850467290
-  STOKES       I
-  
-  NBIT         8
-  NDIM         1
-  NPOL         1
-  NCHAN        64
-  NBEAM       800
-  ORDER        TFB
-  
-  CHAN0_IDX 2688
+HEADER       DADA
+HDR_VERSION  1.0
+HDR_SIZE     4096
+DADA_VERSION 1.0
+
+FILE_SIZE    100000000000
+FILE_NUMBER  0
+
+UTC_START    1708082229.000020336 
+MJD_START    60356.47024305579093
+
+SOURCE       J1644-4559
+RA           16:44:49.27
+DEC          -45:59:09.7
+TELESCOPE    MeerKAT
+INSTRUMENT   CBF-Feng
+RECEIVER     L-band
+FREQ         1284000000.000000
+BW           856000000.000000
+TSAMP        4.7850467290
+STOKES       I
+
+NBIT         8
+NDIM         1
+NPOL         1
+NCHAN        64
+NBEAM       800
+ORDER        TFB
+
+CHAN0_IDX 2688
   )";
 }
 namespace skyweaver
@@ -166,6 +166,7 @@ std::unique_ptr<FileOutputStream>  create_dada_file_stream(MultiFileWriterConfig
             std::shared_ptr<char const> header_ptr(
                 temp_header,
                 std::default_delete<char[]>());
+            
             return header_ptr;
         });
     return file_stream;

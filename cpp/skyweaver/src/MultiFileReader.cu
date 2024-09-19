@@ -28,7 +28,7 @@ std::size_t MultiFileReader::safe_read(std::ifstream& input_stream,
                   << std::strerror(errno);
         throw std::runtime_error(error_msg.str().c_str());
     }
-    BOOST_LOG_TRIVIAL(debug) << "Read complete";
+    BOOST_LOG_TRIVIAL(debug) << "Safe Read complete";
     return nbytes_read;
 }
 

@@ -49,7 +49,7 @@ MultiFileWriter<VectorType>::MultiFileWriter(PipelineConfig const& config,
     writer_config.header_size = config.dada_header_size();
     writer_config.max_file_size = config.max_output_filesize();
     writer_config.stokes_mode = config.stokes_mode();
-    writer_config.output_dir = config.output_dir();
+    writer_config.base_output_dir = config.output_dir();
 
     _config = writer_config;
 }
@@ -92,9 +92,7 @@ MultiFileWriter<VectorType>::create_stream(VectorType const& stream_data,
     BOOST_LOG_TRIVIAL(info) << "Extension: " << _config.extension;
     BOOST_LOG_TRIVIAL(info) << "Output directory: " << _config.output_dir;
 
-    if(_config.output_dir.empty()) {
-        _config.output_dir = get_output_dir(stream_data, stream_idx);
-    }
+    _config.output_dir = get_output_dir(stream_data, stream_idx);
 
     if(_config.extension.empty()) {
         _config.extension = get_extension(stream_data);
@@ -114,11 +112,10 @@ MultiFileWriter<VectorType>::get_output_dir(VectorType const& stream_data,
     // Output directory format
     // <utcstart>/<freq:%f.02>/<stream_id>
     std::stringstream output_dir;
-    output_dir << _config.output_dir << "/"
+    output_dir << _config.base_output_dir << "/"
                << get_formatted_time(_header.utc_start) << "/" 
-               << stream_idx << "/" 
-               << std::fixed << std::setfill('0') << std::setw(9)
-               << static_cast<int>(_header.frequency);
+               << stream_idx;
+             
     return output_dir.str();
 }
 

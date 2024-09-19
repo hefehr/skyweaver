@@ -46,7 +46,9 @@ void read_dada_header(psrdada_cpp::RawBytes& raw_header,
 
     header.obs_bandwidth = parser.get_or_default<decltype(header.obs_bandwidth)>("OBS_BW", header.bandwidth);
     header.obs_nchans = parser.get_or_default<decltype(header.obs_nchans)>("OBS_NCHAN", header.nchans);
-    header.obs_frequency = parser.get_or_default<decltype(header.obs_frequency)>("OBS_FREQUENCY", header.frequency);
+    header.obs_frequency = parser.get_or_default<decltype(header.obs_frequency)>("OBS_FREQUENCY", 
+                           parser.get_or_default<decltype(header.obs_frequency)>("OBS_FREQ", 
+                            header.frequency));
 
 
 }

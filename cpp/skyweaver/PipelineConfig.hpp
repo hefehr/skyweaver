@@ -167,6 +167,11 @@ class PipelineConfig
     DedispersionPlan const& ddplan() const;
 
     /**
+     * @brief      configures wait for filesystem space
+     */
+    void configure_wait(std::string argument);
+
+    /**
      * @brief      Enable/disable incoherent dedispersion based fscrunch after
      * beamforming
      */
@@ -220,6 +225,11 @@ class PipelineConfig
     std::size_t nsamples_per_block() const
     {
         return SKYWEAVER_CB_NSAMPLES_PER_BLOCK;
+    }
+
+    PreWriteConfig pre_write_config() const
+    {
+        return _pre_write_config;
     }
 
     /**
@@ -363,6 +373,7 @@ class PipelineConfig
     float _output_level;
     DedispersionPlan _ddplan;
     mutable std::vector<double> _channel_frequencies;
+    PreWriteConfig _pre_write_config;
 };
 
 } // namespace skyweaver

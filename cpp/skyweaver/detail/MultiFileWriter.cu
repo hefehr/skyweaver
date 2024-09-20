@@ -178,6 +178,11 @@ template <typename VectorType>
 bool MultiFileWriter<VectorType>::operator()(VectorType const& stream_data,
                                              std::size_t stream_idx)
 {
+    std::size_t const data_size = stream_data.size() * sizeof(typename VectorType::value_type);
+    if (_pre_write_callback != nullptr && _config.pre_write.wait.is_enabled)
+    {
+      _pre_write_callback(data_size, _config);
+    }
     if(!has_stream(stream_idx)) {
         create_stream(stream_data, stream_idx);
     }
@@ -192,8 +197,7 @@ bool MultiFileWriter<VectorType>::operator()(VectorType const& stream_data,
         _file_streams.at(stream_idx)
             ->write(reinterpret_cast<char const*>(
                         thrust::raw_pointer_cast(stream_data.data())),
-                    stream_data.size() *
-                        sizeof(typename VectorType::value_type));
+                    data_size);
     }
     return false;
 }

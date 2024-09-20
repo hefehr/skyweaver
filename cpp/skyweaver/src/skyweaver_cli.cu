@@ -289,7 +289,8 @@ void setup_pipeline(skyweaver::PipelineConfig& config)
     typename IBWriterType::CreateStreamCallBackType create_stream_callback_ib =
         skyweaver::detail::create_dada_file_stream<
             skyweaver::BTFPowersH<OutputType>>;
-    IBWriterType ib_handler(config, "ib", create_stream_callback_ib);
+
+    IBWriterType ib_handler(config, "ib", create_stream_callback_ib, pre_write_callback);
 
     using StatsWriterType =
         skyweaver::MultiFileWriter<skyweaver::FPAStatsD<skyweaver::Statistics>>;    
@@ -297,8 +298,8 @@ void setup_pipeline(skyweaver::PipelineConfig& config)
         create_stream_callback_stats =
             skyweaver::detail::create_dada_file_stream<
                 skyweaver::FPAStatsD<skyweaver::Statistics>>;
-    StatsWriterType   stats_handler(config, "stats", create_stream_callback_stats);
     
+    StatsWriterType  stats_handler(config, "stats", create_stream_callback_stats, pre_write_callback);
 
     if constexpr(enable_incoherent_dedispersion) {
         using CBWriterType = skyweaver::MultiFileWriter<skyweaver::TDBPowersH<OutputType>>;   
@@ -306,7 +307,7 @@ void setup_pipeline(skyweaver::PipelineConfig& config)
         create_stream_callback_cb =
             skyweaver::detail::create_dada_file_stream<skyweaver::TDBPowersH<OutputType>>;       
         skyweaver::MultiFileWriter<skyweaver::TDBPowersH<OutputType>>
-            cb_file_writer(config, "cb", create_stream_callback_cb);
+            cb_file_writer(config, "cb", create_stream_callback_cb, pre_write_callback);
         skyweaver::IncoherentDedispersionPipeline<OutputType,
                                                   OutputType,
                                                   decltype(cb_file_writer)>
@@ -325,7 +326,7 @@ void setup_pipeline(skyweaver::PipelineConfig& config)
         typename CBWriterType::CreateStreamCallBackType
         create_stream_callback_cb =
             skyweaver::detail::create_dada_file_stream<skyweaver::TFBPowersD<OutputType>>;           
-        CBWriterType      cb_file_writer(config, "cb", create_stream_callback_cb);
+        CBWriterType      cb_file_writer(config, "cb", create_stream_callback_cb, pre_write_callback);
         skyweaver::BeamformerPipeline<decltype(cb_file_writer),
                                       decltype(ib_handler),
                                       decltype(stats_handler),

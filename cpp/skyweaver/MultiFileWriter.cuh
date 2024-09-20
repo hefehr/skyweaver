@@ -51,13 +51,13 @@ template <typename VectorType>
 class MultiFileWriter
 {
 public:
-
   using CreateStreamCallBackType = std::function<std::unique_ptr<FileOutputStream>(MultiFileWriterConfig const&,
                                   ObservationHeader const&,
                                   VectorType const&,
                                   std::size_t)>;
 
   public:
+     using PreWriteCallback = std::function<void(std::size_t, MultiFileWriterConfig const&)>;
     /**
      * @brief Construct a new Multi File Writer object
      *

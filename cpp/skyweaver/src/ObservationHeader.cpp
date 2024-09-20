@@ -150,6 +150,14 @@ std::string ObservationHeader::to_string() const
         << "  instrument: " << instrument << "\n"
         << "  chan0_idx: " << chan0_idx << "\n"
         << "  obs_offset: " << obs_offset << "\n";
+    if(ndms != "0") {
+        oss << "  ndms: " << ndms << "\n";
+        oss << "  dms: ";
+        for(auto dm : dms) {
+            oss << dm << " ";
+        }
+        oss << "\n";
+    }
     if(sigproc_params)
     {
         

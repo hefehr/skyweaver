@@ -64,6 +64,8 @@ ORDER        TFB
 
 CHAN0_IDX 2688
   )";
+
+#define MJD_UNIX_EPOCH 40587.0
 }
 namespace skyweaver
 {
@@ -160,9 +162,11 @@ std::unique_ptr<FileOutputStream>  create_dada_file_stream(MultiFileWriterConfig
             header_writer.set<std::size_t>("FILE_NUMBER", file_idx);
             header_writer.set<std::size_t>("OBS_OFFSET", bytes_written);
             header_writer.set<std::size_t>("OBS_OVERLAP", 0);
-            header_writer.set<long double>("UTC_START",
-                                           header.utc_start +
-                                               stream_data.utc_offset());
+
+            double tstart = header.utc_start + stream_data.utc_offset();
+
+            header_writer.set<long double>("UTC_START", tstart);
+            header_writer.set<long double>("MJD_START", MJD_UNIX_EPOCH + tstart / 86400.0);
             std::shared_ptr<char const> header_ptr(
                 temp_header,
                 std::default_delete<char[]>());
@@ -186,7 +190,7 @@ std::unique_ptr<FileOutputStream>  create_sigproc_file_stream(MultiFileWriterCon
 
     ObservationHeader header = obs_header;
 
-    BOOST_LOG_TRIVIAL(debug) << "Header: " << header.to_string();
+    BOOST_LOG_TRIVIAL(info) << "Header: " << header.to_string();
                              
     // Here we round the file size to a multiple of the stream prototype
     std::size_t filesize =
@@ -199,16 +203,18 @@ std::unique_ptr<FileOutputStream>  create_sigproc_file_stream(MultiFileWriterCon
 
     
     double foff = -1* static_cast<double>(header.obs_bandwidth / header.nchans)/1e6;// MHz
-    double fch1 =  static_cast<double>(header.obs_frequency + header.obs_bandwidth / 2.0)/1e6 + 0.5 * foff; // MHz
-    double tstart = static_cast<double>(header.mjd_start);
+    // 1* foff instead of 0.5* foff below because the dedispersion causes all the frequencies to change by half the bandwidth to refer to the bottom of the channel
+    double fch1 =  static_cast<double>(header.obs_frequency + header.obs_bandwidth / 2.0)/1e6 + foff; // MHz
+
+    double utc_start = static_cast<double>(header.utc_start);
+    header.mjd_start = (utc_start / 86400.0) + MJD_UNIX_EPOCH;
+
     uint32_t datatype = 0; 
     uint32_t barycentric = 0;
     // uint32_t ibeam = 0;
     double az = 0.0;
     double za = 0.0;
-    uint32_t machineid = 0;
     uint32_t nifs = header.npol;
-    uint32_t telescopeid = 64;
 
     header.sigproc_params = true;
     header.rawfile = std::string("unset");
@@ -220,37 +226,12 @@ std::unique_ptr<FileOutputStream>  create_sigproc_file_stream(MultiFileWriterCon
     header.datatype = datatype;
     header.barycentric = barycentric;
     header.nifs = nifs;
-    header.telescopeid = telescopeid;
+    header.telescopeid = 64;
 
 
 
     BOOST_LOG_TRIVIAL(info) << "Creating Sigproc file stream";
-    BOOST_LOG_TRIVIAL(info) << "fch1: " << header.obs_frequency + header.obs_bandwidth / 2.0;
-    
-    BOOST_LOG_TRIVIAL(info) << "rawfile: " << header.rawfile;
-    BOOST_LOG_TRIVIAL(info) << "source: " << header.source_name;
-    BOOST_LOG_TRIVIAL(info) << "ra: " << header.ra;
-    BOOST_LOG_TRIVIAL(info) << "dec: " << header.dec;
-    BOOST_LOG_TRIVIAL(info) << "fch1: " << fch1;
-    BOOST_LOG_TRIVIAL(info) << "foff: " << foff;
-    BOOST_LOG_TRIVIAL(info) << "rdm: " << header.refdm;
-    BOOST_LOG_TRIVIAL(info) << "tsamp: " << header.tsamp;
-    BOOST_LOG_TRIVIAL(info) << "tstart: " << tstart;
-    BOOST_LOG_TRIVIAL(info) << "az: " << az;
-    BOOST_LOG_TRIVIAL(info) << "za: " << za;
-    BOOST_LOG_TRIVIAL(info) << "datatype: " << header.datatype;
-    BOOST_LOG_TRIVIAL(info) << "barycentric: " << header.barycentric;
-    BOOST_LOG_TRIVIAL(info) << "ibeam: " << header.ibeam;
-    BOOST_LOG_TRIVIAL(info) << "machineid: " << machineid;
-    BOOST_LOG_TRIVIAL(info) << "nbeams: " << header.nbeams;
-    BOOST_LOG_TRIVIAL(info) << "nbits: " << header.nbits;
-    BOOST_LOG_TRIVIAL(info) << "nchans: " << header.nchans;
-    BOOST_LOG_TRIVIAL(info) << "nifs: " << nifs;
-    BOOST_LOG_TRIVIAL(info) << "telescopeid: " << telescopeid;
-    BOOST_LOG_TRIVIAL(info) << "outdir: " << config.output_dir;
-    BOOST_LOG_TRIVIAL(info) << "prefix: " << config.prefix;
-    BOOST_LOG_TRIVIAL(info) << "extension: " << config.extension;
-    BOOST_LOG_TRIVIAL(info) << "output_basename: " << config.output_basename;
+
     // // Here we should update the tstart of the default header to be the
     // // start of the stream
     // // reset the total bytes counter to keep the time tracked correctly

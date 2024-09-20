@@ -150,9 +150,6 @@ void SkyCleaver::init_readers()
         << "Read header from first file: " << header.to_string();
 
     float obs_centre_freq = header.obs_frequency;
-    if(obs_centre_freq == 0.0) {
-        obs_centre_freq = 1284000000;
-    }
     float obs_bandwidth = header.obs_bandwidth;
     for(int i = 0; i < nbridges; i++) {
         int ifreq = std::lround(obs_centre_freq - obs_bandwidth / 2 +
@@ -303,6 +300,8 @@ void SkyCleaver::init_writers()
                 std::initializer_list{_config.nsamples_per_block(),
                                       _config.nbridges()},
                 0);
+
+            _beam_data[idm][ibeam]->reference_dm(_header.refdm);
 
             _total_beam_writers++;
         }

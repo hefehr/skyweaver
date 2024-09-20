@@ -87,10 +87,7 @@ MultiFileWriter<VectorType>::create_stream(VectorType const& stream_data,
 {
 
 
-    BOOST_LOG_TRIVIAL(info) << "Creating stream " << stream_idx << " in " << _config.output_dir;
-    BOOST_LOG_TRIVIAL(info) << "Prefix: " << _config.prefix;
-    BOOST_LOG_TRIVIAL(info) << "Extension: " << _config.extension;
-    BOOST_LOG_TRIVIAL(info) << "Output directory: " << _config.output_dir;
+
 
     _config.output_dir = get_output_dir(stream_data, stream_idx);
 
@@ -99,7 +96,11 @@ MultiFileWriter<VectorType>::create_stream(VectorType const& stream_data,
     }
 
     _config.output_basename = get_basefilename(stream_data, stream_idx);
+
+        
     _file_streams[stream_idx] = _create_stream_callback(_config, _header, stream_data, stream_idx);
+
+
 
     return *_file_streams[stream_idx];
 }

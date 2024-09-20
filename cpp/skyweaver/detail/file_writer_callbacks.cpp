@@ -15,7 +15,7 @@
 #include <iomanip>
 #include <fstream>
 #include <sstream>
-
+#include <filesystem>
 
 
 namespace {
@@ -265,12 +265,14 @@ std::unique_ptr<FileOutputStream>  create_sigproc_file_stream(MultiFileWriterCon
     // // causing compiler bugs prior to g++ 5.x
     // char formatted_time[80];
     // strftime(formatted_time, 80, "%Y-%m-%d-%H:%M:%S", ptm);
-    // base_filename << formatted_time;             
+    // base_filename << formatted_time;   
+
+    //make config.output_dir if it does not exist
 
 
     std::unique_ptr<FileOutputStream> file_stream = std::make_unique<FileOutputStream>(
         config.output_dir,
-        config.prefix,
+        config.output_basename,
         config.extension,
         filesize,
         [header](std::size_t& header_size,

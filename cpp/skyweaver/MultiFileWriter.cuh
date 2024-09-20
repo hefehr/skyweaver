@@ -46,7 +46,9 @@ struct MultiFileWriterConfig{
   }
 
   std::string to_string(){
-    return "header_size: " + std::to_string(header_size) + ", max_file_size: " + std::to_string(max_file_size) + ", stokes_mode: " + stokes_mode + ", output_dir: " + output_dir + ", prefix: " + prefix + ", extension: " + extension;
+    return "header_size: " + std::to_string(header_size) + ", max_file_size: " + std::to_string(max_file_size) 
+            + ", stokes_mode: " + stokes_mode + ", output_dir: " + output_dir + ", prefix: " + prefix + ", extension: " + extension
+            + ", output_basename: " + output_basename + ", base_output_dir: " + base_output_dir;
   }
 };
 /**

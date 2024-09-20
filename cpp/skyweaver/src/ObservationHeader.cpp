@@ -5,6 +5,20 @@
 #include <type_traits>
 namespace skyweaver
 {
+
+std::vector<float> parse_float_list(std::string const& str)
+{
+    std::vector<float> values;
+    std::size_t start = 0;
+    std::size_t end = 0;
+    while(end != std::string::npos) {
+        end = str.find(',', start);
+        values.push_back(std::stof(str.substr(start, end - start)));
+        start = end + 1;
+    }
+    return values;
+}
+
 void read_dada_header(psrdada_cpp::RawBytes& raw_header,
                       ObservationHeader& header)
 {
@@ -49,6 +63,11 @@ void read_dada_header(psrdada_cpp::RawBytes& raw_header,
     header.obs_frequency = parser.get_or_default<decltype(header.obs_frequency)>("OBS_FREQUENCY", 
                            parser.get_or_default<decltype(header.obs_frequency)>("OBS_FREQ", 
                             header.frequency));
+
+    header.ndms = parser.get_or_default<decltype(header.ndms)>("NDMS", "0");
+    if(header.ndms != "0") {
+        header.dms = parse_float_list(parser.get<std::string>("DMS"));
+    }
 
 
 }

@@ -24,6 +24,7 @@ struct MultiFileWriterConfig{
   std::string output_dir;
   std::string prefix;
   std::string extension;
+  std::string output_basename;
   PreWriteConfig pre_write;
 
   MultiFileWriterConfig() : header_size(4096), max_file_size(2147483647), stokes_mode("I"), output_dir("test"), prefix("test"), extension("default"){};

@@ -497,7 +497,14 @@ int main(int argc, char** argv)
                  [](std::size_t nthreads) { omp_set_num_threads(nthreads); }),
              "The number of threads to use for incoherent dedispersion")
 
-            // Logging options
+            ("wait-for-space",
+              po::value<std::string>()
+                 ->notifier(
+                     [&config](std::string key) { config.configure_wait(key); }),
+             "Wait for enough disk space for the output. "
+             "<nr_of_cycles (0 for infinity)>:<sleep_time_per_cycle [s]>:<minimum_size(e.g. 200M or 32G)>")
+
+          // Logging options
             ("log-level",
              po::value<std::string>()->default_value("info")->notifier(
                  [](std::string level) { skyweaver::set_log_level(level); }),

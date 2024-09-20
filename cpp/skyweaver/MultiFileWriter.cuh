@@ -139,6 +139,7 @@ class MultiFileWriter
     std::string get_extension(VectorType const& stream_data);
     CreateStreamCallBackType _create_stream_callback;
     MultiFileWriterConfig _config;
+    PreWriteCallback _pre_write_callback;
     std::string _tag;
     ObservationHeader _header;
     std::map<std::size_t, std::unique_ptr<FileOutputStream>> _file_streams;

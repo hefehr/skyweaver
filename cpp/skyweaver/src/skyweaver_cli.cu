@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <cerrno>
+#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <ios>
@@ -238,6 +239,34 @@ void run_pipeline(Pipeline& pipeline,
     stopwatch.stop("processing_loop");
     stopwatch.show_all_timings();
 }
+
+auto pre_write_callback = [] (std::size_t const size, skyweaver::MultiFileWriterConfig const& config)
+{
+    if (!config.pre_write.wait.is_enabled) return;
+    std::filesystem::space_info space = std::filesystem::space(config.output_dir);
+    size_t limit = std::min(config.pre_write.wait.min_free_space, size);
+    if(space.available >= limit)
+        return;
+
+    BOOST_LOG_TRIVIAL(info)
+        << space.available
+        << " bytes available space is not enough. Need at least "
+        << limit
+        << " bytes in " << config.output_dir << ".";
+    BOOST_LOG_TRIVIAL(warning) << "Start pausing.";
+    int max_iterations = (config.pre_write.wait.iterations == 0) ? INT_MAX : config.pre_write.wait.iterations;
+    for (int i = 0; i < max_iterations; i++)
+    {
+        sleep(config.pre_write.wait.sleep_time);
+        space = std::filesystem::space(config.output_dir);
+        if (space.available >= limit)
+        {
+            BOOST_LOG_TRIVIAL(info) << "Space has been freed up. Will proceed.";
+            return;
+        }
+    }
+    throw std::runtime_error("Space for writing hasn't been freed up in time.");
+};
 
 template <typename BfTraits, bool enable_incoherent_dedispersion>
 void setup_pipeline(skyweaver::PipelineConfig& config)

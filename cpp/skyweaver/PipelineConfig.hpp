@@ -9,6 +9,19 @@
 
 namespace skyweaver
 {
+  struct WaitConfig
+  {
+    bool is_enabled;
+    int iterations;
+    int sleep_time;
+    std::size_t min_free_space;
+  };
+
+  struct PreWriteConfig
+  {
+     WaitConfig wait;
+  };
+
 
 /**
  * @brief      Class for wrapping the skyweaver pipeline configuration.

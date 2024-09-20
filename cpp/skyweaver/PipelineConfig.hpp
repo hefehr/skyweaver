@@ -346,6 +346,7 @@ class PipelineConfig
     }
 
   private:
+    std::size_t convertMemorySize(const std::string& str) const;
     void calculate_channel_frequencies() const;
     void update_power_offsets_and_scalings();
 

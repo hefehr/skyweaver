@@ -261,15 +261,15 @@ void SkyCleaver::init_writers()
     if(!out_prefix.empty()) {
         out_prefix = out_prefix + "_";
     }
-
+    std::string prefix = "";
     for(int idm = 0; idm < _config.ndms(); idm++) {
         if(_config.ndms() > 1) {
-            out_prefix = out_prefix + "idm_" +
+            prefix = out_prefix + "idm_" +
                          to_string_with_padding(_header.dms[idm], 9, 3) + "_";
         }
         for(int ibeam = 0; ibeam < _config.nbeams(); ibeam++) {
           
-            std::string prefix   = out_prefix + "cb_" +
+            std::string prefix   = prefix + "cb_" +
                                  to_string_with_padding(ibeam, 5);
 
             MultiFileWriterConfig writer_config;

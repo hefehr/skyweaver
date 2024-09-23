@@ -242,7 +242,7 @@ void run_pipeline(Pipeline& pipeline,
 
 auto pre_write_callback = [] (std::size_t const size, skyweaver::MultiFileWriterConfig const& config)
 {
-    if (!config.pre_write.wait.is_enabled) return;
+    if (!config.pre_write.is_enabled) return;
     std::filesystem::space_info space = std::filesystem::space(config.output_dir);
     size_t limit = std::min(config.pre_write.wait.min_free_space, size);
     if(space.available >= limit)

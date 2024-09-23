@@ -15,7 +15,7 @@ PipelineConfig::PipelineConfig()
       _bw(13375000.0), _channel_frequencies_stale(true),
       _gulp_length_samps(4096), _start_time(0.0f),
       _duration(std::numeric_limits<float>::infinity()), _total_nchans(4096),
-      _stokes_mode("I"), _output_level(24.0f), _pre_write_config({{false, 0, 0, 0}})
+      _stokes_mode("I"), _output_level(24.0f), _pre_write_config({0, {false, 0, 0}})
 {
 }
 
@@ -182,7 +182,7 @@ void PipelineConfig::configure_wait(std::string argument)
     std::string token;
     std::istringstream tokenStream(argument);
     int indx = 0;
-    _pre_write_config.wait.is_enabled = true;
+    _pre_write_config.is_enabled = true;
     while (std::getline(tokenStream, token, ':')) {
         if(indx == 0)
         {

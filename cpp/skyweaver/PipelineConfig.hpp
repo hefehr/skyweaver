@@ -11,7 +11,6 @@ namespace skyweaver
 {
   struct WaitConfig
   {
-    bool is_enabled;
     int iterations;
     int sleep_time;
     std::size_t min_free_space;
@@ -19,7 +18,8 @@ namespace skyweaver
 
   struct PreWriteConfig
   {
-     WaitConfig wait;
+    bool is_enabled;
+    WaitConfig wait;
   };
 
 

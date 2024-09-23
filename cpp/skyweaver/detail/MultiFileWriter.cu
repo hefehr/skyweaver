@@ -179,7 +179,7 @@ bool MultiFileWriter<VectorType>::operator()(VectorType const& stream_data,
                                              std::size_t stream_idx)
 {
     std::size_t const data_size = stream_data.size() * sizeof(typename VectorType::value_type);
-    if (_pre_write_callback != nullptr && _config.pre_write.wait.is_enabled)
+    if (_pre_write_callback != nullptr && _config.pre_write.is_enabled)
     {
       _pre_write_callback(data_size, _config);
     }

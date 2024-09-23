@@ -256,29 +256,24 @@ void SkyCleaver::init_writers()
     if(!fs::exists(_config.output_dir())) {
         fs::create_directories(_config.output_dir());
     }
-    std::string out_prefix = _config.out_prefix();
+    std::string out_prefix = _config.out_prefix().empty()
+                                 ? ""
+                                 : _config.out_prefix() + "_";
     std::string output_dir = _config.output_dir();
-    if(!out_prefix.empty()) {
-        out_prefix = out_prefix + "_";
-    }
-    std::string prefix = "";
+
     for(int idm = 0; idm < _config.ndms(); idm++) {
-        if(_config.ndms() > 1) {
-            prefix = out_prefix + "idm_" +
-                         to_string_with_padding(_header.dms[idm], 9, 3) + "_";
-        }
+
+        std::string prefix = _config.ndms() > 1 ? out_prefix + "idm_" +
+                         to_string_with_padding(idm, 9, 3) + "_": out_prefix;
+
         for(int ibeam = 0; ibeam < _config.nbeams(); ibeam++) {
-          
-            std::string prefix   = prefix + "cb_" +
-                                 to_string_with_padding(ibeam, 5);
 
             MultiFileWriterConfig writer_config;
-
             writer_config.header_size   = _config.dada_header_size();
             writer_config.max_file_size = _config.max_output_filesize();
             writer_config.stokes_mode   = _config.stokes_mode();
             writer_config.base_output_dir  = output_dir;
-            writer_config.prefix        = prefix;
+            writer_config.prefix        = prefix + "cb_" + to_string_with_padding(ibeam, 5);;
             writer_config.extension     = ".fil";
 
             BOOST_LOG_TRIVIAL(info)

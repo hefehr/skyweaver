@@ -163,7 +163,7 @@ std::unique_ptr<FileOutputStream>  create_dada_file_stream(MultiFileWriterConfig
             header_writer.set<std::size_t>("OBS_OFFSET", bytes_written);
             header_writer.set<std::size_t>("OBS_OVERLAP", 0);
 
-            double tstart = header.utc_start + stream_data.utc_offset();
+            long double tstart = header.utc_start + stream_data.utc_offset();
 
             header_writer.set<long double>("UTC_START", tstart);
             header_writer.set<long double>("MJD_START", MJD_UNIX_EPOCH + tstart / 86400.0);

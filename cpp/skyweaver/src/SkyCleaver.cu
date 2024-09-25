@@ -149,11 +149,17 @@ void SkyCleaver::init_readers()
     BOOST_LOG_TRIVIAL(info)
         << "Read header from first file: " << header.to_string();
 
-    float obs_centre_freq = header.obs_frequency;
-    float obs_bandwidth = header.obs_bandwidth;
+    long double obs_centre_freq = header.obs_frequency;
+    long double obs_bandwidth = header.obs_bandwidth;
+    std::size_t obs_nchans = header.obs_nchans;
+
+    long double start_freq = obs_centre_freq - obs_bandwidth / 2;
+
+
+
     for(int i = 0; i < nbridges; i++) {
-        int ifreq = std::lround(obs_centre_freq - obs_bandwidth / 2 +
-                                (i + 0.5) * obs_bandwidth / nbridges);
+       
+        int ifreq = std::lround( std::floor(start_freq + (i + 0.5) * obs_bandwidth / nbridges));
         _expected_freqs.push_back(ifreq);
         BOOST_LOG_TRIVIAL(info)
             << "Expected frequency [" << i << "]: " << ifreq;
@@ -169,6 +175,8 @@ void SkyCleaver::init_readers()
                                   _config.nbeams()},
             0);
     }
+
+    // print _expected_freqs
 
     std::size_t smallest_data_size = std::numeric_limits<std::size_t>::max();
 
@@ -190,13 +198,13 @@ void SkyCleaver::init_readers()
             1e-6; // Header has it in microseconds, converting to seconds
         std::size_t nsamples = std::floor(time_diff / tsamp);
 
-        BOOST_LOG_TRIVIAL(info)
+        BOOST_LOG_TRIVIAL(debug)
             << "Frequency: " << freq << " Timestamp: " << timestamp
             << "tsamp: " << tsamp << " Latest timestamp: " << latest_timestamp
             << " Time difference: " << time_diff
             << " Number of samples to skip: " << nsamples;
 
-        BOOST_LOG_TRIVIAL(info)
+        BOOST_LOG_TRIVIAL(debug)
             << "Seeking " << nsamples * _config.ndms() * _config.nbeams()
             << " bytes in bridge reader for frequency: " << freq;
 
@@ -242,8 +250,7 @@ void SkyCleaver::init_readers()
         << "Added " << _bridge_data.size() << " bridge readers to SkyCleaver";
 
     _header = _bridge_readers[_available_freqs[0]]->get_header();
-    BOOST_LOG_TRIVIAL(info) << "Adding first header to SkyCleaver";
-    BOOST_LOG_TRIVIAL(info) << "Header: " << _header.to_string();
+    BOOST_LOG_TRIVIAL(info) << "Adding first header to SkyCleaver: " << _header.to_string();
     _header.nchans = _header.nchans * _config.nbridges();
     _header.nbeams = _config.nbeams();
 }
@@ -260,11 +267,12 @@ void SkyCleaver::init_writers()
                                  ? ""
                                  : _config.out_prefix() + "_";
     std::string output_dir = _config.output_dir();
+    
 
     for(int idm = 0; idm < _config.ndms(); idm++) {
 
         std::string prefix = _config.ndms() > 1 ? out_prefix + "idm_" +
-                         to_string_with_padding(idm, 9, 3) + "_": out_prefix;
+                         to_string_with_padding(_header.dms[idm], 9, 3) + "_": out_prefix;
 
         for(int ibeam = 0; ibeam < _config.nbeams(); ibeam++) {
 
@@ -359,7 +367,7 @@ void SkyCleaver::cleave()
                 reader->read(reinterpret_cast<char*>(thrust::raw_pointer_cast(
                                  _bridge_data[freq]->data())),
                              gulp_size); // read a big chunk of data
-            BOOST_LOG_TRIVIAL(info)
+            BOOST_LOG_TRIVIAL(debug)
                 << "Read " << read_size << " bytes from bridge" << freq;
             if(read_size < gulp_size * sizeof(InputVectorType::value_type)) {
                 BOOST_LOG_TRIVIAL(warning)

@@ -268,7 +268,7 @@ void setup_pipeline(skyweaver::PipelineConfig& config)
         create_stream_callback_stats =
             skyweaver::detail::create_dada_file_stream<
                 skyweaver::FPAStatsD<skyweaver::Statistics>>;
-    StatsWriterType   stats_handler(config, "stats", create_stream_callback_stats);
+    StatsWriterType  stats_handler(config, "stats", create_stream_callback_stats);
     
 
     if constexpr(enable_incoherent_dedispersion) {

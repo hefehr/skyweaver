@@ -290,27 +290,19 @@ void setup_pipeline(skyweaver::PipelineConfig& config)
         skyweaver::detail::create_dada_file_stream<
             skyweaver::BTFPowersH<OutputType>>;
 
-    IBWriterType ib_handler(config, "ib", create_stream_callback_ib, pre_write_callback);
+    std::unique_ptr<IBWriterType> ib_handler;
 
     using StatsWriterType =
         skyweaver::MultiFileWriter<skyweaver::FPAStatsD<skyweaver::Statistics>>;
-<<<<<<< HEAD
-=======
-    std::unique_ptr<StatsWriterType> stats_handler;
-
->>>>>>> c89902c (introduce unique_ptr)
     typename StatsWriterType::CreateStreamCallBackType
         create_stream_callback_stats =
             skyweaver::detail::create_dada_file_stream<
                 skyweaver::FPAStatsD<skyweaver::Statistics>>;
-<<<<<<< HEAD
     StatsWriterType  stats_handler(config,
                                    "stats",
                                    create_stream_callback_stats,
                                    pre_write_callback);
 
-=======
->>>>>>> c89902c (introduce unique_ptr)
     if constexpr(enable_incoherent_dedispersion) {
         using CBWriterType =
             skyweaver::MultiFileWriter<skyweaver::TDBPowersH<OutputType>>;
@@ -321,35 +313,32 @@ void setup_pipeline(skyweaver::PipelineConfig& config)
                     skyweaver::TDBPowersH<OutputType>>;
         skyweaver::MultiFileWriter<skyweaver::TDBPowersH<OutputType>>
             cb_file_writer(config, "cb", create_stream_callback_cb, pre_write_callback);
-=======
-        create_stream_callback_cb =
-            skyweaver::detail::create_dada_file_stream<skyweaver::TDBPowersH<OutputType>>;
         std::unique_ptr<CBWriterType> cb_file_writer;
         if (config.pre_write_config().is_enabled)
         {
+            ib_handler.reset(new IBWriterType(config, "ib", create_stream_callback_ib, pre_write_callback));
             stats_handler.reset(new StatsWriterType(config, "stats", create_stream_callback_stats, pre_write_callback));
             cb_file_writer.reset(new CBWriterType(config, "cb", create_stream_callback_cb, pre_write_callback));
         }else{
+            ib_handler.reset(new IBWriterType(config, "ib", create_stream_callback_ib));
             stats_handler.reset(new StatsWriterType(config, "stats", create_stream_callback_stats));
             cb_file_writer.reset(new CBWriterType(config, "cb", create_stream_callback_cb));
         }
 
->>>>>>> c89902c (introduce unique_ptr)
         skyweaver::IncoherentDedispersionPipeline<OutputType,
                                                   OutputType,
                                                   decltype(* cb_file_writer.get())>
         incoherent_dispersion_pipeline(config, * cb_file_writer.get());
         skyweaver::BeamformerPipeline<decltype(incoherent_dispersion_pipeline),
-                                      decltype(ib_handler),
+                                      decltype(* ib_handler.get()),
                                       decltype(* stats_handler.get()),
                                       BfTraits>
             pipeline(config,
                      incoherent_dispersion_pipeline,
-                     ib_handler,
+                     * ib_handler.get(),
                      * stats_handler.get());
         run_pipeline(pipeline, config, file_reader, header);
     } else {
-<<<<<<< HEAD
         using CBWriterType =
             skyweaver::MultiFileWriter<skyweaver::TFBPowersD<OutputType>>;
         typename CBWriterType::CreateStreamCallBackType
@@ -358,25 +347,23 @@ void setup_pipeline(skyweaver::PipelineConfig& config)
                     skyweaver::TFBPowersD<OutputType>>;
         CBWriterType      cb_file_writer(config, "cb", create_stream_callback_cb, pre_write_callback);
         skyweaver::BeamformerPipeline<decltype(cb_file_writer),
-=======
-        using CBWriterType = skyweaver::MultiFileWriter<skyweaver::TFBPowersD<OutputType>>;   
         std::unique_ptr<CBWriterType> cb_file_writer;
-        typename CBWriterType::CreateStreamCallBackType
-        create_stream_callback_cb =
-            skyweaver::detail::create_dada_file_stream<skyweaver::TFBPowersD<OutputType>>;           
         if (config.pre_write_config().is_enabled)
         {
+            ib_handler.reset(new IBWriterType(config, "ib", create_stream_callback_ib, pre_write_callback));
             cb_file_writer.reset(new CBWriterType(config, "cb", create_stream_callback_cb, pre_write_callback));
+            stats_handler.reset(new StatsWriterType(config, "stats", create_stream_callback_stats, pre_write_callback));
         }else{
+            ib_handler.reset(new IBWriterType(config, "ib", create_stream_callback_ib));
             cb_file_writer.reset(new CBWriterType(config, "cb", create_stream_callback_cb));
+            stats_handler.reset(new StatsWriterType(config, "stats", create_stream_callback_stats));
         }
 
         skyweaver::BeamformerPipeline<decltype(*cb_file_writer.get()),
->>>>>>> c89902c (introduce unique_ptr)
                                       decltype(ib_handler),
                                       decltype(* stats_handler.get()),
                                       BfTraits>
-            pipeline(config, * cb_file_writer.get(), ib_handler, * stats_handler.get());
+            pipeline(config, * cb_file_writer.get(), * ib_handler.get(), * stats_handler.get());
         run_pipeline(pipeline, config, file_reader, header);
     }
 }

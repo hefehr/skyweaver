@@ -13,13 +13,23 @@ namespace fs = std::filesystem;
 
 void create_directories(const fs::path& path)
 {
+   
     // Check if the directory already exists
     if(!fs::exists(path)) {
         // Directory does not exist, attempt to create it
-        if(!fs::create_directories(path)) {
+        // doing it via try catch for multi-threaded use
+        try{
+            fs::create_directories(path);
+        } catch (const std::filesystem::filesystem_error& e) {
+            if(!fs::exists(path)) {
+                throw std::runtime_error("Failed to create directory: " +
+                                        path.string());
+            }
+        } catch (const std::exception& e) {
             throw std::runtime_error("Failed to create directory: " +
-                                     path.string());
+                                    path.string());
         }
+
     } else if(!fs::is_directory(path)) {
         // Path exists but is not a directory
         throw std::runtime_error("Path exists but is not a directory: " +

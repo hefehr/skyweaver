@@ -10,7 +10,7 @@ std::vector<float> parse_float_list(std::string const& str)
 {
     std::vector<float> values;
     std::size_t start = 0;
-    std::size_t end = 0;
+    std::size_t end   = 0;
     while(end != std::string::npos) {
         end = str.find(',', start);
         values.push_back(std::stof(str.substr(start, end - start)));
@@ -25,7 +25,7 @@ void read_dada_header(psrdada_cpp::RawBytes& raw_header,
     Header parser(raw_header);
     header.order = parser.get<std::string>("ORDER");
 
-    if(header.order.find("A") != std::string::npos) { 
+    if(header.order.find("A") != std::string::npos) {
         header.nantennas = parser.get<decltype(header.nantennas)>("NANT");
         header.sample_clock =
             parser.get<decltype(header.sample_clock)>("SAMPLE_CLOCK");
@@ -35,16 +35,16 @@ void read_dada_header(psrdada_cpp::RawBytes& raw_header,
 
         header.sync_time = parser.get<decltype(header.sync_time)>("SYNC_TIME");
     }
-    
-    header.refdm = parser.get_or_default<decltype(header.refdm)>("COHERENT_DM", 0.0);
 
+    header.refdm =
+        parser.get_or_default<decltype(header.refdm)>("COHERENT_DM", 0.0);
 
-    header.npol       = parser.get<decltype(header.npol)>("NPOL");
-    header.nbits      = parser.get<decltype(header.nbits)>("NBIT");
-    header.nchans     = parser.get<decltype(header.nchans)>("NCHAN");
+    header.npol   = parser.get<decltype(header.npol)>("NPOL");
+    header.nbits  = parser.get<decltype(header.nbits)>("NBIT");
+    header.nchans = parser.get<decltype(header.nchans)>("NCHAN");
 
-    header.bandwidth     = parser.get<decltype(header.bandwidth)>("BW");
-    header.frequency     = parser.get<decltype(header.frequency)>("FREQ");
+    header.bandwidth = parser.get<decltype(header.bandwidth)>("BW");
+    header.frequency = parser.get<decltype(header.frequency)>("FREQ");
 
     header.tsamp = parser.get<decltype(header.tsamp)>("TSAMP");
 
@@ -58,18 +58,21 @@ void read_dada_header(psrdada_cpp::RawBytes& raw_header,
     header.chan0_idx   = parser.get<decltype(header.chan0_idx)>("CHAN0_IDX");
     header.obs_offset  = parser.get<decltype(header.obs_offset)>("OBS_OFFSET");
 
-    header.obs_bandwidth = parser.get_or_default<decltype(header.obs_bandwidth)>("OBS_BW", 856e6);
-    header.obs_nchans = parser.get_or_default<decltype(header.obs_nchans)>("OBS_NCHAN", 4096);
-    header.obs_frequency = parser.get_or_default<decltype(header.obs_frequency)>("OBS_FREQUENCY", 
-                           parser.get_or_default<decltype(header.obs_frequency)>("OBS_FREQ", 
-                            header.frequency));
+    header.obs_bandwidth =
+        parser.get_or_default<decltype(header.obs_bandwidth)>("OBS_BW", 856e6);
+    header.obs_nchans =
+        parser.get_or_default<decltype(header.obs_nchans)>("OBS_NCHAN", 4096);
+    header.obs_frequency =
+        parser.get_or_default<decltype(header.obs_frequency)>(
+            "OBS_FREQUENCY",
+            parser.get_or_default<decltype(header.obs_frequency)>(
+                "OBS_FREQ",
+                header.frequency));
 
     header.ndms = parser.get_or_default<decltype(header.ndms)>("NDMS", "0");
     if(header.ndms != "0") {
         header.dms = parse_float_list(parser.get<std::string>("DMS"));
     }
-
-
 }
 void validate_header(ObservationHeader const& header,
                      PipelineConfig const& config)
@@ -103,7 +106,6 @@ void update_config(PipelineConfig& config, ObservationHeader const& header)
     config.centre_frequency(header.frequency);
     // TO DO: might need to add other variables in the future.
 }
-
 
 bool are_headers_similar(ObservationHeader const& header1,
                          ObservationHeader const& header2)
@@ -153,14 +155,10 @@ std::string ObservationHeader::to_string() const
     if(ndms != "0") {
         oss << "  ndms: " << ndms << "\n";
         oss << "  dms: ";
-        for(auto dm : dms) {
-            oss << dm << " ";
-        }
+        for(auto dm: dms) { oss << dm << " "; }
         oss << "\n";
     }
-    if(sigproc_params)
-    {
-        
+    if(sigproc_params) {
         oss << " Sigproc parameters:\n"
             << "  az: " << az << "\n"
             << "  za: " << za << "\n"

@@ -4,11 +4,11 @@
 #include "psrdada_cpp/raw_bytes.hpp"
 #include "skyweaver/Header.hpp"
 #include "skyweaver/PipelineConfig.hpp"
+
 #include <cmath>
 
 namespace skyweaver
 {
-
 
 struct ObservationHeader {
     std::size_t nchans    = 0; // Number of frequency channels in the subband
@@ -30,37 +30,37 @@ struct ObservationHeader {
     long double sync_time    = 0.0; // The UNIX epoch of the sampler zero
     long double utc_start    = 0.0; // The UTC start time of the data
     long double mjd_start    = 0.0; // The MJD start time of the data
-    std::size_t obs_offset   = 0;   // The offset of the current file from UTC_START in bytesß
-    long double  refdm = 0.0;                  // Reference DM
-    std::size_t ibeam = 0.0;              // Beam number
-    std::size_t nbeams = 0;               // Number of beams
-    std::string source_name;        // Name of observation target
-    std::string ra;                 // Right ascension
-    std::string dec;                // Declination
-    std::string telescope;          // Telescope name
-    std::string instrument;         // Name of the recording instrument
-    std::string order;              // Order of the dimensions in the data
-    std::string ndms;               // Number of DMs
-    std::vector<float> dms;                // DMs
+    std::size_t obs_offset =
+        0; // The offset of the current file from UTC_START in bytesß
+    long double refdm  = 0.0; // Reference DM
+    std::size_t ibeam  = 0.0; // Beam number
+    std::size_t nbeams = 0;   // Number of beams
+    std::string source_name;  // Name of observation target
+    std::string ra;           // Right ascension
+    std::string dec;          // Declination
+    std::string telescope;    // Telescope name
+    std::string instrument;   // Name of the recording instrument
+    std::string order;        // Order of the dimensions in the data
+    std::string ndms;         // Number of DMs
+    std::vector<float> dms;   // DMs
 
-    std::string to_string() const;  // Convert the header to a string
+    std::string to_string() const; // Convert the header to a string
 
-    long double az;                 // Azimuth
-    long double za;                 // Zenith angle
-    std::size_t machineid = 0;      // Machine ID
-    std::size_t nifs = 0;           // Number of IFs
-    std::size_t telescopeid = 0;    // Telescope ID
-    std::size_t datatype = 0;       // Data type
-    std::size_t barycentric = 0;    // Barycentric correction
-    std::string rawfile;            // Raw file name
-    double fch1 = 0.0;              // Centre frequency of the first channel
-    double foff = 0.0;              // Frequency offset between channels
-    
-    bool sigproc_params = false;    // Whether to include sigproc parameters
+    long double az;              // Azimuth
+    long double za;              // Zenith angle
+    std::size_t machineid   = 0; // Machine ID
+    std::size_t nifs        = 0; // Number of IFs
+    std::size_t telescopeid = 0; // Telescope ID
+    std::size_t datatype    = 0; // Data type
+    std::size_t barycentric = 0; // Barycentric correction
+    std::string rawfile;         // Raw file name
+    double fch1 = 0.0;           // Centre frequency of the first channel
+    double foff = 0.0;           // Frequency offset between channels
+
+    bool sigproc_params = false; // Whether to include sigproc parameters
     ObservationHeader() = default;
-    ObservationHeader(ObservationHeader const&) = default;
+    ObservationHeader(ObservationHeader const&)            = default;
     ObservationHeader& operator=(ObservationHeader const&) = default;
-
 };
 
 // template for comparing two floating point objects
@@ -71,7 +71,6 @@ is_close(T a, T b, T tolerance = 1e-12)
 {
     return std::fabs(a - b) < tolerance;
 }
-
 
 /**
  * @brief Parse header information for a DADA header block
@@ -90,15 +89,6 @@ void update_config(PipelineConfig& config, ObservationHeader const& header);
 bool are_headers_similar(ObservationHeader const& header1,
                          ObservationHeader const& header2);
 
-
-
-
-
-
-
 } // namespace skyweaver
-
-
-
 
 #endif // SKYWEAVER_OBSERVATIONHEADER_HPP

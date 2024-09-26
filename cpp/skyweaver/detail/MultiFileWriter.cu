@@ -7,8 +7,6 @@
 #include <sstream>
 #include <string>
 
-
-
 /**
  * Now write a DADA file per DM
  * with optional time splitting
@@ -19,7 +17,6 @@ namespace skyweaver
 
 namespace
 {
-
 
 std::string get_formatted_time(long double unix_timestamp)
 {
@@ -40,29 +37,30 @@ std::string get_formatted_time(long double unix_timestamp)
 // }
 
 template <typename VectorType>
-MultiFileWriter<VectorType>::MultiFileWriter(PipelineConfig const& config,
-                                             std::string tag,
-                                             CreateStreamCallBackType create_stream_callback)
+MultiFileWriter<VectorType>::MultiFileWriter(
+    PipelineConfig const& config,
+    std::string tag,
+    CreateStreamCallBackType create_stream_callback)
     : _tag(tag), _create_stream_callback(create_stream_callback)
 {
     MultiFileWriterConfig writer_config;
-    writer_config.header_size = config.dada_header_size();
-    writer_config.max_file_size = config.max_output_filesize();
-    writer_config.stokes_mode = config.stokes_mode();
+    writer_config.header_size     = config.dada_header_size();
+    writer_config.max_file_size   = config.max_output_filesize();
+    writer_config.stokes_mode     = config.stokes_mode();
     writer_config.base_output_dir = config.output_dir();
 
     _config = writer_config;
 }
 
 template <typename VectorType>
-MultiFileWriter<VectorType>::MultiFileWriter(MultiFileWriterConfig config,
-                                             std::string tag,
-                                             CreateStreamCallBackType create_stream_callback)
-    : _config(config), _tag(tag), _create_stream_callback(create_stream_callback)
+MultiFileWriter<VectorType>::MultiFileWriter(
+    MultiFileWriterConfig config,
+    std::string tag,
+    CreateStreamCallBackType create_stream_callback)
+    : _config(config), _tag(tag),
+      _create_stream_callback(create_stream_callback)
 {
 }
-
-
 
 template <typename VectorType>
 MultiFileWriter<VectorType>::~MultiFileWriter(){};
@@ -81,14 +79,10 @@ bool MultiFileWriter<VectorType>::has_stream(std::size_t stream_idx)
 }
 
 template <typename VectorType>
-FileOutputStream& 
+FileOutputStream&
 MultiFileWriter<VectorType>::create_stream(VectorType const& stream_data,
                                            std::size_t stream_idx)
 {
-
-
-
-
     _config.output_dir = get_output_dir(stream_data, stream_idx);
 
     if(_config.extension.empty()) {
@@ -97,10 +91,8 @@ MultiFileWriter<VectorType>::create_stream(VectorType const& stream_data,
 
     _config.output_basename = get_basefilename(stream_data, stream_idx);
 
-        
-    _file_streams[stream_idx] = _create_stream_callback(_config, _header, stream_data, stream_idx);
-
-
+    _file_streams[stream_idx] =
+        _create_stream_callback(_config, _header, stream_data, stream_idx);
 
     return *_file_streams[stream_idx];
 }
@@ -114,9 +106,8 @@ MultiFileWriter<VectorType>::get_output_dir(VectorType const& stream_data,
     // <utcstart>/<freq:%f.02>/<stream_id>
     std::stringstream output_dir;
     output_dir << _config.base_output_dir << "/"
-               << get_formatted_time(_header.utc_start) << "/" 
-               << stream_idx;
-             
+               << get_formatted_time(_header.utc_start) << "/" << stream_idx;
+
     return output_dir.str();
 }
 
@@ -147,10 +138,9 @@ MultiFileWriter<VectorType>::get_extension(VectorType const& stream_data)
 {
     std::string dims = stream_data.dims_as_string();
     for(auto& c: dims) { c = std::tolower(static_cast<unsigned char>(c)); }
-    if(dims =="t") {
+    if(dims == "t") {
         return ".dat";
-    }
-    else if(dims == "tf") {
+    } else if(dims == "tf") {
         return ".fil";
     }
     return "." + dims;
@@ -182,11 +172,9 @@ bool MultiFileWriter<VectorType>::operator()(VectorType const& stream_data,
 
 template <typename VectorType>
 bool MultiFileWriter<VectorType>::write(VectorType const& stream_data,
-                                             std::size_t stream_idx)
+                                        std::size_t stream_idx)
 {
-
-   return this->operator()(stream_data, stream_idx);
-
+    return this->operator()(stream_data, stream_idx);
 }
 
 } // namespace skyweaver

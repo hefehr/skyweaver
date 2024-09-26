@@ -52,7 +52,7 @@ class NullHandler
 {
   public:
     template <typename... Args>
-    void init(Args... args){};
+    void init(Args... args) {};
 
     template <typename... Args>
     bool operator()(Args... args)
@@ -263,19 +263,22 @@ void setup_pipeline(skyweaver::PipelineConfig& config)
     IBWriterType ib_handler(config, "ib", create_stream_callback_ib);
 
     using StatsWriterType =
-        skyweaver::MultiFileWriter<skyweaver::FPAStatsD<skyweaver::Statistics>>;    
+        skyweaver::MultiFileWriter<skyweaver::FPAStatsD<skyweaver::Statistics>>;
     typename StatsWriterType::CreateStreamCallBackType
         create_stream_callback_stats =
             skyweaver::detail::create_dada_file_stream<
                 skyweaver::FPAStatsD<skyweaver::Statistics>>;
-    StatsWriterType  stats_handler(config, "stats", create_stream_callback_stats);
-    
+    StatsWriterType stats_handler(config,
+                                  "stats",
+                                  create_stream_callback_stats);
 
     if constexpr(enable_incoherent_dedispersion) {
-        using CBWriterType = skyweaver::MultiFileWriter<skyweaver::TDBPowersH<OutputType>>;   
+        using CBWriterType =
+            skyweaver::MultiFileWriter<skyweaver::TDBPowersH<OutputType>>;
         typename CBWriterType::CreateStreamCallBackType
-        create_stream_callback_cb =
-            skyweaver::detail::create_dada_file_stream<skyweaver::TDBPowersH<OutputType>>;       
+            create_stream_callback_cb =
+                skyweaver::detail::create_dada_file_stream<
+                    skyweaver::TDBPowersH<OutputType>>;
         skyweaver::MultiFileWriter<skyweaver::TDBPowersH<OutputType>>
             cb_file_writer(config, "cb", create_stream_callback_cb);
         skyweaver::IncoherentDedispersionPipeline<OutputType,
@@ -292,11 +295,13 @@ void setup_pipeline(skyweaver::PipelineConfig& config)
                      stats_handler);
         run_pipeline(pipeline, config, file_reader, header);
     } else {
-        using CBWriterType = skyweaver::MultiFileWriter<skyweaver::TFBPowersD<OutputType>>;   
+        using CBWriterType =
+            skyweaver::MultiFileWriter<skyweaver::TFBPowersD<OutputType>>;
         typename CBWriterType::CreateStreamCallBackType
-        create_stream_callback_cb =
-            skyweaver::detail::create_dada_file_stream<skyweaver::TFBPowersD<OutputType>>;           
-        CBWriterType      cb_file_writer(config, "cb", create_stream_callback_cb);
+            create_stream_callback_cb =
+                skyweaver::detail::create_dada_file_stream<
+                    skyweaver::TFBPowersD<OutputType>>;
+        CBWriterType cb_file_writer(config, "cb", create_stream_callback_cb);
         skyweaver::BeamformerPipeline<decltype(cb_file_writer),
                                       decltype(ib_handler),
                                       decltype(stats_handler),
@@ -552,13 +557,15 @@ int main(int argc, char** argv)
                                    skyweaver::StokesParameter::V>,
                                true>(config);
             } else if(config.stokes_mode() == "QU") {
-                setup_pipeline<skyweaver::StokesTraits<
-                                   skyweaver::StokesParameter::Q, skyweaver::StokesParameter::U>,
-                               true>(config);
+                setup_pipeline<
+                    skyweaver::StokesTraits<skyweaver::StokesParameter::Q,
+                                            skyweaver::StokesParameter::U>,
+                    true>(config);
             } else if(config.stokes_mode() == "IV") {
-                setup_pipeline<skyweaver::StokesTraits<
-                                   skyweaver::StokesParameter::I, skyweaver::StokesParameter::V>,
-                               true>(config);             
+                setup_pipeline<
+                    skyweaver::StokesTraits<skyweaver::StokesParameter::I,
+                                            skyweaver::StokesParameter::V>,
+                    true>(config);
             } else if(config.stokes_mode() == "IQUV") {
                 setup_pipeline<skyweaver::FullStokesBeamformerTraits, true>(
                     config);
@@ -586,13 +593,15 @@ int main(int argc, char** argv)
                                    skyweaver::StokesParameter::V>,
                                false>(config);
             } else if(config.stokes_mode() == "QU") {
-                setup_pipeline<skyweaver::StokesTraits<
-                                   skyweaver::StokesParameter::Q, skyweaver::StokesParameter::U>,
-                               false>(config);
+                setup_pipeline<
+                    skyweaver::StokesTraits<skyweaver::StokesParameter::Q,
+                                            skyweaver::StokesParameter::U>,
+                    false>(config);
             } else if(config.stokes_mode() == "IV") {
-                setup_pipeline<skyweaver::StokesTraits<
-                                   skyweaver::StokesParameter::I, skyweaver::StokesParameter::V>,
-                               false>(config); 
+                setup_pipeline<
+                    skyweaver::StokesTraits<skyweaver::StokesParameter::I,
+                                            skyweaver::StokesParameter::V>,
+                    false>(config);
             } else if(config.stokes_mode() == "IQUV") {
                 setup_pipeline<skyweaver::FullStokesBeamformerTraits, false>(
                     config);

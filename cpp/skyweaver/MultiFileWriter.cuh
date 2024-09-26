@@ -13,43 +13,55 @@
 namespace skyweaver
 {
 
- 
-  
+struct MultiFileWriterConfig {
+    std::size_t header_size;
+    std::size_t max_file_size;
+    std::string stokes_mode;
+    std::string output_dir;
+    std::string base_output_dir;
+    std::string prefix;
+    std::string extension;
+    std::string output_basename;
 
-struct MultiFileWriterConfig{
+    MultiFileWriterConfig()
+        : header_size(4096), max_file_size(2147483647), stokes_mode("I"),
+          output_dir("default/"), prefix(""), extension("") {};
+    MultiFileWriterConfig(std::size_t header_size,
+                          std::size_t max_file_size,
+                          std::string stokes_mode,
+                          std::string output_dir,
+                          std::string prefix,
+                          std::string extension)
+        : header_size(header_size), max_file_size(max_file_size),
+          stokes_mode(stokes_mode), output_dir(output_dir), prefix(prefix),
+          extension(extension), output_basename("") {};
+    MultiFileWriterConfig(MultiFileWriterConfig const& other)
+        : header_size(other.header_size), max_file_size(other.max_file_size),
+          stokes_mode(other.stokes_mode), output_dir(other.output_dir),
+          base_output_dir(other.base_output_dir), prefix(other.prefix),
+          extension(other.extension), output_basename(other.output_basename) {};
+    MultiFileWriterConfig& operator=(MultiFileWriterConfig const& other)
+    {
+        header_size     = other.header_size;
+        max_file_size   = other.max_file_size;
+        stokes_mode     = other.stokes_mode;
+        output_dir      = other.output_dir;
+        prefix          = other.prefix;
+        extension       = other.extension;
+        output_basename = other.output_basename;
+        base_output_dir = other.base_output_dir;
+        return *this;
+    }
 
-  std::size_t header_size;
-  std::size_t max_file_size;
-  std::string stokes_mode;
-  std::string output_dir;
-  std::string base_output_dir;
-  std::string prefix;
-  std::string extension;
-  std::string output_basename;
-  
-
-
-  MultiFileWriterConfig() : header_size(4096), max_file_size(2147483647), stokes_mode("I"), output_dir("default/"), prefix(""), extension(""){};
-  MultiFileWriterConfig(std::size_t header_size, std::size_t max_file_size, std::string stokes_mode, std::string output_dir, std::string prefix, std::string extension) : header_size(header_size), max_file_size(max_file_size), stokes_mode(stokes_mode), output_dir(output_dir), prefix(prefix), extension(extension), output_basename(""){ };
-  MultiFileWriterConfig(MultiFileWriterConfig const& other) : header_size(other.header_size), max_file_size(other.max_file_size), 
-    stokes_mode(other.stokes_mode), output_dir(other.output_dir), base_output_dir(other.base_output_dir), prefix(other.prefix), extension(other.extension), output_basename(other.output_basename){};
-  MultiFileWriterConfig& operator=(MultiFileWriterConfig const& other){
-    header_size = other.header_size;
-    max_file_size = other.max_file_size;
-    stokes_mode = other.stokes_mode;
-    output_dir = other.output_dir;
-    prefix = other.prefix;
-    extension = other.extension;
-    output_basename = other.output_basename;
-    base_output_dir = other.base_output_dir;
-    return *this;
-  }
-
-  std::string to_string(){
-    return "header_size: " + std::to_string(header_size) + ", max_file_size: " + std::to_string(max_file_size) 
-            + ", stokes_mode: " + stokes_mode + ", output_dir: " + output_dir + ", prefix: " + prefix + ", extension: " + extension
-            + ", output_basename: " + output_basename + ", base_output_dir: " + base_output_dir;
-  }
+    std::string to_string()
+    {
+        return "header_size: " + std::to_string(header_size) +
+               ", max_file_size: " + std::to_string(max_file_size) +
+               ", stokes_mode: " + stokes_mode + ", output_dir: " + output_dir +
+               ", prefix: " + prefix + ", extension: " + extension +
+               ", output_basename: " + output_basename +
+               ", base_output_dir: " + base_output_dir;
+    }
 };
 /**
  * @brief A class for handling writing of DescribedVectors
@@ -58,12 +70,13 @@ struct MultiFileWriterConfig{
 template <typename VectorType>
 class MultiFileWriter
 {
-public:
-
-  using CreateStreamCallBackType = std::function<std::unique_ptr<FileOutputStream>(MultiFileWriterConfig const&,
-                                  ObservationHeader const&,
-                                  VectorType const&,
-                                  std::size_t)>;
+  public:
+    using CreateStreamCallBackType =
+        std::function<std::unique_ptr<FileOutputStream>(
+            MultiFileWriterConfig const&,
+            ObservationHeader const&,
+            VectorType const&,
+            std::size_t)>;
 
   public:
     /**
@@ -74,8 +87,12 @@ public:
      *                (used to avoid clashing file names).
      */
     // MultiFileWriter(PipelineConfig const& config, std::string tag = "");
-    MultiFileWriter(PipelineConfig const& config, std::string tag, CreateStreamCallBackType create_stream_callback);
-    MultiFileWriter(MultiFileWriterConfig config, std::string tag, CreateStreamCallBackType create_stream_callback);
+    MultiFileWriter(PipelineConfig const& config,
+                    std::string tag,
+                    CreateStreamCallBackType create_stream_callback);
+    MultiFileWriter(MultiFileWriterConfig config,
+                    std::string tag,
+                    CreateStreamCallBackType create_stream_callback);
     MultiFileWriter(MultiFileWriter const&) = delete;
 
     /**
@@ -110,13 +127,12 @@ public:
      */
     bool operator()(VectorType const& stream_data, std::size_t stream_idx = 0);
 
-    bool write(VectorType const& stream_data,
-                                             std::size_t stream_idx = 0);
+    bool write(VectorType const& stream_data, std::size_t stream_idx = 0);
 
   private:
     bool has_stream(std::size_t stream_idx);
     FileOutputStream& create_stream(VectorType const& stream_data,
-                              std::size_t stream_idx);
+                                    std::size_t stream_idx);
     std::string get_output_dir(VectorType const& stream_data,
                                std::size_t stream_idx);
     std::string get_basefilename(VectorType const& stream_data,

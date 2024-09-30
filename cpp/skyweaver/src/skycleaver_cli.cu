@@ -147,7 +147,16 @@ int main(int argc, char** argv)
         "log-level",
         po::value<std::string>()->default_value("info")->notifier(
             [](std::string level) { skyweaver::init_logging(level); }),
-        "The logging level to use (debug, info, warning, error)");
+        "The logging level to use (debug, info, warning, error)")(
+        "start_sample",
+         po::value<std::size_t>()
+             ->default_value(config.start_sample())
+             ->notifier([&config](std::size_t key) { config.start_sample(key); }),
+         "Start from this sample")("nsamples_to_read", 
+         po::value<std::size_t>()
+         ->default_value(config.start_sample())
+         ->notifier([&config](std::size_t key) { config.nsamples_to_read(key); }), 
+            "total number of samples to read from start_sample"); 
 
     po::options_description cmdline_options;
     cmdline_options.add(generic).add(main_options);
@@ -187,6 +196,7 @@ int main(int argc, char** argv)
         }
     }
     po::notify(variable_map);
+
     BOOST_LOG_NAMED_SCOPE("skycleaver_cli");
     BOOST_LOG_TRIVIAL(info) << "Configuration: " << config_file;
     BOOST_LOG_TRIVIAL(info) << "root_dir: " << config.root_dir();
@@ -194,13 +204,14 @@ int main(int argc, char** argv)
     BOOST_LOG_TRIVIAL(info) << "root_prefix: " << config.root_prefix();
     BOOST_LOG_TRIVIAL(info) << "out_prefix: " << config.out_prefix();
     BOOST_LOG_TRIVIAL(info) << "nthreads: " << config.nthreads();
-    BOOST_LOG_TRIVIAL(info)
-        << "nsamples_per_block: " << config.nsamples_per_block();
+    BOOST_LOG_TRIVIAL(info) << "nsamples_per_block: " << config.nsamples_per_block();
     BOOST_LOG_TRIVIAL(info) << "nchans: " << config.nchans();
     BOOST_LOG_TRIVIAL(info) << "nbeams: " << config.nbeams();
+    BOOST_LOG_TRIVIAL(info) << "nbridges: " << config.nbridges();
+    BOOST_LOG_TRIVIAL(info) << "ndms: " << config.ndms();
     BOOST_LOG_TRIVIAL(info) << "max_ram_gb: " << config.max_ram_gb();
-    BOOST_LOG_TRIVIAL(info)
-        << "max_output_filesize: " << config.max_output_filesize();
+    BOOST_LOG_TRIVIAL(info) << "max_output_filesize: " << config.max_output_filesize();
+
 
     skyweaver::SkyCleaver skycleaver(config);
     skycleaver.cleave();

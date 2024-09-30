@@ -151,7 +151,6 @@ void SkyCleaver::init_readers()
 
     long double obs_centre_freq = header.obs_frequency;
     long double obs_bandwidth = header.obs_bandwidth;
-    std::size_t obs_nchans = header.obs_nchans;
 
     long double start_freq = obs_centre_freq - obs_bandwidth / 2;
 
@@ -159,7 +158,7 @@ void SkyCleaver::init_readers()
 
     for(int i = 0; i < nbridges; i++) {
        
-        int ifreq = std::lround( std::floor(start_freq + (i + 0.5) * obs_bandwidth / nbridges));
+        int ifreq = std::lround(std::floor(start_freq + (i + 0.5) * obs_bandwidth / nbridges));
         _expected_freqs.push_back(ifreq);
         BOOST_LOG_TRIVIAL(info)
             << "Expected frequency [" << i << "]: " << ifreq;
@@ -224,9 +223,6 @@ void SkyCleaver::init_readers()
         }
     }
 
-    BOOST_LOG_TRIVIAL(debug) << "Smallest data size: " << smallest_data_size;
-    BOOST_LOG_TRIVIAL(debug) << "ndm: " << _config.ndms();
-    BOOST_LOG_TRIVIAL(debug) << "nbeams: " << _config.nbeams();
 
     if(smallest_data_size % (_config.ndms() * _config.nbeams()) != 0) {
         std::runtime_error("Data size is not a multiple of ndms * nbeams");
@@ -234,6 +230,12 @@ void SkyCleaver::init_readers()
 
     std::size_t smallest_nsamples =
         std::floor(smallest_data_size / _config.ndms() / _config.nbeams());
+
+    if (smallest_nsamples < _config.start_sample()) {
+        std::runtime_error("start_sample is greater than the smallest_nsamples in the data.");
+    }
+
+    smallest_nsamples = smallest_nsamples - _config.start_sample();
 
     BOOST_LOG_TRIVIAL(info)
         << "Smallest data size: " << smallest_data_size
@@ -244,7 +246,20 @@ void SkyCleaver::init_readers()
             "Smallest data size is less than nsamples_per_block");
     }
 
-    _nsamples_to_read = smallest_nsamples;
+    if(smallest_nsamples < _config.nsamples_to_read()) {
+        std::runtime_error(
+            "Smallest data size is less than nsamples_to_read");
+    }
+    
+
+    _nsamples_to_read = _config.nsamples_to_read();
+
+    std::size_t bytes_seeking = (_config.start_sample() * _config.ndms() * _config.nbeams() * sizeof(InputVectorType::value_type));
+    for(const auto& [freq, reader]: _bridge_readers) {
+        _bridge_readers[freq]->seekg(bytes_seeking,
+            std::ios_base::beg);
+    }
+
 
     BOOST_LOG_TRIVIAL(info)
         << "Added " << _bridge_data.size() << " bridge readers to SkyCleaver";

@@ -20,13 +20,16 @@ class SkyCleaverConfig
     std::size_t _ndms;
     std::string _stokes_mode;
     std::size_t _dada_header_size;
+    std::size_t _start_sample;
+    std::size_t _nsamples_to_read;
 
   public:
     SkyCleaverConfig()
         : _output_dir(""), _root_dir(""), _root_prefix(""), _out_prefix(""),
           _nthreads(0), _nsamples_per_block(0), _nchans(0), _nbeams(0),
           _max_ram_gb(0), _max_output_filesize(2147483647), _stream_id(0),
-          _nbridges(64), _ndms(0), _stokes_mode("I"), _dada_header_size(4096)
+          _nbridges(64), _ndms(0), _stokes_mode("I"), _dada_header_size(4096), 
+            _start_sample(0), _nsamples_to_read(0)
     {
     }
     SkyCleaverConfig(SkyCleaverConfig const&) = delete;
@@ -55,6 +58,11 @@ class SkyCleaverConfig
     {
         _dada_header_size = dada_header_size;
     }
+    void start_sample(std::size_t start_sample) { _start_sample = start_sample; }
+    void nsamples_to_read(std::size_t nsamples_to_read)
+    {
+        _nsamples_to_read = nsamples_to_read;
+    }
 
     std::string output_dir() const { return _output_dir; }
     std::string root_dir() const { return _root_dir; }
@@ -71,6 +79,9 @@ class SkyCleaverConfig
     std::size_t ndms() const { return _ndms; }
     std::string stokes_mode() const { return _stokes_mode; }
     std::size_t dada_header_size() const { return _dada_header_size; }
+    std::size_t start_sample() const { return _start_sample; }
+    std::size_t nsamples_to_read() const { return _nsamples_to_read; }
+
 };
 } // namespace skyweaver
 #endif // SKYCLEAVERCONFIG_HPP

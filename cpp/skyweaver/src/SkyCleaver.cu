@@ -4,6 +4,7 @@
 #include <iostream>
 #include <omp.h>
 #include <regex>
+#include <ranges>
 #include <type_traits>
 #include "skyweaver/types.cuh"
 #include "skyweaver/SkyCleaver.cuh"
@@ -246,13 +247,19 @@ void SkyCleaver::init_readers()
             "Smallest data size is less than nsamples_per_block");
     }
 
-    if(smallest_nsamples < _config.nsamples_to_read()) {
-        std::runtime_error(
-            "Smallest data size is less than nsamples_to_read");
-    }
-    
+    if(_config.nsamples_to_read() > 0) {
 
-    _nsamples_to_read = _config.nsamples_to_read();
+        if(smallest_nsamples < _config.nsamples_to_read()) {
+            std::runtime_error(
+                "Smallest data size is less than nsamples_to_read");
+        }
+        
+
+        _nsamples_to_read = _config.nsamples_to_read();
+    }
+    else{
+        _nsamples_to_read = smallest_nsamples;
+    }
 
     std::size_t bytes_seeking = (_config.start_sample() * _config.ndms() * _config.nbeams() * sizeof(InputVectorType::value_type));
     for(const auto& [freq, reader]: _bridge_readers) {
@@ -275,6 +282,8 @@ void SkyCleaver::init_writers()
     BOOST_LOG_NAMED_SCOPE("SkyCleaver::init_writers")
     BOOST_LOG_TRIVIAL(debug)
         << "_config.output_dir(); " << _config.output_dir();
+
+
     if(!fs::exists(_config.output_dir())) {
         fs::create_directories(_config.output_dir());
     }
@@ -282,6 +291,7 @@ void SkyCleaver::init_writers()
                                  ? ""
                                  : _config.out_prefix() + "_";
     std::string output_dir = _config.output_dir();
+
     
 
     for(int idm = 0; idm < _config.ndms(); idm++) {
@@ -289,8 +299,26 @@ void SkyCleaver::init_writers()
         std::string prefix = _config.ndms() > 1 ? out_prefix + "idm_" +
                          to_string_with_padding(_header.dms[idm], 9, 3) + "_": out_prefix;
 
+        if(! _config.required_dms().empty()) {
+            const auto& required_dms = _config.required_dms();
+            if(std::ranges::find(required_dms, _header.dms[idm]) == required_dms.end()) {
+                BOOST_LOG_TRIVIAL(info)
+                    << "DM " << _header.dms[idm] << " is not required, skipping from writing";
+                continue;
+            }
+        }
         for(int ibeam = 0; ibeam < _config.nbeams(); ibeam++) {
 
+            // skip if beam is not used
+            if (! _config.required_beams().empty()) {
+                const auto& required_beams = _config.required_beams();
+                std::cerr << "required_beams: " << required_beams.size() << "ibeam: " << ibeam << std::endl;
+                if(std::ranges::find(required_beams, ibeam) == required_beams.end()) {
+                    BOOST_LOG_TRIVIAL(info)
+                        << "Beam " << ibeam << " is not required, skipping from writing";
+                    continue;
+                }
+            }
             MultiFileWriterConfig writer_config;
             writer_config.header_size   = _config.dada_header_size();
             writer_config.max_file_size = _config.max_output_filesize();
@@ -412,6 +440,14 @@ void SkyCleaver::cleave()
 #pragma omp parallel for schedule(static) collapse(2)
         for(std::size_t ibeam = 0; ibeam < nbeams; ibeam++) {
             for(std::size_t idm = 0; idm < ndms; idm++) {
+                // _beam_data[idm][ibeam] is not found, skip
+                if(_beam_data.find(idm) == _beam_data.end()) {
+                    continue;
+                }
+                if(_beam_data[idm].find(ibeam) == _beam_data[idm].end()) {
+                    continue;
+                }
+
 #pragma omp simd
                 for(std::size_t isample = 0; isample < nsamples_per_block; isample++) {
                     const std::size_t base_index =
@@ -436,6 +472,13 @@ void SkyCleaver::cleave()
 #pragma omp parallel for schedule(static) collapse(2)
         for(int idm = 0; idm < _config.ndms(); idm++) {
             for(int ibeam = 0; ibeam < _config.nbeams(); ibeam++) {
+                
+                if(_beam_data.find(idm) == _beam_data.end()) {
+                    continue;
+                }
+                if(_beam_data[idm].find(ibeam) == _beam_data[idm].end()) {
+                    continue;
+                }
                 _beam_writers[idm][ibeam]->write(*_beam_data[idm][ibeam],
                                                  _config.stream_id());
             }

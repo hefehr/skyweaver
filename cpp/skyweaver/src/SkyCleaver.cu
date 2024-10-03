@@ -261,12 +261,18 @@ void SkyCleaver::init_readers()
         _nsamples_to_read = smallest_nsamples;
     }
 
-    std::size_t bytes_seeking = (_config.start_sample() * _config.ndms() * _config.nbeams() * sizeof(InputVectorType::value_type));
-    for(const auto& [freq, reader]: _bridge_readers) {
-        _bridge_readers[freq]->seekg(bytes_seeking,
-            std::ios_base::beg);
-    }
+    std::size_t bytes_seeking =
+        (_config.start_sample() * _config.ndms() * _config.nbeams() *
+         sizeof(InputVectorType::value_type));
 
+    if(bytes_seeking > 0) {
+        BOOST_LOG_TRIVIAL(info) << "Seeking " << bytes_seeking
+                                << " bytes in bridge readers to start sample: "
+                                << _config.start_sample();
+        for(const auto& [freq, reader]: _bridge_readers) {
+            _bridge_readers[freq]->seekg(bytes_seeking, std::ios_base::cur);
+        }
+    }
 
     BOOST_LOG_TRIVIAL(info)
         << "Added " << _bridge_data.size() << " bridge readers to SkyCleaver";
@@ -371,6 +377,8 @@ void SkyCleaver::cleave()
 {
     BOOST_LOG_NAMED_SCOPE("SkyCleaver::cleave")
 
+    /** read data **/
+
     for(std::size_t nsamples_read = 0; nsamples_read < _nsamples_to_read;
         nsamples_read += _config.nsamples_per_block()) {
         std::size_t gulp_samples =
@@ -430,6 +438,8 @@ void SkyCleaver::cleave()
         _timer.stop("skyweaver::read_data");
         _timer.start("skyweaver::process_data");
 
+    /** Process data **/
+
         omp_set_num_threads(_config.nthreads());
 
         std::size_t nbridges           = _config.nbridges();
@@ -467,12 +477,15 @@ void SkyCleaver::cleave()
         BOOST_LOG_TRIVIAL(info) << "Processed data";
         _timer.stop("skyweaver::process_data");
 
+    /** Write data **/
+
+
         _timer.start("skyweaver::write_data");
 
 #pragma omp parallel for schedule(static) collapse(2)
         for(int idm = 0; idm < _config.ndms(); idm++) {
             for(int ibeam = 0; ibeam < _config.nbeams(); ibeam++) {
-                
+
                 if(_beam_data.find(idm) == _beam_data.end()) {
                     continue;
                 }

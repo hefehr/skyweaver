@@ -14,47 +14,46 @@
 #include <thrust/transform.h>
 #include <vector>
 
-
-namespace{
+namespace
+{
 
 #define NCHANS_PER_BLOCK 128
 
-// Function to check if a number's prime factors are only 2, 3, 5, or 
-bool has_small_prime_factors(size_t n) {
-    if (n == 0) return false;
-    while (n % 2 == 0) n /= 2;
-    while (n % 3 == 0) n /= 3;
-    while (n % 5 == 0) n /= 5;
-    while (n % 7 == 0) n /= 7;
+// Function to check if a number's prime factors are only 2, 3, 5, or
+bool has_small_prime_factors(size_t n)
+{
+    if(n == 0)
+        return false;
+    while(n % 2 == 0) n /= 2;
+    while(n % 3 == 0) n /= 3;
+    while(n % 5 == 0) n /= 5;
+    while(n % 7 == 0) n /= 7;
     return n == 1;
 }
 
 // Function to find the next optimal FFT size
-size_t next_optimal_fft_size(size_t N) {
+size_t next_optimal_fft_size(size_t N)
+{
     size_t n = N;
-    while (!has_small_prime_factors(n)) {
-        n++;
-    }
+    while(!has_small_prime_factors(n)) { n++; }
     return n;
 }
 
 // Function to compute padding amount
-size_t compute_padding(size_t N) {
+size_t compute_padding(size_t N)
+{
     size_t optimal_size = 0;
-    size_t n = N-1;
-   
-   do{
-        n = n+1;
+    size_t n            = N - 1;
+
+    do {
+        n            = n + 1;
         optimal_size = next_optimal_fft_size(n);
         BOOST_LOG_TRIVIAL(info) << "Trying optimal size: " << optimal_size;
-    } while (optimal_size % NCHANS_PER_BLOCK != 0);
+    } while(optimal_size % NCHANS_PER_BLOCK != 0);
     return optimal_size - N;
 }
 
-
-
-}
-
+} // namespace
 
 namespace skyweaver
 {
@@ -62,16 +61,16 @@ namespace skyweaver
 void create_coherent_dedisperser_config(CoherentDedisperserConfig& config,
                                         PipelineConfig const& pipeline_config)
 {
-    // the centre frequency and bandwidth are for the bridge. This is taken from Observation Header (not from the user)
+    // the centre frequency and bandwidth are for the bridge. This is taken from
+    // Observation Header (not from the user)
     float f_low =
         pipeline_config.centre_frequency() - pipeline_config.bandwidth() / 2.0f;
 
-    float f_high = f_low + pipeline_config.bandwidth()/pipeline_config.nchans();
-    
-        // pipeline_config.centre_frequency() + pipeline_config.bandwidth() / 2.0f;
-    float tsamp  = pipeline_config.nchans() / pipeline_config.bandwidth();
+    float f_high =
+        f_low + pipeline_config.bandwidth() / pipeline_config.nchans();
 
-    
+    // pipeline_config.centre_frequency() + pipeline_config.bandwidth() / 2.0f;
+    float tsamp = pipeline_config.nchans() / pipeline_config.bandwidth();
 
     if(pipeline_config.coherent_dms().empty()) {
         throw std::runtime_error("No coherent DMs specified");
@@ -81,14 +80,15 @@ void create_coherent_dedisperser_config(CoherentDedisperserConfig& config,
                                pipeline_config.coherent_dms().end());
     float max_dm = *it;
     BOOST_LOG_TRIVIAL(debug) << "Constructing coherent dedisperser plan";
-    std::size_t max_dm_delay_samps = DMSampleDelay(max_dm, f_low, tsamp)(f_high);
+    std::size_t max_dm_delay_samps =
+        DMSampleDelay(max_dm, f_low, tsamp)(f_high);
 
     if(max_dm_delay_samps > 2 * pipeline_config.gulp_length_samps()) {
         throw std::runtime_error(
             "Gulp length must be at least 2 times the maximum DM delay");
     }
 
-    if((pipeline_config.gulp_length_samps() + max_dm_delay_samps) %2 !=0) {
+    if((pipeline_config.gulp_length_samps() + max_dm_delay_samps) % 2 != 0) {
         max_dm_delay_samps++;
     }
 
@@ -125,19 +125,23 @@ void create_coherent_dedisperser_config(CoherentDedisperserConfig& config,
     config.npols            = npols;
     config.nantennas        = nantennas;
     config.tsamp            = tsamp;
-    config.low_freq       = low_freq;
-    config.bw             = bw;
-    config.high_freq      = low_freq + bw;
-    config.coarse_chan_bw = bw / num_coarse_chans;
-    config.filter_delay = tsamp * overlap_samps / 2.0;
-    BOOST_LOG_TRIVIAL(debug) << "tsamp in create_coherent_dedisperser_config: " << config.tsamp;
-    BOOST_LOG_TRIVIAL(info) << "overlap_samps just due to dedispersion: " << overlap_samps;
+    config.low_freq         = low_freq;
+    config.bw               = bw;
+    config.high_freq        = low_freq + bw;
+    config.coarse_chan_bw   = bw / num_coarse_chans;
+    config.filter_delay     = tsamp * overlap_samps / 2.0;
+    BOOST_LOG_TRIVIAL(debug)
+        << "tsamp in create_coherent_dedisperser_config: " << config.tsamp;
+    BOOST_LOG_TRIVIAL(info)
+        << "overlap_samps just due to dedispersion: " << overlap_samps;
     BOOST_LOG_TRIVIAL(info) << "Filter delay: " << config.filter_delay;
 
-    config.overlap_samps = compute_padding(gulp_samps + overlap_samps) + overlap_samps; 
+    config.overlap_samps =
+        compute_padding(gulp_samps + overlap_samps) + overlap_samps;
 
-    BOOST_LOG_TRIVIAL(info) << "overlap_samps after padding for optimal FFT size " << config.overlap_samps;
-
+    BOOST_LOG_TRIVIAL(info)
+        << "overlap_samps after padding for optimal FFT size "
+        << config.overlap_samps;
 
     /* Precompute DM constants */
     config._h_dms = dms;
@@ -145,7 +149,8 @@ void create_coherent_dedisperser_config(CoherentDedisperserConfig& config,
     config._d_dm_prefactor.resize(dms.size());
     config._d_ism_responses.resize(dms.size());
     for(int i = 0; i < dms.size(); i++) {
-        config._d_ism_responses[i].resize(num_coarse_chans * (config.gulp_samps + config.overlap_samps));
+        config._d_ism_responses[i].resize(
+            num_coarse_chans * (config.gulp_samps + config.overlap_samps));
     }
 
     thrust::transform(config._d_dms.begin(),
@@ -164,16 +169,16 @@ void create_coherent_dedisperser_config(CoherentDedisperserConfig& config,
     // data is FTPA order, we will loop over F, so we are left with TPA order.
     // Let's fuse PA to X, so TX order.
     //  We stride and batch over X and transform T
-    std::size_t X  = config.npols * config.nantennas;
-    std::size_t fft_size  = config.gulp_samps + config.overlap_samps;
-    int n[1]       = {static_cast<int>(fft_size)}; // FFT size
-    int inembed[1] = {static_cast<int>(fft_size)};
-    int onembed[1] = {static_cast<int>(fft_size)};
-    int istride    = X;
-    int ostride    = X;
-    int idist      = 1;
-    int odist      = 1;
-    int batch      = X;
+    std::size_t X        = config.npols * config.nantennas;
+    std::size_t fft_size = config.gulp_samps + config.overlap_samps;
+    int n[1]             = {static_cast<int>(fft_size)}; // FFT size
+    int inembed[1]       = {static_cast<int>(fft_size)};
+    int onembed[1]       = {static_cast<int>(fft_size)};
+    int istride          = X;
+    int ostride          = X;
+    int idist            = 1;
+    int odist            = 1;
+    int batch            = X;
 
     if(cufftPlanMany(&config._fft_plan,
                      1,
@@ -192,9 +197,6 @@ void create_coherent_dedisperser_config(CoherentDedisperserConfig& config,
     BOOST_LOG_TRIVIAL(debug) << "FFT plan created";
 }
 
-
-
-
 void CoherentDedisperser::dedisperse(
     TPAVoltagesD<char2> const& d_tpa_voltages_in,
     FTPAVoltagesD<char2>& d_ftpa_voltages_out,
@@ -202,8 +204,8 @@ void CoherentDedisperser::dedisperse(
     unsigned int dm_idx)
 {
     BOOST_LOG_NAMED_SCOPE("CoherentDedisperser::dedisperse");
-    //d_tpa_voltages_in.size() is with overlap
-    _d_fpa_spectra.resize(d_tpa_voltages_in.size(), {0.0f, 0.0f}); 
+    // d_tpa_voltages_in.size() is with overlap
+    _d_fpa_spectra.resize(d_tpa_voltages_in.size(), {0.0f, 0.0f});
     _d_tpa_voltages_in_cufft.resize(d_tpa_voltages_in.size(), {0.0f, 0.0f});
     _d_tpa_voltages_dedispersed.resize(d_tpa_voltages_in.size(), {0.0f, 0.0f});
 
@@ -250,8 +252,8 @@ void CoherentDedisperser::dedisperse(
 
     BOOST_LOG_TRIVIAL(debug) << "Executed inverse FFT";
 
-    std::size_t out_offset = freq_idx * _config.nantennas * _config.npols *
-                             (_config.gulp_samps);
+    std::size_t out_offset =
+        freq_idx * _config.nantennas * _config.npols * (_config.gulp_samps);
     std::size_t discard_size =
         _config.nantennas * _config.npols * _config.overlap_samps / 2;
 
@@ -260,30 +262,28 @@ void CoherentDedisperser::dedisperse(
     BOOST_LOG_TRIVIAL(debug)
         << "copying from input from " << discard_size << " to "
         << _d_tpa_voltages_dedispersed.size() - discard_size;
-    BOOST_LOG_TRIVIAL(debug) << "Total elements copied: "
-                             << _d_tpa_voltages_dedispersed.size() - 2 * discard_size;
+    BOOST_LOG_TRIVIAL(debug)
+        << "Total elements copied: "
+        << _d_tpa_voltages_dedispersed.size() - 2 * discard_size;
     BOOST_LOG_TRIVIAL(debug) << "Remaining space in output: "
                              << d_ftpa_voltages_out.size() - out_offset;
     BOOST_LOG_TRIVIAL(debug)
         << "copying to output from " << out_offset << " to "
         << out_offset + _d_tpa_voltages_dedispersed.size() - 2 * discard_size;
 
+    std::size_t fft_size = _config.gulp_samps + _config.overlap_samps;
 
-    std::size_t fft_size  = _config.gulp_samps + _config.overlap_samps;
-
-        
-
-    thrust::transform(_d_tpa_voltages_dedispersed.begin() + discard_size,
-                      _d_tpa_voltages_dedispersed.end() - discard_size,
-                      d_ftpa_voltages_out.begin() + out_offset,
-                      [=] __device__(cufftComplex const& val) {
-                          char2 char2_val;
-                          char2_val.x = static_cast<char>(
-                              __float2int_rn(val.x / fft_size)); // scale the data back
-                          char2_val.y =
-                              static_cast<char>(__float2int_rn(val.y / fft_size));
-                          return char2_val;
-                      });
+    thrust::transform(
+        _d_tpa_voltages_dedispersed.begin() + discard_size,
+        _d_tpa_voltages_dedispersed.end() - discard_size,
+        d_ftpa_voltages_out.begin() + out_offset,
+        [=] __device__(cufftComplex const& val) {
+            char2 char2_val;
+            char2_val.x = static_cast<char>(
+                __float2int_rn(val.x / fft_size)); // scale the data back
+            char2_val.y = static_cast<char>(__float2int_rn(val.y / fft_size));
+            return char2_val;
+        });
 
     BOOST_LOG_TRIVIAL(debug) << "Transformed dedispersed voltages to char2";
     d_ftpa_voltages_out.reference_dm(_config._h_dms[dm_idx]);
@@ -296,21 +296,24 @@ void CoherentDedisperser::multiply_by_chirp(
     unsigned int freq_idx,
     unsigned int dm_idx)
 {
-    std::size_t total_chans     = _config._d_ism_responses[dm_idx].size(); // all coarse + fine chans
-    std::size_t fft_size = _config.gulp_samps + _config.overlap_samps; // ONLY FINE CHANS
+    std::size_t total_chans =
+        _config._d_ism_responses[dm_idx].size(); // all coarse + fine chans
+    std::size_t fft_size =
+        _config.gulp_samps + _config.overlap_samps; // ONLY FINE CHANS
     std::size_t response_offset = freq_idx * fft_size;
 
     BOOST_LOG_TRIVIAL(debug) << "Freq idx: " << freq_idx;
     BOOST_LOG_TRIVIAL(debug) << "_config.gulp_samps: " << _config.gulp_samps;
-    BOOST_LOG_TRIVIAL(debug) << "_config.overlap_samps: " << _config.overlap_samps;
+    BOOST_LOG_TRIVIAL(debug)
+        << "_config.overlap_samps: " << _config.overlap_samps;
     BOOST_LOG_TRIVIAL(debug) << "response_offset: " << response_offset;
     BOOST_LOG_TRIVIAL(debug) << "total_chans: " << total_chans;
-    BOOST_LOG_TRIVIAL(debug) << "chirp multiply input size: "
-                             << _d_fpa_spectra_in.size();
-    BOOST_LOG_TRIVIAL(debug) << "chirp multiply output size: "
-                                << _d_fpa_spectra_out.size();
+    BOOST_LOG_TRIVIAL(debug)
+        << "chirp multiply input size: " << _d_fpa_spectra_in.size();
+    BOOST_LOG_TRIVIAL(debug)
+        << "chirp multiply output size: " << _d_fpa_spectra_out.size();
 
-    dim3 blockSize(_config.nantennas * _config.npols); 
+    dim3 blockSize(_config.nantennas * _config.npols);
     dim3 gridSize(fft_size / NCHANS_PER_BLOCK);
     kernels::dedisperse<<<gridSize, blockSize>>>(
         thrust::raw_pointer_cast(_config._d_ism_responses[dm_idx].data() +
@@ -334,10 +337,12 @@ __global__ void dedisperse(cufftComplex const* __restrict__ _d_ism_response,
 
     volatile __shared__ cufftComplex response[NCHANS_PER_BLOCK];
 
-    const unsigned block_start_chan_idx = blockIdx.x * NCHANS_PER_BLOCK; // coarse chan idx
+    const unsigned block_start_chan_idx =
+        blockIdx.x * NCHANS_PER_BLOCK; // coarse chan idx
 
     const unsigned remainder =
-        min(total_chans - block_start_chan_idx, NCHANS_PER_BLOCK); // how many channels to process
+        min(total_chans - block_start_chan_idx,
+            NCHANS_PER_BLOCK); // how many channels to process
 
     for(int idx = threadIdx.x; idx < remainder; idx += pa_size) {
         cufftComplex const temp = _d_ism_response[block_start_chan_idx + idx];
@@ -387,8 +392,7 @@ struct DMResponse {
         int chan      = tid / num_fine_chans; // Coarse channel
         int fine_chan = tid % num_fine_chans; // fine channel
 
-        double nu_0 = low_freq + chan * coarse_chan_bw -
-                      0.5f * coarse_chan_bw; 
+        double nu_0 = low_freq + chan * coarse_chan_bw - 0.5f * coarse_chan_bw;
 
         double nu = fine_chan * fine_chan_bw; // fine_chan_freq
 
@@ -414,11 +418,11 @@ void get_dm_responses(CoherentDedisperserConfig& config,
                       thrust::device_vector<cufftComplex>& response)
 {
     BOOST_LOG_TRIVIAL(debug) << "Generating DM responses";
-    std::size_t fft_size  = config.gulp_samps + config.overlap_samps;
+    std::size_t fft_size = config.gulp_samps + config.overlap_samps;
 
     thrust::device_vector<int> indices(config.num_coarse_chans * fft_size);
     thrust::sequence(indices.begin(), indices.end());
-    
+
     // store raw responses in a temporary variable
     thrust::device_vector<cufftComplex> temp_response(response.size());
     BOOST_LOG_TRIVIAL(warning) << "DOING FFTSHIFT" << std::endl;
@@ -427,16 +431,26 @@ void get_dm_responses(CoherentDedisperserConfig& config,
                       indices.end(),
                       temp_response.begin(),
                       kernels::DMResponse(config.num_coarse_chans,
-                                          config.gulp_samps,
+                                          fft_size,
                                           config.low_freq,
                                           config.coarse_chan_bw,
                                           config.fine_chan_bw,
                                           dm_prefactor));
 
-    // rotate the response to match cufft output 
+    // rotate the response to match cufft output
+    
+    if(fft_size %2 != 0) {
+        throw std::runtime_error("FFT size must be even.");
+    }
+
     std::size_t shift = fft_size / 2;
-    thrust::copy(temp_response.begin() + shift, temp_response.end(), response.begin());
-    thrust::copy(temp_response.begin(), temp_response.begin() + shift, response.begin() + (fft_size - shift));
+
+    for(auto it = temp_response.begin(), it_out = response.begin();
+        it < temp_response.end();
+        it += fft_size, it_out += fft_size) {
+        thrust::copy(it, it + shift, it_out + shift);
+        thrust::copy(it + shift, it + fft_size, it_out);
+    }
 }
 
 } // namespace skyweaver

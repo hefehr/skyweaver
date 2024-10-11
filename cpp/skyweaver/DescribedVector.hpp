@@ -366,12 +366,13 @@ struct DescribedVector {
      * @param freqs
      */
     void frequencies(FrequenciesType const& freqs)
-    {
+    {        
         if(freqs.size() != get_dim_extent<FreqDim>()) {
             throw std::runtime_error("Invalid number of frequecies passed.");
         }
         _frequencies_stale = false;
         _frequencies       = freqs;
+       
     }
 
     /**
@@ -386,6 +387,7 @@ struct DescribedVector {
         }
         _frequencies_stale = false;
         _frequencies.resize(1, freq);
+        _frequencies[0] = freq;
     }
 
     /**
@@ -691,9 +693,13 @@ using FPAStatsD =
     DescribedVector<thrust::device_vector<T>, FreqDim, PolnDim, AntennaDim>;
 
 //skycleaver output vectors
-
 template <typename T>
-using TFPowersH = DescribedVector<thrust::host_vector<T, PinnedAllocator<T>>,
+using TDBPowersStdH = DescribedVector<std::vector<T, PinnedAllocator<T>>,
+                                   TimeDim,
+                                   DispersionDim,
+                                   BeamDim>;
+template <typename T>
+using TFPowersStdH = DescribedVector<std::vector<T, PinnedAllocator<T>>,
                                   TimeDim,
                                   FreqDim>;
 

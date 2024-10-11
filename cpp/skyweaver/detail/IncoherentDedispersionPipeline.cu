@@ -73,10 +73,9 @@ void IncoherentDedispersionPipeline<InputType, OutputType, Handler>::
     // Set the correct DMs on the block
     _output_buffers[ref_dm_idx].dms(plan[ref_dm_idx].incoherent_dms);
     _output_buffers[ref_dm_idx].reference_dm(plan[ref_dm_idx].coherent_dm);
-    _output_buffers[ref_dm_idx].frequencies({_config.centre_frequency() - _config.bandwidth() / 2.0});
+    _output_buffers[ref_dm_idx].frequencies(_config.channel_frequencies().front());
 
-    BOOST_LOG_TRIVIAL(debug) << "setting centre frequency to " << _output_buffers[ref_dm_idx].frequencies()[0];
-
+    BOOST_LOG_TRIVIAL(debug) << "setting centre frequency to " << std::setprecision(15) <<  _output_buffers[ref_dm_idx].frequencies()[0];
     BOOST_LOG_TRIVIAL(debug) << "Passing output buffer to handler: "
                              << _output_buffers[ref_dm_idx].describe();
     _timer.start("file writing");

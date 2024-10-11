@@ -392,7 +392,7 @@ struct DMResponse {
         int chan      = tid / num_fine_chans; // Coarse channel
         int fine_chan = tid % num_fine_chans; // fine channel
 
-        double nu_0 = low_freq + chan * coarse_chan_bw - 0.5f * coarse_chan_bw;
+        double nu_0 = low_freq + chan * coarse_chan_bw;
 
         double nu = fine_chan * fine_chan_bw; // fine_chan_freq
 

@@ -54,7 +54,6 @@ RECEIVER     L-band
 FREQ         1284000000.000000
 BW           856000000.000000
 TSAMP        4.7850467290
-STOKES       I
 
 NBIT         8
 NDIM         1
@@ -62,7 +61,6 @@ NPOL         1
 NCHAN        64
 NBEAM       800
 ORDER        TFB
-
 CHAN0_IDX 2688
   )";
 
@@ -125,9 +123,9 @@ create_dada_file_stream(MultiFileWriterConfig const& config,
                 header_writer.set<std::string>("RA", header.ra);
                 header_writer.set<std::string>("DEC", header.dec);
                 header_writer.set<std::size_t>("NBEAM", stream_data.nbeams());
+                header_writer.set<std::size_t>("OBS_NCHAN", header.obs_nchans);
                 header_writer.set<std::size_t>("NCHAN",
                                                stream_data.nchannels());
-                header_writer.set<std::size_t>("OBS_NCHAN", header.obs_nchans);
                 header_writer.set<long double>("OBS_FREQUENCY",
                                                header.obs_frequency);
                 header_writer.set<long double>("OBS_BW", header.obs_bandwidth);
@@ -135,7 +133,7 @@ create_dada_file_stream(MultiFileWriterConfig const& config,
                 if(stream_data.ndms()) {
                     header_writer.set<std::size_t>("NDMS", stream_data.ndms());
                     header_writer.set("DMS", stream_data.dms(), 7);
-                }
+                } 
                 header_writer.set<long double>(
                     "COHERENT_DM",
                     static_cast<long double>(stream_data.reference_dm()));

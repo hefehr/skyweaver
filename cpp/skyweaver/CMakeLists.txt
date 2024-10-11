@@ -111,7 +111,7 @@ target_link_libraries(skyweavercpp
     OpenMP::OpenMP_CXX)
 install(TARGETS skyweavercpp DESTINATION bin)
 
-cuda_add_executable(skycleaver src/skycleaver_cli.cu)
+add_executable(skycleaver src/skycleaver_cli.cpp)
 target_link_libraries(skycleaver 
     ${SKYWEAVER_LIBRARIES} 
     ${DEPENDENCY_LIBRARIES} 

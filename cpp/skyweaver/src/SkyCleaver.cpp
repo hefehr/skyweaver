@@ -281,6 +281,7 @@ void SkyCleaver::init_readers()
     BOOST_LOG_TRIVIAL(info) << "Adding first header to SkyCleaver: " << _header.to_string();
     _header.nchans = _header.nchans * _config.nbridges();
     _header.nbeams = _config.nbeams();
+    
 }
 
 void SkyCleaver::init_writers()
@@ -449,7 +450,8 @@ void SkyCleaver::cleave()
 
 #pragma omp parallel for schedule(static) collapse(2)
         for(std::size_t ibeam = 0; ibeam < nbeams; ibeam++) {
-            for(std::size_t idm = 0; idm < ndms; idm++) {
+            for(std::size_t idm = 0; idm < ndms; idm++) { // cannot separate loops, so do checks later
+
                 // _beam_data[idm][ibeam] is not found, skip
                 if(_beam_data.find(idm) == _beam_data.end()) {
                     continue;

@@ -721,24 +721,6 @@ class BeamformerConfig:
             beam_sets
         )
 
-
-class BeamSetOutput:
-    def __init__(self):
-        self.beam_names = []
-        self.beam_set_id = None
-        self.beam_shape_x = None
-        self.beam_shape_y = None
-        self.beam_shape_z = None
-        self.overlap = None
-        self.ra = None  # Right Ascension
-        self.dec = None  # Declination
-
-    def set_ra_dec(self, ra, dec):
-        """Set RA and Dec for the beam set."""
-        self.ra = ra
-        self.dec = dec
-
-
 def make_tiling(
         pointing: PointingMetadata,
         subarray: Subarray,

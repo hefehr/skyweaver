@@ -7,18 +7,28 @@ from __future__ import annotations
 import logging
 import textwrap
 import ctypes
-from typing import Any
+from typing import Any, Tuple
 from dataclasses import dataclass
 from typing_extensions import Self
+import sys
+from collections import defaultdict
+from matplotlib.patches import Ellipse
+import matplotlib.patches as mpatches
+from adjustText import adjust_text
 
 # 3rd party imports
 import h5py
 import yaml
 import numpy as np
+import pandas as pd
+import random
 from rich.progress import track
 from astropy.time import Time, TimeDelta
 from astropy import units as u
+from astropy.coordinates import SkyCoord
 from astropy.units import Quantity
+from astropy import wcs
+import matplotlib.pyplot as plt
 from katpoint import Target, Antenna
 from mosaic.beamforming import (
     DelayPolynomial,
@@ -228,6 +238,8 @@ class DelayEngine:
         for ii, (ra, dec) in enumerate(coordinates):
             self._targets.append(
                 (Target(f"{prefix}_{ii:04d},radec,{ra},{dec}"), sub_array_idx))
+    
+
 
     def add_beam(self, target: Target, subarray: Subarray = None) -> None:
         """Add a single beam to the engine
@@ -245,6 +257,7 @@ class DelayEngine:
         sub_array_idx = len(self._subarray_sets) - 1
         self._targets.append((target, sub_array_idx))
 
+       
     def _extract_weights(self) -> np.ndarray:
         # Here we extract the weights for each beam/antenna
         # as an optimisation we cache the antenna mask per
@@ -649,6 +662,7 @@ class BeamSet:
     A beam set is a collection of beams which are formed from
     a common subarray.
     """
+    name: str
     anntenna_names: list[str]
     beams: list[Target]
     tilings: list[dict]
@@ -691,6 +705,7 @@ class BeamformerConfig:
         for bs in data["beam_sets"]:
             beam_sets.append(
                 BeamSet(
+                    bs["name"],
                     bs["antenna_set"],
                     bs["beams"],
                     bs["tilings"],
@@ -707,10 +722,27 @@ class BeamformerConfig:
         )
 
 
+class BeamSetOutput:
+    def __init__(self):
+        self.beam_names = []
+        self.beam_set_id = None
+        self.beam_shape_x = None
+        self.beam_shape_y = None
+        self.beam_shape_z = None
+        self.overlap = None
+        self.ra = None  # Right Ascension
+        self.dec = None  # Declination
+
+    def set_ra_dec(self, ra, dec):
+        """Set RA and Dec for the beam set."""
+        self.ra = ra
+        self.dec = dec
+
+
 def make_tiling(
         pointing: PointingMetadata,
         subarray: Subarray,
-        tiling_desc: dict) -> Tiling:
+        tiling_desc: dict) -> Tuple[Tiling, BeamShape]:
     """Make a tiling using the complete mosaic tiling options
 
     Args:
@@ -779,15 +811,37 @@ def make_tiling(
     antenna_strings: list[str] = [
         ant.format_katcp() for ant in subarray.antenna_positions
     ]
+  
     psfsim: PsfSim = PsfSim(antenna_strings, ref_freq)
-    beam_shape: BeamShape = psfsim.get_beam_shape(target, epoch.unix)
+    psf_beam_shape: BeamShape = psfsim.get_beam_shape(target, epoch.unix)
+    #Build Mosaic command here. Remove T
+    mosaic_epoch = epoch.iso.replace("T", " ")
+    mosaic_epoch = mosaic_epoch.replace("-", ".")
+    mosaic_antenna_string = ','.join([item.replace('m', '') for item in subarray.names])
+    mosaic_command=f"python maketiling.py --freq {ref_freq} --source {target.body._ra} {target.body._dec} --datetime {mosaic_epoch} --subarray {mosaic_antenna_string} --verbose --tiling_method {method} --tiling_shape {shape} --ants antenna.csv --beamnum {nbeams} --overlap {overlap}"
+    
+
     tiling: Tiling = generate_nbeams_tiling(
-        beam_shape, nbeams, overlap,
+        psf_beam_shape, nbeams, overlap,
         method, shape,
         parameter=shape_params,
         coordinate_type=coordinate_type)
-    return tiling
+    return tiling, psf_beam_shape, mosaic_command
 
+def pad_ra_dec(ra, dec):
+    # Split RA and Dec into components
+    ra_parts = ra.split(':')
+    dec_parts = dec.split(':')
+    
+    # Pad RA hours and Dec degrees to two digits
+    ra_parts[0] = ra_parts[0].zfill(2)  # Ensure two digits for RA hours
+    dec_parts[0] = dec_parts[0].zfill(2)  # Ensure two digits for Dec degrees
+    
+    # Join the parts back together
+    padded_ra = ':'.join(ra_parts)
+    padded_dec = ':'.join(dec_parts)
+    
+    return padded_ra, padded_dec
 
 def create_delays(
         session_metadata: SessionMetadata,
@@ -795,7 +849,8 @@ def create_delays(
         pointing: PointingMetadata,
         start_epoch: Time = None,
         end_epoch: Time = None,
-        step: TimeDelta = 4 * u.s) -> list[DelayModel]:
+        step: TimeDelta = 4 * u.s,
+        outfile: str = None) -> list[DelayModel]:
     """Create a set of delay models
 
     Args:
@@ -808,6 +863,7 @@ def create_delays(
                                     Defaults to the end of the pointing.
         step (TimeDelta, optional): The step size between consequtive solutions.
                                     Defaults to 4*u.s.
+        outfile (str, optional): The path to write the delay models to. Defaults is None.
 
     Returns:
         list[DelayModel]: A list of delay models
@@ -824,27 +880,381 @@ def create_delays(
     log.info("Step size: %s", step.to(u.s))
     full_subarray = om.get_subarray()
     de = DelayEngine(full_subarray, pointing.phase_centre)
+    # Initialize beam_set_lookup dictionary to track unique beam sets
+    beam_set_lookup = {}
+    beam_set_id = 0
+    plot_beams = []
+    neighbouring_beams = []
+    #Initialise the known beams. PSF size is calculated for 50% overlap
+    nbeams_requested = 1
+    overlap = 0.5
+    #Iterate beams first through all beam sets
+    for bs in bc.beam_sets:
+        sorted_antennas = sorted(bs.anntenna_names)
+        subarray_subset = om.get_subarray(sorted_antennas)               
+        antenna_string = ','.join(sorted_antennas)
+        if bs.beams is not None:
+            for target_desc in bs.beams:
+                target = Target(target_desc)
+                #Add the beam to the delay engine
+                de.add_beam(target, subarray_subset)
+                beam_key = (antenna_string, overlap, nbeams_requested)
+                if beam_key not in beam_set_lookup:
+                    beam_set_lookup[beam_key] = beam_set_id
+                    beam_set_id += 1
+                ra = str(target.body._ra)
+                dec = str(target.body._dec)
+                # Pad RA and Dec to two digits
+                ra, dec = pad_ra_dec(ra, dec)
+                name = target.name
+                current_beam_set_id = beam_set_lookup[beam_key]
+                #Get the PSF Beam shape at 50 % overlap for beams defined in yaml.
+                tiling_desc = {
+                    "nbeams": nbeams_requested,
+                    "overlap": overlap,
+                    "target": target_desc,
+                }
+                _, psf_beam_shape,_ = make_tiling(pointing, subarray_subset, tiling_desc)
+                #Add the beam to the plot beams list
+                plot_beams.append((name, ra, dec, round(psf_beam_shape.axisH, 5), round(psf_beam_shape.axisV, 5), round(psf_beam_shape.angle, 5), current_beam_set_id, 0.5, len(sorted_antennas), 'known'))
+                neighbouring_beams.append((name, ra, dec, round(psf_beam_shape.axisH, 5), round(psf_beam_shape.axisV, 5), round(psf_beam_shape.angle, 5), current_beam_set_id, 0.5, len(sorted_antennas), 'known'))
+    
+    #Iterate through all tilings
     bs_tilings = []
     for bs in bc.beam_sets:
         tilings = []
-        subarray_subset = om.get_subarray(bs.anntenna_names)
-        # add beams first as these are likely more important than tilings
-        if bs.beams is not None:
-            for target_desc in bs.beams:
-                de.add_beam(Target(target_desc), subarray_subset)
+        sorted_antennas = sorted(bs.anntenna_names)
+        subarray_subset = om.get_subarray(sorted_antennas)
+        antenna_string = ','.join(sorted_antennas)
         if bs.tilings is not None:
+            output_prefix = f"{outfile}_{bs.name}" if outfile is not None else None
             for tiling_desc in bs.tilings:
-                tiling = make_tiling(pointing, subarray_subset, tiling_desc)
+                tiling, psf_beamshape, mosaic_command = make_tiling(pointing, subarray_subset, tiling_desc)
+                #Add the tiling to the delay engine
                 de.add_tiling(tiling, subarray_subset)
                 tilings.append(tiling)
+                cb_beamshape = tiling.meta["axis"][:3] #axisH, axisV, angle
+                overlap = tiling.meta["axis"][-1]
+                nbeams_requested = tiling_desc['nbeams']
+                beam_key = (antenna_string, overlap, nbeams_requested)
+                if beam_key not in beam_set_lookup:
+                    beam_set_lookup[beam_key] = beam_set_id
+                    beam_set_id += 1
+                current_beam_set_id = beam_set_lookup[beam_key]
+                coords = tiling.get_equatorial_coordinates()
+                coords = SkyCoord(coords, unit=u.deg)
+                mosaic_command+=f" --tiling_plot {output_prefix}_bid_{beam_set_id}.png --tiling_coordinate {output_prefix}_bid_{beam_set_id}.csv"
+                log.info("Mosaic command written to %s", f"{outfile}.mosaic")
+                log.info(f"Writing PSF of BeamSet {bs.name} for target {target.name} to {output_prefix}_bid_{beam_set_id}.fits")
+                psf_beamshape.psf.write_fits(f"{output_prefix}_bid_{beam_set_id}.fits")
+                log.info(f"PSF Plot of BeamSet {bs.name} for target {target.name} to {output_prefix}_bid_{beam_set_id}.png")
+                psf_beamshape.plot_psf(f"{output_prefix}_bid_{beam_set_id}.png")
+                with open(f"{outfile}.mosaic", "a") as f:
+                    f.write(mosaic_command + "\n")
+                for index, coord in enumerate(coords):
+                    ra_hms = coord.ra.to_string(unit=u.hour, sep=':', precision=2, pad=True)
+                    dec_dms = coord.dec.to_string(unit=u.degree, sep=':', precision=1, alwayssign=True, pad=True)
+                    plot_beams.append((f"{bs.name}_{index:03d}", ra_hms, dec_dms, round(cb_beamshape[0], 5), round(cb_beamshape[1], 5), round(cb_beamshape[2], 5), current_beam_set_id, overlap, len(sorted_antennas), 'tiling'))
+                    neighbouring_beams.append((f"{bs.name}_{index:03d}", ra_hms, dec_dms, round(psf_beam_shape.axisH, 5), round(psf_beam_shape.axisV, 5), round(psf_beam_shape.angle, 5), current_beam_set_id, 0.5, len(sorted_antennas), 'tiling'))
         bs_tilings.append(tilings)
-    log.info(
-        "Calculating solutions for %d antennas and %d beams", 
-        full_subarray.nantennas, de.nbeams)
+    
+    target = tiling_desc.get("target", None)
+    if target is None:
+        print("No target specified")
+        target = pointing.phase_centre
+    else:
+        target = Target(target)
+    column_list = ['name', 'ra', 'dec', 'x', 'y', 'angle', 'beam_set_id', 'overlap', 'nantennas', 'type']
+    plot_beams_df = pd.DataFrame(plot_beams, columns=column_list)
+    #Plot beams has beam shape for the overlap requested, wheras neighbouring beams has the PSF shape (50% overlap)
+    neighbouring_beams_df = pd.DataFrame(neighbouring_beams, columns=column_list)
+    log.info("Calculating solutions for %d antennas and %d beams", full_subarray.nantennas, de.nbeams)
     delays = de.calculate_delays(start_epoch, end_epoch, step)
+    log.info("Beams and tilings written to %s.targets", outfile)
+    plot_beams_df.to_csv(outfile + ".targets", index=False)
+    boresight_coords = psf_beamshape.bore_sight.equatorial
+    plot_multiple_tilings(pointing, neighbouring_beams_df, plot_beams_df, boresight_coords, outfile)
     return delays, de.targets, bs_tilings
 
+def plot_multiple_tilings(pointing, neighbouring_beams_df, plot_beams_df, boresight_coords, outfile, HD=True, beam_size_scaling=1.0, annotate_beam_names=False):
+    # Initialize WCS projection
+    wcs_properties = wcs.WCS(naxis=2)
+    wcs_properties.wcs.crpix = [0, 0]
+    wcs_properties.wcs.ctype = ["RA---TAN", "DEC--TAN"]
+    wcs_properties.wcs.crval = boresight_coords
+    center = boresight_coords
+    
+    # Use neutral scaling for overlap detection
+    wcs_properties.wcs.cdelt = [1, 1]  # Neutral pixel scale
 
+    detector = BeamOverlapDetector(neighbouring_beams_df, wcs_properties)
+    overlaps_df = detector.find_overlapping_beams()
+    overlaps_df.to_csv(outfile + "_overlapping_beams.csv", index=False)
+    
+    # Update WCS projection for plotting
+    step = 1 / 10000000000.0
+    wcs_properties.wcs.cdelt = [-step, step]
+    resolution = step
+
+    thisDPI = 300
+    if HD:
+        width = 3200.
+        extra_source_text_size = 8
+    else:
+        width = 800.
+        extra_source_text_size = 3
+
+    fig = plt.figure(figsize=(width/thisDPI, width/thisDPI), dpi=thisDPI)
+    axis = fig.add_subplot(111, aspect='equal', projection=wcs_properties)
+    
+    # Define color palette
+    color_palette = ['#e41a1c', '#377eb8', '#4daf4a', '#984ea3', '#ff7f00', '#ffff33', '#a65628', '#f781bf']
+
+    # Extract relevant data from DataFrame in one step for efficiency and clarity
+    beam_ra, beam_dec, beam_name, beam_set_id, beam_x, beam_y, beam_angle, beam_type, nantennas, overlap = (
+        plot_beams_df['ra'].astype(str),
+        plot_beams_df['dec'].astype(str),
+        plot_beams_df['name'].astype(str),
+        plot_beams_df['beam_set_id'].astype(int),
+        plot_beams_df['x'].astype(float),
+        plot_beams_df['y'].astype(float),
+        plot_beams_df['angle'].astype(float),
+        plot_beams_df['type'].astype(str),
+        plot_beams_df['nantennas'].astype(int),
+        plot_beams_df['overlap'].astype(float)
+    )
+   
+    # Get equatorial coordinates
+    equatorialCoordinates = SkyCoord(beam_ra, beam_dec, frame='fk5', unit=(u.hourangle, u.deg))
+    beam_coordinate = np.array(wcs_properties.wcs_world2pix(np.array([equatorialCoordinates.ra.deg, equatorialCoordinates.dec.deg]).T, 0))
+
+    # Plot the boresight for reference
+    axis.plot(0, 0, marker='+', markersize=15, color='black')
+
+    # Store labels for legend creation based on beam_set_id
+    labels = {}
+
+    # Loop through all beams to create ellipses and prepare legend text
+    for idx in range(len(beam_coordinate)):
+        coord = beam_coordinate[idx]
+
+        # Create the ellipse for each beam
+        ellipse = Ellipse(
+            xy=coord,
+            width=2.0 * beam_x.iloc[idx] * beam_size_scaling / resolution,
+            height=2.0 * beam_y.iloc[idx] * beam_size_scaling / resolution,
+            angle=beam_angle.iloc[idx]
+        )
+        ellipse.fill = False
+        color = color_palette[beam_set_id.iloc[idx] % len(color_palette)]
+        ellipse.set_edgecolor(color)
+        axis.add_artist(ellipse)
+
+        # Prepare legend text based on the beam type criteria
+        if beam_type.iloc[idx] == 'known':
+            legend_text = f"Beam set{beam_set_id.iloc[idx]}: {beam_type.iloc[idx]}, {nantennas.iloc[idx]} antennas"
+            axis.annotate(
+                beam_name.iloc[idx],  
+                xy=coord,            
+                xytext=(coord[0] + 5, coord[1] + 5),  # Text position, slightly offset
+                fontsize=8 
+            )
+        else:
+            legend_text = f"Beam set{beam_set_id.iloc[idx]}: {beam_name.iloc[idx].split('_')[0]}, {nantennas.iloc[idx]} antennas, {overlap.iloc[idx]} overlap"
+            # Add an annotation with the beam name. Be careful with the font size, as it can be too large for the plot
+            if annotate_beam_names:
+                axis.annotate(beam_name.iloc[idx], xy=coord, xytext=(coord[0], coord[1]), fontsize=extra_source_text_size)
+        # If the legend entry for this beam_set_id does not exist yet, create it
+        if beam_set_id.iloc[idx] not in labels:
+            labels[beam_set_id.iloc[idx]] = (ellipse, legend_text)
+
+    # Create a legend for all beam categories (all types)
+    handles = [labels[k][0] for k in labels]
+    legend_texts = [labels[k][1] for k in labels]
+    axis.legend(handles, legend_texts, loc='upper right')
+    margin = 1.1 * max(np.sqrt(np.sum(np.square(beam_coordinate), axis=1)))
+    axis.set_xlim(center[0] - margin, center[0] + margin)
+    axis.set_ylim(center[1] - margin, center[1] + margin)
+    axis.set_xlabel('RA', fontsize=30)
+    axis.set_ylabel('Dec', fontsize=30)
+
+    # Save the original, unzoomed plot
+    # output_filename_unzoomed = f"{outfile}_original.png"
+    # log.info(f"Saving original unzoomed plot to {output_filename_unzoomed}")
+    # plt.tight_layout()
+    # plt.savefig(output_filename_unzoomed)
+
+    # Now zoom into the tiling beam sets and save separate plots
+    tiling_df = plot_beams_df[plot_beams_df['type'] == 'tiling']
+
+    for beam_set, group_df in tiling_df.groupby('beam_set_id'):
+        equatorialCoordinates_tiling = SkyCoord(group_df['ra'].astype(str), group_df['dec'].astype(str), frame='fk5', unit=(u.hourangle, u.deg))
+        beam_coordinate_tiling = np.array(wcs_properties.wcs_world2pix(np.array([equatorialCoordinates_tiling.ra.deg, equatorialCoordinates_tiling.dec.deg]).T, 0))
+        # Recalculate margin for this specific beam set
+        margin = 1.3 * max(np.sqrt(np.sum(np.square(beam_coordinate_tiling), axis=1)))
+
+        # Set the new axis limits for zooming into this region
+        axis.set_xlim(center[0] - margin, center[0] + margin)
+        axis.set_ylim(center[1] - margin, center[1] + margin)
+
+        # Save the zoomed plot for the current beam_set_id
+        output_filename_zoomed = f"{outfile}_tiling_beamset_{beam_set}.png"
+        log.info(f"Saving zoomed plot for beam_set_id {beam_set} to {output_filename_zoomed}")
+        plt.title(f"Boresight: {pointing.phase_centre.name}, UTC Start {pointing.start_epoch.isot}, Zoomed into Beam set {beam_set}")
+        plt.tight_layout()
+        plt.savefig(output_filename_zoomed)
+
+
+class BeamOverlapDetector:
+    def __init__(self, neighbour_df, wcs_properties):
+        self.neighbour_df = neighbour_df
+        self.wcs_properties = wcs_properties
+        self._convert_coordinates()
+        self._convert_to_pixel_coordinates()
+
+    def _convert_coordinates(self):
+        # Convert RA and Dec from strings to degrees
+        coords = SkyCoord(ra=self.neighbour_df['ra'].values, dec=self.neighbour_df['dec'].values, unit=(u.hourangle, u.deg))
+        self.neighbour_df['ra_deg'] = coords.ra.deg
+        self.neighbour_df['dec_deg'] = coords.dec.deg
+        
+    def _convert_to_pixel_coordinates(self):
+        # Convert RA and Dec to pixel coordinates using WCS
+        sky_coords = SkyCoord(ra=self.neighbour_df['ra_deg'].values, dec=self.neighbour_df['dec_deg'].values, unit='deg')
+        pixel_coords = np.array(self.wcs_properties.wcs_world2pix(np.array([sky_coords.ra.deg, sky_coords.dec.deg]).T, 0))
+        self.neighbour_df['x_pix'], self.neighbour_df['y_pix'] = pixel_coords[:, 0], pixel_coords[:, 1]
+        
+
+    def ellipse_parametric(self, t, a, b, x0, y0, theta):
+        cos_t = np.cos(t)
+        sin_t = np.sin(t)
+        x = x0 + a * cos_t * np.cos(theta) - b * sin_t * np.sin(theta)
+        y = y0 + a * cos_t * np.sin(theta) + b * sin_t * np.cos(theta)
+        return x, y
+
+    def point_in_ellipse(self, x, y, ellipse):
+        x0, y0, a, b, theta = ellipse["x0"], ellipse["y0"], ellipse["a"], ellipse["b"], ellipse["theta"]
+        cos_theta = np.cos(-theta)
+        sin_theta = np.sin(-theta)
+        xr = cos_theta * (x - x0) - sin_theta * (y - y0)
+        yr = sin_theta * (x - x0) + cos_theta * (y - y0)
+        return (xr**2 / a**2) + (yr**2 / b**2) <= 1
+    
+    def check_containment(self, ellipse1, ellipse2):
+        # Check if the center of ellipse1 is inside ellipse2
+        x0, y0 = ellipse1["x0"], ellipse1["y0"]
+        return self.point_in_ellipse(x0, y0, ellipse2)
+
+    def discrete_overlap(self, ellipse1, ellipse2, num_points=100):
+        # First, check if one ellipse contains the center of the other
+        if self.check_containment(ellipse1, ellipse2) or self.check_containment(ellipse2, ellipse1):
+            return True
+
+        # Check points on the perimeters of both ellipses
+        t_values = np.linspace(0, 2 * np.pi, num_points)
+        #psf_x, psf_y -> semi-major axis (a), semi-minor axis (b) of the ellipse
+        x1, y1 = self.ellipse_parametric(t_values, ellipse1["a"], ellipse1["b"], ellipse1["x0"], ellipse1["y0"], ellipse1["theta"])
+        
+        # Check if any points on the perimeter of ellipse1 lie inside ellipse2
+        for x, y in zip(x1, y1):
+            if self.point_in_ellipse(x, y, ellipse2):
+                return True    
+        return False
+    
+    def find_nearest_neighbours(self, beam, beams, n=6):
+        # Create a SkyCoord object for the target beam
+        target_coord = SkyCoord(ra=beam['ra_deg'] * u.deg, dec=beam['dec_deg'] * u.deg)
+
+        # Create SkyCoord objects for all other beams
+        all_coords = SkyCoord(ra=[b['ra_deg'] for b in beams] * u.deg,
+                              dec=[b['dec_deg'] for b in beams] * u.deg)
+
+        # Calculate separations
+        separations = target_coord.separation(all_coords)
+        
+        # Sort by separation and get the nearest neighbours
+        nearest_indices = np.argsort(separations)[1:n+1]  # Skip the first one (itself)
+
+        # Return the list of nearest beam names in descending order of separation
+        nearest_neighbours = [beams[i]['name'] for i in nearest_indices]
+        return nearest_neighbours
+
+    def find_overlapping_beams(self):
+        beams = []
+        for _, row in self.neighbour_df.iterrows():
+            beams.append({
+                "name": row['name'],
+                "x0": row['x_pix'],
+                "y0": row['y_pix'],
+                "a": row['x'],
+                "b": row['y'],
+                "theta": np.radians(row['angle']),
+                "beam_set_id": row['beam_set_id'],
+                "ra_deg": row['ra_deg'],
+                "dec_deg": row['dec_deg']
+            })
+        beam_overlap_dict = {}
+        for i, beam1 in enumerate(beams):
+            # Initialize overlap list for beam1 if not already in the dict
+            if beam1['name'] not in beam_overlap_dict:
+                beam_overlap_dict[beam1['name']] = {
+                    "name": beam1['name'],
+                    "x_pix": beam1['x0'],
+                    "y_pix": beam1['y0'],
+                    "a": beam1['a'],
+                    "b": beam1['b'],
+                    "angle": np.degrees(beam1['theta']),
+                    "beam_set_id": beam1['beam_set_id'],
+                    "overlapping_beams": [],  # Empty list initially
+                    "neighbouring_beams": []  # Empty list for nearest neighbours
+                }
+            
+            # Inner loop to check overlaps
+            for j in range(i + 1, len(beams)):  # Only check pairs once
+                beam2 = beams[j]
+
+                # Avoid checking beams with the same beam_set_id. They have same PSF shape
+                if beam1['beam_set_id'] == beam2['beam_set_id']:
+                    continue
+
+                # Initialize overlap list for beam2 if not already in the dict
+                if beam2['name'] not in beam_overlap_dict:
+                    beam_overlap_dict[beam2['name']] = {
+                        "name": beam2['name'],
+                        "x_pix": beam2['x0'],
+                        "y_pix": beam2['y0'],
+                        "a": beam2['a'],
+                        "b": beam2['b'],
+                        "angle": np.degrees(beam2['theta']),
+                        "beam_set_id": beam2['beam_set_id'],
+                        "overlapping_beams": [],  # Empty list initially
+                        "neighbouring_beams": []  # Empty list for nearest neighbours
+                    }
+                
+                # Check if beam1 and beam2 overlap
+                if self.discrete_overlap(beam1, beam2):  
+                    # Update overlap lists for both beams
+                    beam_overlap_dict[beam1['name']]['overlapping_beams'].append(beam2['name'])
+                    beam_overlap_dict[beam2['name']]['overlapping_beams'].append(beam1['name'])
+            
+            # Find the 6 nearest neighbours for beam1 only if beam set IDs match
+            matching_beams = [b for b in beams if b['beam_set_id'] == beam1['beam_set_id']]
+            nearest_neighbours = self.find_nearest_neighbours(beam1, matching_beams)
+            beam_overlap_dict[beam1['name']]['neighbouring_beams'] = nearest_neighbours
+
+        # Convert the dictionary to a DataFrame
+        overlap_results = pd.DataFrame(beam_overlap_dict.values())
+        overlap_results = overlap_results.sort_values(by=['beam_set_id', 'name'])
+
+        return overlap_results
+
+
+    
+
+
+
+
+    
 def main():
     """
     What does this thing actually do?

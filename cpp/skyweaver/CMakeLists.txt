@@ -18,7 +18,7 @@ set(skyweaver_src
    src/Timer.cpp
    src/Transposer.cu
    src/WeightsManager.cu
-   src/SkyCleaver.cu
+   src/SkyCleaver.cpp
    src/SigprocHeader.cpp
 
    )

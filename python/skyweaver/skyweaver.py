@@ -14,8 +14,6 @@ import sys
 from collections import defaultdict
 from matplotlib.patches import Ellipse
 import matplotlib.patches as mpatches
-from adjustText import adjust_text
-
 # 3rd party imports
 import h5py
 import yaml
@@ -703,6 +701,7 @@ class BeamformerConfig:
         bfc = data["beamformer_config"]
         beam_sets = []
         for bs in data["beam_sets"]:
+            print(bs)
             beam_sets.append(
                 BeamSet(
                     bs["name"],
@@ -927,9 +926,9 @@ def create_delays(
                 coords = SkyCoord(coords, unit=u.deg)
                 mosaic_command+=f" --tiling_plot {output_prefix}_bid_{beam_set_id}.png --tiling_coordinate {output_prefix}_bid_{beam_set_id}.csv"
                 log.info("Mosaic command written to %s", f"{outfile}.mosaic")
-                log.info(f"Writing PSF of BeamSet {bs.name} for target {target.name} to {output_prefix}_bid_{beam_set_id}.fits")
+                log.info(f"Writing PSF of BeamSet {bs.name} to {output_prefix}_bid_{beam_set_id}.fits")
                 psf_beamshape.psf.write_fits(f"{output_prefix}_bid_{beam_set_id}.fits")
-                log.info(f"PSF Plot of BeamSet {bs.name} for target {target.name} to {output_prefix}_bid_{beam_set_id}.png")
+                log.info(f"Writing PSF Plot of BeamSet {bs.name} to {output_prefix}_bid_{beam_set_id}.png")
                 psf_beamshape.plot_psf(f"{output_prefix}_bid_{beam_set_id}.png")
                 with open(f"{outfile}.mosaic", "a") as f:
                     f.write(mosaic_command + "\n")
@@ -937,7 +936,7 @@ def create_delays(
                     ra_hms = coord.ra.to_string(unit=u.hour, sep=':', precision=2, pad=True)
                     dec_dms = coord.dec.to_string(unit=u.degree, sep=':', precision=1, alwayssign=True, pad=True)
                     plot_beams.append((f"{bs.name}_{index:03d}", ra_hms, dec_dms, round(cb_beamshape[0], 5), round(cb_beamshape[1], 5), round(cb_beamshape[2], 5), current_beam_set_id, overlap, len(sorted_antennas), 'tiling'))
-                    neighbouring_beams.append((f"{bs.name}_{index:03d}", ra_hms, dec_dms, round(psf_beam_shape.axisH, 5), round(psf_beam_shape.axisV, 5), round(psf_beam_shape.angle, 5), current_beam_set_id, 0.5, len(sorted_antennas), 'tiling'))
+                    neighbouring_beams.append((f"{bs.name}_{index:03d}", ra_hms, dec_dms, round(psf_beamshape.axisH, 5), round(psf_beamshape.axisV, 5), round(psf_beamshape.angle, 5), current_beam_set_id, 0.5, len(sorted_antennas), 'tiling'))
         bs_tilings.append(tilings)
     
     target = tiling_desc.get("target", None)

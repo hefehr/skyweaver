@@ -1,4 +1,4 @@
-#include "skyweaver/SkyCleaver.cuh"
+#include "skyweaver/SkyCleaver.hpp"
 #include "skyweaver/SkyCleaverConfig.hpp"
 #include "skyweaver/logging.hpp"
 

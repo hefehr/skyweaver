@@ -7,7 +7,7 @@
 #include <ranges>
 #include <type_traits>
 #include "skyweaver/types.cuh"
-#include "skyweaver/SkyCleaver.cuh"
+#include "skyweaver/SkyCleaver.hpp"
 
 namespace fs = std::filesystem;
 using SkyCleaver       = skyweaver::SkyCleaver;

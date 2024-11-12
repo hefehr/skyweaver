@@ -47,6 +47,7 @@ IncoherentDedispersionPipeline<InputType, OutputType, Handler>::
         // TODO: give these sensible numbers
         // TODO: work out how to get the max delay into the handler
     }
+    _n_tdb_files = _config.nbeams() / _config.nbeams_per_file();
 }
 
 template <typename InputType, typename OutputType, typename Handler>
@@ -79,7 +80,34 @@ void IncoherentDedispersionPipeline<InputType, OutputType, Handler>::
     BOOST_LOG_TRIVIAL(debug) << "Passing output buffer to handler: "
                              << _output_buffers[ref_dm_idx].describe();
     _timer.start("file writing");
-    _handler(_output_buffers[ref_dm_idx], ref_dm_idx);
+
+    if (_n_tdb_files > 1)
+    {
+        const std::size_t ndms     = _output_buffers[ref_dm_idx].ndms();
+        const std::size_t nbeams   = _output_buffers[ref_dm_idx].nbeams();
+        const std::size_t nsamples = _output_buffers[ref_dm_idx].nsamples();
+        const std::size_t nbeams_per_file = _config.nbeams_per_file();
+
+        _beamsplit_buffer.metalike(_output_buffers[ref_dm_idx]);
+        _beamsplit_buffer.resize({nsamples, ndms, nbeams_per_file});
+
+        for (std::size_t tdb_file_idx = 0; tdb_file_idx < _n_tdb_files; ++tdb_file_idx)
+        {
+            for (std::size_t tdidx = 0; tdidx < nsamples * ndms; ++tdidx)
+            {
+                for (std::size_t bidx = 0; bidx < nbeams_per_file ; ++bidx)
+                {
+                    _beamsplit_buffer[tdidx + bidx] = _output_buffers[ref_dm_idx][tdidx + bidx + tdb_file_idx * nbeams_per_file];
+                }
+
+            }
+            _handler(_beamsplit_buffer, ref_dm_idx * _n_tdb_files + tdb_file_idx);
+        }
+    }
+    else
+    {
+        _handler(_output_buffers[ref_dm_idx], ref_dm_idx);
+    }
     _timer.stop("file writing");
 }
 

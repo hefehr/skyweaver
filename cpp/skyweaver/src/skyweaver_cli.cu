@@ -476,9 +476,15 @@ int main(int argc, char** argv)
             ("log-level",
              po::value<std::string>()->default_value("info")->notifier(
                  [](std::string level) { skyweaver::set_log_level(level); }),
-             "The logging level to use (debug, info, warning, error)");
+             "The logging level to use (debug, info, warning, error)")
 
-        // set options allowed on command line
+
+            ("nbeams_per_file",
+             po::value<std::size_t>()->default_value(SKYWEAVER_NBEAMS)->notifier(
+                 [&config](std::size_t key) { config.nbeams_per_file(key); }),
+             "The number of beams per output file. Default = all beams.");
+
+// set options allowed on command line
         po::options_description cmdline_options;
         cmdline_options.add(generic).add(main_options);
 

@@ -43,13 +43,11 @@ MultiFileWriter<VectorType>::MultiFileWriter(
     CreateStreamCallBackType create_stream_callback)
     : _tag(tag), _create_stream_callback(create_stream_callback)
 {
-    MultiFileWriterConfig writer_config;
-    writer_config.header_size     = config.dada_header_size();
-    writer_config.max_file_size   = config.max_output_filesize();
-    writer_config.stokes_mode     = config.stokes_mode();
-    writer_config.base_output_dir = config.output_dir();
+    _config.header_size     = config.dada_header_size();
+    _config.max_file_size   = config.max_output_filesize();
+    _config.stokes_mode     = config.stokes_mode();
+    _config.base_output_dir = config.output_dir();
 
-    _config = writer_config;
 }
 
 template <typename VectorType>
@@ -125,7 +123,12 @@ MultiFileWriter<VectorType>::get_basefilename(VectorType const& stream_data,
     base_filename << get_formatted_time(_header.utc_start) << "_" << stream_idx
                   << "_" << std::fixed << std::setprecision(3)
                   << std::setfill('0') << std::setw(9)
-                  << stream_data.reference_dm();
+                  << stream_data.reference_dm(); 
+
+    if(!_config.suffix.empty()) {
+        base_filename << "_" << _config.suffix;
+    }
+
     if(!_tag.empty()) {
         base_filename << "_" << _tag;
     }

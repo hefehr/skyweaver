@@ -25,6 +25,9 @@ class SkyCleaverConfig
     std::vector<int> _required_beams; 
     std::vector<double> _required_dms;
 
+    std::string _out_stokes; 
+    std::vector<std::size_t> _stokes_positions;
+
 
   public:
     SkyCleaverConfig()
@@ -32,7 +35,8 @@ class SkyCleaverConfig
           _nthreads(0), _nsamples_per_block(0), _nchans(0), _nbeams(0),
           _max_ram_gb(0), _max_output_filesize(2147483647), _stream_id(0),
           _nbridges(64), _ndms(0), _stokes_mode("I"), _dada_header_size(4096), 
-            _start_sample(0), _nsamples_to_read(0), _required_beams({}), _required_dms({})
+            _start_sample(0), _nsamples_to_read(0), _required_beams({}), _required_dms({}),
+            _out_stokes("I"), _stokes_positions({})
     {
     }
     SkyCleaverConfig(SkyCleaverConfig const&) = delete;
@@ -68,6 +72,8 @@ class SkyCleaverConfig
     }
     void required_beams(std::vector<int> required_beams) { _required_beams = required_beams; }
     void required_dms(std::vector<double> required_dms) { _required_dms = required_dms; }
+    void out_stokes(std::string out_stokes) { _out_stokes = out_stokes; }
+    void stokes_positions(std::vector<std::size_t> stokes_positions) { _stokes_positions = stokes_positions; }
 
 
 
@@ -91,6 +97,8 @@ class SkyCleaverConfig
     std::size_t nsamples_to_read() const { return _nsamples_to_read; }
     std::vector<int> required_beams() const { return _required_beams; }
     std::vector<double> required_dms() const { return _required_dms; }
+    std::string out_stokes() const { return _out_stokes; }
+    std::vector<std::size_t> stokes_positions() const { return _stokes_positions; }
 
 
 

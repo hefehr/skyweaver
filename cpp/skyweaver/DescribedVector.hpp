@@ -692,14 +692,16 @@ template <typename T>
 using FPAStatsD =
     DescribedVector<thrust::device_vector<T>, FreqDim, PolnDim, AntennaDim>;
 
-//skycleaver output vectors
+
+//skycleaver vectors
 template <typename T>
-using TDBPowersStdH = DescribedVector<std::vector<T, PinnedAllocator<T>>,
+using TDBPowersStdH = DescribedVector<std::vector<T>,
                                    TimeDim,
                                    DispersionDim,
-                                   BeamDim>;
+                                   BeamDim,
+                                   PolnDim>;
 template <typename T>
-using TFPowersStdH = DescribedVector<std::vector<T, PinnedAllocator<T>>,
+using TFPowersStdH = DescribedVector<std::vector<T>,
                                   TimeDim,
                                   FreqDim>;
 

@@ -227,7 +227,7 @@ create_sigproc_file_stream(MultiFileWriterConfig const& config,
     // uint32_t ibeam = 0;
     double az     = 0.0;
     double za     = 0.0;
-    uint32_t nifs = header.npol;
+    uint32_t nifs = 1;
 
     header.sigproc_params = true;
     header.rawfile        = std::string("unset");

@@ -1,3 +1,4 @@
+#include "skyweaver/DescribedVector.hpp"
 #include "skyweaver/SkyCleaver.hpp"
 #include "skyweaver/SkyCleaverConfig.hpp"
 #include "skyweaver/logging.hpp"
@@ -7,6 +8,8 @@
 #include <boost/log/trivial.hpp>
 #include <boost/program_options.hpp>
 #include <cerrno>
+#include <cmath>
+#include <cstdlib>
 #include <fstream>
 #include <iomanip>
 #include <ios>
@@ -18,10 +21,8 @@
 #include <string>
 #include <sys/types.h>
 #include <thread>
-#include <vector>
-#include <cmath>
-#include <cstdlib>
 #include <type_traits>
+#include <vector>
 
 #define BOOST_LOG_DYN_LINK 1
 
@@ -41,7 +42,6 @@ const size_t SUCCESS                   = 0;
 const size_t ERROR_UNHANDLED_EXCEPTION = 2;
 
 const char* build_time = __DATE__ " " __TIME__;
-
 
 template <typename T>
 std::vector<T>
@@ -99,6 +99,12 @@ std::ostream& operator<<(std::ostream& os, const std::vector<float>& vec)
     return os;
 }
 } // namespace std
+template <typename InputVectorType, typename OutputVectorType>
+void run_pipeline(skyweaver::SkyCleaverConfig const& config)
+{
+    skyweaver::SkyCleaver<InputVectorType, OutputVectorType> skycleaver(config);
+    skycleaver.cleave();
+}
 
 int main(int argc, char** argv)
 {
@@ -126,11 +132,6 @@ int main(int argc, char** argv)
             ->default_value(config.output_dir())
             ->notifier([&config](std::string key) { config.output_dir(key); }),
         "The output directory for all results")(
-        "root-prefix",
-        po::value<std::string>()
-            ->default_value(config.root_prefix())
-            ->notifier([&config](std::string key) { config.root_prefix(key); }),
-        "The prefix for all output files")(
         "out-prefix",
         po::value<std::string>()
             ->default_value(config.out_prefix())
@@ -212,21 +213,29 @@ int main(int argc, char** argv)
                 [&config](std::size_t key) { config.nsamples_to_read(key); }),
         "total number of samples to read from start_sample")(
         "required_beams",
-        po::value<std::string>()
-            ->default_value("")
-            ->notifier([&config](std::string key) {
+        po::value<std::string>()->default_value("")->notifier(
+            [&config](std::string key) {
                 config.required_beams(get_list_from_string<int>(key));
             }),
         "Comma separated list of beams to process. Syntax - beam1, beam2, "
         "beam3:beam4:step, beam5 etc..")(
         "required_dms",
-        po::value<std::string>()
-            ->default_value("")
-            ->notifier([&config](std::string key) {
+        po::value<std::string>()->default_value("")->notifier(
+            [&config](std::string key) {
                 config.required_dms(get_list_from_string<double>(key));
             }),
         "Comma separated list of DMs to process. Syntax - dm1, dm2, "
-        "dm1:dm2:step, etc..");
+        "dm1:dm2:step, etc..")(
+        "out-stokes",
+        po::value<std::string>()
+            ->default_value(config.out_stokes())
+            ->notifier([&config](std::string key) {
+                if(key.find_first_not_of("IQUV") != std::string::npos) {
+                    throw std::runtime_error("Invalid Stokes mode: " + key);
+                }
+                config.out_stokes(key);
+            }),
+        "The list of stokes needed - these will be separte output files");
 
     po::options_description cmdline_options;
     cmdline_options.add(generic).add(main_options);
@@ -271,7 +280,6 @@ int main(int argc, char** argv)
     BOOST_LOG_TRIVIAL(info) << "Configuration: " << config_file;
     BOOST_LOG_TRIVIAL(info) << "root_dir: " << config.root_dir();
     BOOST_LOG_TRIVIAL(info) << "output_dir: " << config.output_dir();
-    BOOST_LOG_TRIVIAL(info) << "root_prefix: " << config.root_prefix();
     BOOST_LOG_TRIVIAL(info) << "out_prefix: " << config.out_prefix();
     BOOST_LOG_TRIVIAL(info) << "nthreads: " << config.nthreads();
     BOOST_LOG_TRIVIAL(info)
@@ -283,22 +291,57 @@ int main(int argc, char** argv)
     BOOST_LOG_TRIVIAL(info) << "max_ram_gb: " << config.max_ram_gb();
     BOOST_LOG_TRIVIAL(info)
         << "max_output_filesize: " << config.max_output_filesize();
-    BOOST_LOG_TRIVIAL(info) << "dada_header_size: " << config.dada_header_size();
+    BOOST_LOG_TRIVIAL(info)
+        << "dada_header_size: " << config.dada_header_size();
     BOOST_LOG_TRIVIAL(info) << "start_sample: " << config.start_sample();
-    BOOST_LOG_TRIVIAL(info) << "nsamples_to_read: " << config.nsamples_to_read();
+    BOOST_LOG_TRIVIAL(info)
+        << "nsamples_to_read: " << config.nsamples_to_read();
+    BOOST_LOG_TRIVIAL(info) << "out_stokes: " << config.out_stokes();
+
     if(config.required_beams().size() > 0) {
-       for (auto beam : config.required_beams()) {
-           BOOST_LOG_TRIVIAL(info) << "required_beam: " << beam;
-       }
+        for(auto beam: config.required_beams()) {
+            BOOST_LOG_TRIVIAL(info) << "required_beam: " << beam;
+        }
     }
     if(config.required_dms().size() > 0) {
-       for (auto dm : config.required_dms()) {
-           BOOST_LOG_TRIVIAL(info) << "required_dm: " << dm;
-       }
+        for(auto dm: config.required_dms()) {
+            BOOST_LOG_TRIVIAL(info) << "required_dm: " << dm;
+        }
+    }
+    std::vector<std::size_t> stokes_positions;
+    // make sure that every character in out_stokes is a valid stokes mode
+    // if present add the relevant position to the stokes_positions vector
+    for(auto stokes: config.out_stokes()) {
+        std::size_t pos = config.stokes_mode().find(stokes);
+        if(pos == std::string::npos) {
+            throw std::runtime_error("Invalid Stokes mode: " + stokes);
+        }
+        stokes_positions.push_back(pos);
     }
 
+    config.stokes_positions(stokes_positions);
+
+    run_pipeline<skyweaver::TDBPowersStdH<char>,
+                     skyweaver::TFPowersStdH<uint8_t>>(config);
 
 
     skyweaver::SkyCleaver skycleaver(config);
     skycleaver.cleave();
+
+    // if(config.stokes_mode() == "I" || config.stokes_mode() == "Q" ||
+    //    config.stokes_mode() == "U" || config.stokes_mode() == "V") {
+    //     run_pipeline<skyweaver::TDBPowersStdH<std::vector<char>>,
+    //                  skyweaver::TFPowersStdH<uint8_t>>(config);
+    // } else if(config.stokes_mode() == "IV" || config.stokes_mode() == "QU") {
+    //     run_pipeline<skyweaver::TDBPowersStdH<char2>,
+    //                  skyweaver::TFPowersStdH<uint8_t>>(config);
+
+    // } else if(config.stokes_mode() == "IQUV") {
+    //     run_pipeline<skyweaver::TDBPowersStdH<char4>,
+    //                  skyweaver::TFPowersStdH<uint8_t>>(config);
+    // } else {
+    //     throw std::runtime_error("Invalid Stokes mode: " +
+    //                              config.stokes_mode());
+    // }
+
 }

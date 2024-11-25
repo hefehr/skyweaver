@@ -18,7 +18,6 @@ set(skyweaver_src
    src/Timer.cpp
    src/Transposer.cu
    src/WeightsManager.cu
-   src/SkyCleaver.cpp
    src/SigprocHeader.cpp
 
    )
@@ -43,6 +42,8 @@ set(skyweaver_inc
     WeightsManager.cuh
     MultiFileWriter.cuh
     SigprocHeader.hpp
+    SkyCleaver.hpp
+    SkyCleaverConfig.hpp
    )
 
 set(SKYWEAVER_LIBRARIES ${CMAKE_PROJECT_NAME} ${DEPENDENCY_LIBRARIES})

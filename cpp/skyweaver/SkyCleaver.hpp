@@ -39,7 +39,7 @@ class SkyCleaver
     using StokesNumberType = std::size_t;
 
   private:
-    SkyCleaverConfig const& _config;
+    SkyCleaverConfig& _config;
     std::map<FreqType, std::unique_ptr<MultiFileReader>> _bridge_readers;
     std::map<FreqType, std::unique_ptr<InputVectorType>> _bridge_data;
 
@@ -71,7 +71,7 @@ class SkyCleaver
     Timer _timer;
 
   public:
-    SkyCleaver(SkyCleaverConfig const& config);
+    SkyCleaver(SkyCleaverConfig& config);
     SkyCleaver(SkyCleaver const&)     = delete;
     void operator=(SkyCleaver const&) = delete;
     void cleave();

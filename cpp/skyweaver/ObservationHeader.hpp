@@ -41,8 +41,9 @@ struct ObservationHeader {
     std::string telescope;    // Telescope name
     std::string instrument;   // Name of the recording instrument
     std::string order;        // Order of the dimensions in the data
-    std::string ndms;         // Number of DMs
+    std::size_t ndms;         // Number of DMs
     std::vector<float> dms;   // DMs
+    std::string stokes_mode;  // Stokes mode
 
     std::string to_string() const; // Convert the header to a string
 

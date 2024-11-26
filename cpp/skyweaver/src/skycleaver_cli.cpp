@@ -100,7 +100,7 @@ std::ostream& operator<<(std::ostream& os, const std::vector<float>& vec)
 }
 } // namespace std
 template <typename InputVectorType, typename OutputVectorType>
-void run_pipeline(skyweaver::SkyCleaverConfig const& config)
+void run_pipeline(skyweaver::SkyCleaverConfig& config)
 {
     skyweaver::SkyCleaver<InputVectorType, OutputVectorType> skycleaver(config);
     skycleaver.cleave();
@@ -148,31 +148,11 @@ int main(int argc, char** argv)
             ->notifier(
                 [&config](std::size_t key) { config.nsamples_per_block(key); }),
         "The number of samples per block")(
-        "nchans",
-        po::value<std::size_t>()
-            ->default_value(config.nchans())
-            ->notifier([&config](std::size_t key) { config.nchans(key); }),
-        "The number of channels")(
         "nbridges",
         po::value<std::size_t>()
             ->default_value(config.nbridges())
             ->notifier([&config](std::size_t key) { config.nbridges(key); }),
         "The number of bridges")(
-        "nbeams",
-        po::value<std::size_t>()
-            ->default_value(config.nbeams())
-            ->notifier([&config](std::size_t key) { config.nbeams(key); }),
-        "The number of beams")(
-        "ndms",
-        po::value<std::size_t>()
-            ->default_value(config.ndms())
-            ->notifier([&config](std::size_t key) { config.ndms(key); }),
-        "The number of DMs")(
-        "stokes-mode",
-        po::value<std::string>()
-            ->default_value(config.stokes_mode())
-            ->notifier([&config](std::string key) { config.stokes_mode(key); }),
-        "The stokes mode")(
         "stream-id",
         po::value<std::size_t>()
             ->default_value(config.stream_id())
@@ -308,25 +288,14 @@ int main(int argc, char** argv)
             BOOST_LOG_TRIVIAL(info) << "required_dm: " << dm;
         }
     }
-    std::vector<std::size_t> stokes_positions;
-    // make sure that every character in out_stokes is a valid stokes mode
-    // if present add the relevant position to the stokes_positions vector
-    for(auto stokes: config.out_stokes()) {
-        std::size_t pos = config.stokes_mode().find(stokes);
-        if(pos == std::string::npos) {
-            throw std::runtime_error("Invalid Stokes mode: " + stokes);
-        }
-        stokes_positions.push_back(pos);
-    }
-
-    config.stokes_positions(stokes_positions);
+    
 
     run_pipeline<skyweaver::TDBPowersStdH<char>,
                      skyweaver::TFPowersStdH<uint8_t>>(config);
 
 
-    skyweaver::SkyCleaver skycleaver(config);
-    skycleaver.cleave();
+    // skyweaver::SkyCleaver skycleaver(config);
+    // skycleaver.cleave();
 
     // if(config.stokes_mode() == "I" || config.stokes_mode() == "Q" ||
     //    config.stokes_mode() == "U" || config.stokes_mode() == "V") {

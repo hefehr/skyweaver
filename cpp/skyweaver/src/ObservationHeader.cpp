@@ -69,8 +69,11 @@ void read_dada_header(psrdada_cpp::RawBytes& raw_header,
                 "OBS_FREQ",
                 header.frequency));
 
-    header.ndms = parser.get_or_default<decltype(header.ndms)>("NDMS", "0");
-    if(header.ndms != "0") {
+    header.ndms = parser.get_or_default<decltype(header.ndms)>("NDMS", 0);
+    header.nbeams = parser.get_or_default<decltype(header.nbeams)>("NBEAM", 1);
+    header.stokes_mode =
+        parser.get_or_default<decltype(header.stokes_mode)>("STOKES_MODE", "I");
+    if(header.ndms != 0) {
         header.dms = parse_float_list(parser.get<std::string>("DMS"));
     }
 }
@@ -152,7 +155,7 @@ std::string ObservationHeader::to_string() const
         << "  instrument: " << instrument << "\n"
         << "  chan0_idx: " << chan0_idx << "\n"
         << "  obs_offset: " << obs_offset << "\n";
-    if(ndms != "0") {
+    if(ndms != 0) {
         oss << "  ndms: " << ndms << "\n";
         oss << "  dms: ";
         for(auto dm: dms) { oss << dm << " "; }

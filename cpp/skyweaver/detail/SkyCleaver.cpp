@@ -1,8 +1,8 @@
 
 #include "skyweaver/SkyCleaver.hpp"
 
-#include "skyweaver/types.cuh"
 #include "skyweaver/beamformer_utils.cuh"
+#include "skyweaver/types.cuh"
 
 #include <cmath>
 #include <filesystem>
@@ -12,11 +12,10 @@
 #include <regex>
 #include <type_traits>
 
-namespace fs     = std::filesystem;
+namespace fs = std::filesystem;
 
-using BridgeReader     = skyweaver::BridgeReader;
-using MultiFileReader  = skyweaver::MultiFileReader;
-
+using BridgeReader    = skyweaver::BridgeReader;
+using MultiFileReader = skyweaver::MultiFileReader;
 
 namespace
 {
@@ -90,6 +89,45 @@ std::vector<std::string> get_files(std::string directory_path,
 }
 
 } // namespace
+
+void compare_bridge_headers(const skyweaver::ObservationHeader& first,
+                            const skyweaver::ObservationHeader& second)
+{
+    if(first.nchans != second.nchans) {
+        throw std::runtime_error("Number of channels in bridge readers do not "
+                                 "match. Expected: " +
+                                 std::to_string(first.nchans) +
+                                 " Found: " + std::to_string(second.nchans));
+    }
+    if(first.nbeams != second.nbeams) {
+        throw std::runtime_error(
+            "Number of beams in bridge readers do not match. "
+            "Expected: " +
+            std::to_string(first.nbeams) +
+            " Found: " + std::to_string(second.nbeams));
+    }
+    if(first.nbits != second.nbits) {
+        throw std::runtime_error(
+            "Number of bits in bridge readers do not match. "
+            "Expected: " +
+            std::to_string(first.nbits) +
+            " Found: " + std::to_string(second.nbits));
+    }
+    if(first.tsamp != second.tsamp) {
+        throw std::runtime_error(
+            "Sampling time in bridge readers do not match. "
+            "Expected: " +
+            std::to_string(first.tsamp) +
+            " Found: " + std::to_string(second.tsamp));
+    }
+    if(first.stokes_mode != second.stokes_mode) {
+        throw std::runtime_error("Stokes mode in bridge readers do not match. "
+                                 "Expected: " +
+                                 first.stokes_mode +
+                                 " Found: " + second.stokes_mode);
+    }
+}
+
 template <typename InputVectorType, typename OutputVectorType>
 void skyweaver::SkyCleaver<InputVectorType, OutputVectorType>::init_readers()
 {
@@ -106,7 +144,9 @@ void skyweaver::SkyCleaver<InputVectorType, OutputVectorType>::init_readers()
         << "Found " << freq_dirs.size()
         << " frequency directories in root directory: " << root_dir;
 
-    std::map<skyweaver::SkyCleaver<InputVectorType, OutputVectorType>::FreqType, long double> bridge_timestamps;
+    std::map<skyweaver::SkyCleaver<InputVectorType, OutputVectorType>::FreqType,
+             long double>
+        bridge_timestamps;
     long double latest_timestamp = 0.0;
 
     for(const auto& freq_dir: freq_dirs) {
@@ -140,22 +180,49 @@ void skyweaver::SkyCleaver<InputVectorType, OutputVectorType>::init_readers()
 
     int nbridges = _config.nbridges();
 
-    // std::size_t gulp_size =
-    //     _config.nsamples_per_block() * _config.ndms() * _config.nbeams();
-
-    ObservationHeader const& header =
-        (*_bridge_readers.begin()).second->get_header();
+    _header = _bridge_readers[_available_freqs[0]]->get_header();
+    for(const auto& [freq, reader]: _bridge_readers) {
+        compare_bridge_headers(_header, reader->get_header());
+    }
     BOOST_LOG_TRIVIAL(info)
-        << "Read header from first file: " << header.to_string();
+        << "Number of beams: " << _header.nbeams
+        << " Number of DMS: " << _header.ndms
+        << " Stokes mode: " << _header.stokes_mode
+        << " Number of channels: " << _header.nchans;
 
-    long double obs_centre_freq = header.obs_frequency;
-    long double obs_bandwidth   = header.obs_bandwidth;
+
+    _config.nbeams(_header.nbeams);
+    _config.ndms(_header.ndms);
+    _config.stokes_mode(_header.stokes_mode);
+    _config.nchans(_header.nchans);
+
+    BOOST_LOG_TRIVIAL(info)
+        << "Number of beams: " << _config.nbeams()
+        << " Number of DMS: " << _config.ndms()
+        << " Stokes mode: " << _config.stokes_mode()
+        << " Number of channels: " << _config.nchans();
+
+    std::vector<std::size_t> stokes_positions;
+    // make sure that every character in out_stokes is a valid stokes mode
+    // if present add the relevant position to the stokes_positions vector
+    for(auto stokes: _config.out_stokes()) {
+        std::size_t pos = _config.stokes_mode().find(stokes);
+        if(pos == std::string::npos) {
+            throw std::runtime_error("Invalid Stokes mode: " + stokes);
+        }
+        stokes_positions.push_back(pos);
+    }
+
+    _config.stokes_positions(stokes_positions);
+
+    long double obs_centre_freq = _header.obs_frequency;
+    long double obs_bandwidth   = _header.obs_bandwidth;
 
     long double start_freq = obs_centre_freq - obs_bandwidth / 2;
 
-    for(int i = 0; i < nbridges; i++) {
-        int ifreq = std::lround(
-            std::floor(start_freq + (i + 0.5) * obs_bandwidth / nbridges));
+    for(int i = 0; i < _config.nbridges(); i++) {
+        int ifreq = std::lround(std::floor(
+            start_freq + (i + 0.5) * obs_bandwidth / _config.nbridges()));
         _expected_freqs.push_back(ifreq);
         BOOST_LOG_TRIVIAL(info)
             << "Expected frequency [" << i << "]: " << ifreq;
@@ -168,12 +235,10 @@ void skyweaver::SkyCleaver<InputVectorType, OutputVectorType>::init_readers()
         _bridge_data[ifreq] = std::make_unique<InputVectorType>(
             std::initializer_list{_config.nsamples_per_block(),
                                   _config.ndms(),
-                                  _config.nbeams(), 
+                                  _config.nbeams(),
                                   _config.stokes_mode().size()},
             0);
     }
-
-    // print _expected_freqs
 
     std::size_t smallest_data_size = std::numeric_limits<std::size_t>::max();
     std::size_t dbp_factor =
@@ -208,7 +273,8 @@ void skyweaver::SkyCleaver<InputVectorType, OutputVectorType>::init_readers()
             << " bytes in bridge reader for frequency: " << freq;
 
         std::size_t bytes_seeking =
-            (nsamples * dbp_factor * sizeof(typename InputVectorType::value_type));
+            (nsamples * dbp_factor *
+             sizeof(typename InputVectorType::value_type));
 
         _bridge_readers[freq]->seekg(bytes_seeking, std::ios_base::beg);
 
@@ -366,7 +432,9 @@ void skyweaver::SkyCleaver<InputVectorType, OutputVectorType>::init_writers()
         << "Added " << _total_beam_writers << " beam writers to SkyCleaver";
 }
 template <typename InputVectorType, typename OutputVectorType>
-skyweaver::SkyCleaver<InputVectorType, OutputVectorType>::SkyCleaver(SkyCleaverConfig const& config): _config(config)
+skyweaver::SkyCleaver<InputVectorType, OutputVectorType>::SkyCleaver(
+    SkyCleaverConfig& config)
+    : _config(config)
 {
     _timer.start("skycleaver::init_readers");
     init_readers();
@@ -376,7 +444,8 @@ skyweaver::SkyCleaver<InputVectorType, OutputVectorType>::SkyCleaver(SkyCleaverC
     _timer.stop("skycleaver::init_writers");
 }
 template <typename InputVectorType, typename OutputVectorType>
-void skyweaver::SkyCleaver<InputVectorType, OutputVectorType>::read(std::size_t gulp_samples)
+void skyweaver::SkyCleaver<InputVectorType, OutputVectorType>::read(
+    std::size_t gulp_samples)
 {
     std::size_t gulp_size = gulp_samples * _config.ndms() * _config.nbeams() *
                             _config.stokes_mode().size();
@@ -390,7 +459,8 @@ void skyweaver::SkyCleaver<InputVectorType, OutputVectorType>::read(std::size_t 
         false); // since we cannot throw exceptions in parallel regions
 #pragma omp parallel for
     for(std::size_t i = 0; i < _available_freqs.size(); i++) {
-        skyweaver::SkyCleaver<InputVectorType, OutputVectorType>::FreqType freq = _available_freqs[i];
+        skyweaver::SkyCleaver<InputVectorType, OutputVectorType>::FreqType
+            freq = _available_freqs[i];
         if(_bridge_readers.find(freq) == _bridge_readers.end()) {
             read_failures[i] = true;
         }
@@ -407,7 +477,8 @@ void skyweaver::SkyCleaver<InputVectorType, OutputVectorType>::read(std::size_t 
                          gulp_size); // read a big chunk of data
         BOOST_LOG_TRIVIAL(debug)
             << "Read " << read_size << " bytes from bridge" << freq;
-        if(read_size < gulp_size * sizeof(typename InputVectorType::value_type)) {
+        if(read_size <
+           gulp_size * sizeof(typename InputVectorType::value_type)) {
             BOOST_LOG_TRIVIAL(warning)
                 << "Read less data than expected from bridge " << freq;
             read_failures[i] = true;
@@ -475,17 +546,17 @@ void skyweaver::SkyCleaver<InputVectorType, OutputVectorType>::cleave()
                        _beam_data[istokes][idm].end()) {
                         continue;
                     }
-                    const int stokes_position = _config.stokes_positions()[istokes];
-                    
+                    const int stokes_position =
+                        _config.stokes_positions()[istokes];
+
 #pragma omp simd
                     for(std::size_t isample = 0; isample < gulp_samples;
                         isample++) {
                         // This is the input, so use nstokes_in
                         const std::size_t base_index =
                             isample * ndms * nbeams * nstokes_in +
-                                     idm * nbeams * nstokes_in + 
-                                     ibeam * nstokes_in +
-                                     stokes_position;
+                            idm * nbeams * nstokes_in + ibeam * nstokes_in +
+                            stokes_position;
 
                         std::size_t ifreq            = 0;
                         const std::size_t out_offset = isample * nbridges;

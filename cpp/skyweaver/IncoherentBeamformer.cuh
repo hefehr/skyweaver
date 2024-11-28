@@ -34,8 +34,8 @@ __global__ void icbf_ftpa_general_k(
     char2 const* __restrict__ ftpa_voltages,
     typename BfTraits::RawPowerType* __restrict__ tf_powers_raw,
     typename BfTraits::QuantisedPowerType* __restrict__ tf_powers,
-    float const* __restrict__ output_scale,
-    float const* __restrict__ output_offset,
+    float4 const* __restrict__ output_scale,
+    float4 const* __restrict__ output_offset,
     float const* __restrict__ antenna_weights,
     int nsamples,
     int nbeamsets);
@@ -52,7 +52,9 @@ class IncoherentBeamformer
     // TF order
     typedef BTFPowersD<typename BfTraits::RawPowerType> RawPowerVectorTypeD;
     // TF order
-    typedef thrust::device_vector<float> ScalingVectorTypeD;
+    typedef thrust::device_vector<float4> ScalingVectorTypeD; // Always IQUV scalings
+    // BsA order
+    typedef thrust::device_vector<float> BeamsetWeightsVectorTypeD;
 
   public:
     /**
@@ -86,7 +88,7 @@ class IncoherentBeamformer
                   PowerVectorTypeD& output,
                   ScalingVectorTypeD const& output_scale,
                   ScalingVectorTypeD const& output_offset,
-                  ScalingVectorTypeD const& antenna_weights,
+                  BeamsetWeightsVectorTypeD const& antenna_weights,
                   int nbeamsets,
                   cudaStream_t stream);
 

@@ -17,8 +17,8 @@ __global__ void icbf_ftpa_general_k(
     char2 const* __restrict__ ftpa_voltages,
     typename BfTraits::RawPowerType* __restrict__ tf_powers_raw,
     typename BfTraits::QuantisedPowerType* __restrict__ tf_powers,
-    float const* __restrict__ output_scale,
-    float const* __restrict__ output_offset,
+    float4 const* __restrict__ output_scale,
+    float4 const* __restrict__ output_offset,
     float const* __restrict__ antenna_weights,
     int nsamples,
     int nbeamsets)
@@ -79,9 +79,9 @@ __global__ void icbf_ftpa_general_k(
             const typename BfTraits::RawPowerType power_f32 = acc_buffer[0];
             const int output_idx = beamset_idx * gridDim.x * gridDim.y +
                                    output_t_idx * gridDim.y + output_f_idx;
-            const float scale =
+            const float4 scale =
                 output_scale[beamset_idx * gridDim.y + output_f_idx];
-            const float offset =
+            const float4 offset =
                 output_offset[beamset_idx * gridDim.y + output_f_idx];
             tf_powers_raw[output_idx] = power_f32;
             tf_powers[output_idx] =
@@ -112,7 +112,7 @@ void IncoherentBeamformer<BfTraits>::beamform(
     PowerVectorTypeD& output,
     ScalingVectorTypeD const& output_scale,
     ScalingVectorTypeD const& output_offset,
-    ScalingVectorTypeD const& antenna_weights,
+    BeamsetWeightsVectorTypeD const& antenna_weights,
     int nbeamsets,
     cudaStream_t stream)
 {
@@ -156,9 +156,9 @@ void IncoherentBeamformer<BfTraits>::beamform(
     dim3 grid(nsamples / _config.ib_tscrunch(),
               _config.nchans() / _config.ib_fscrunch());
     char2 const* ftpa_voltages_ptr = thrust::raw_pointer_cast(input.data());
-    float const* output_scale_ptr =
+    float4 const* output_scale_ptr =
         thrust::raw_pointer_cast(output_scale.data());
-    float const* output_offset_ptr =
+    float4 const* output_offset_ptr =
         thrust::raw_pointer_cast(output_offset.data());
     float const* antenna_weights_ptr =
         thrust::raw_pointer_cast(antenna_weights.data());

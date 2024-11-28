@@ -31,6 +31,9 @@ class IncoherentBeamformerTester: public ::testing::Test
     typedef IncoherentBeamformer::ScalingVectorTypeD ScalingVectorTypeD;
     typedef thrust::host_vector<typename ScalingVectorTypeD::value_type>
         HostScalingVectorType;
+    typedef IncoherentBeamformer::BeamsetWeightsVectorTypeD BeamsetWeightsVectorTypeD;
+    typedef thrust::host_vector<typename BeamsetWeightsVectorTypeD::value_type>
+        HostBeamsetWeightsVectorType;
 
   protected:
     void SetUp() override;
@@ -51,7 +54,7 @@ class IncoherentBeamformerTester: public ::testing::Test
                                 int nantennas,
                                 HostScalingVectorType const& scale,
                                 HostScalingVectorType const& offset,
-                                HostScalingVectorType const& beamset_weights,
+                                HostBeamsetWeightsVectorType const& beamset_weights,
                                 int nbeamsets);
 
     void compare_against_host(VoltageVectorTypeD const& ftpa_voltages_gpu,
@@ -59,7 +62,7 @@ class IncoherentBeamformerTester: public ::testing::Test
                               DevicePowerVectorType& tf_powers_gpu,
                               ScalingVectorTypeD const& scaling_vector,
                               ScalingVectorTypeD const& offset_vector,
-                              ScalingVectorTypeD const& beamset_weights,
+                              BeamsetWeightsVectorTypeD const& beamset_weights,
                               int ntimestamps,
                               int nbeamsets);
 

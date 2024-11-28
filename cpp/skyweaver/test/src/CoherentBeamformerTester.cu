@@ -51,8 +51,8 @@ void CoherentBeamformerTester<BfTraits>::beamformer_c_reference(
     int nbeams,
     int nantennas,
     int npol,
-    float const* scales,
-    float const* offsets,
+    float4 const* scales,
+    float4 const* offsets,
     float const* antenna_weights,
     int const* beamset_mapping)
 {
@@ -157,7 +157,7 @@ void CoherentBeamformerTester<BfTraits>::compare_against_host(
     WeightsVectorTypeD const& fbpa_weights_gpu,
     ScalingVectorTypeD const& scales_gpu,
     ScalingVectorTypeD const& offsets_gpu,
-    ScalingVectorTypeD const& antenna_weights,
+    BeamsetWeightsVectorTypeD const& antenna_weights,
     MappingVectorTypeD const& beamset_mapping,
     PowerVectorTypeD& btf_powers_gpu,
     int nsamples)
@@ -170,7 +170,7 @@ void CoherentBeamformerTester<BfTraits>::compare_against_host(
 
     HostScalingVectorType scales               = scales_gpu;
     HostScalingVectorType offsets              = offsets_gpu;
-    HostScalingVectorType antenna_weights_host = antenna_weights;
+    thrust::host_vector<float> antenna_weights_host = antenna_weights;
     MappingVectorTypeH beamset_mapping_host    = beamset_mapping;
 
     beamformer_c_reference(
@@ -227,29 +227,36 @@ TYPED_TEST(CoherentBeamformerTester, representative_noise_test)
     const float input_level = 32.0f;
     const double pi         = std::acos(-1);
     config.output_level(input_level);
-    float scale =
-        std::pow(127.0f * input_level *
-                     std::sqrt(static_cast<float>(config.nantennas())),
-                 2);
-    float dof = 2 * config.cb_tscrunch() * config.cb_fscrunch() * config.npol();
-    float offset_val = (scale * dof);
-    float scale_val  = (scale * std::sqrt(2 * dof) / config.output_level());
+
+    float4 cb_offset_val{ 
+        static_cast<float>(std::sqrt(4 * config.cb_tscrunch() * config.cb_fscrunch() * config.nantennas() * std::pow(127.0f * input_level, 2)) / config.output_level()), 
+        0.0f, 
+        0.0f, 
+        0.0f 
+    };
+    float cb_scaling = static_cast<float>(std::sqrt(8 * config.cb_tscrunch() * config.cb_fscrunch() * std::pow(config.nantennas() * std::pow(127.0f * input_level, 2), 2) ) / config.output_level());
+    float4 cb_scale_val{ 
+        cb_scaling, 
+        cb_scaling, 
+        cb_scaling,  
+        cb_scaling 
+    };
 
     // Set constant scales and offsets for all channels and beamsets
     typename CBT::ScalingVectorTypeD cb_scales(
         config.nchans() / config.cb_fscrunch() * nbeamsets,
-        scale_val);
+        cb_scale_val);
     typename CBT::ScalingVectorTypeD cb_offsets(
         config.nchans() / config.cb_fscrunch() * nbeamsets,
-        offset_val);
+        cb_offset_val);
 
     // Map all beams to the first beamset by default
     typename CBT::MappingVectorTypeD beamset_mapping(config.nbeams(), 0);
 
     // Enable all antennas in all beamsets
-    typename CBT::ScalingVectorTypeD beamset_weights(config.nantennas() *
+    typename thrust::device_vector<float> beamset_weights(config.nantennas() *
                                                          nbeamsets,
-                                                     1.0f);
+                                                         1.0f);
 
     /**
     This currently causes tests to fail even though the weights are the same for
@@ -259,9 +266,6 @@ TYPED_TEST(CoherentBeamformerTester, representative_noise_test)
     Issue is that the incoherent beamformer is not populating beamsets > 0
     */
     beamset_mapping[0] = 1;
-
-    BOOST_LOG_TRIVIAL(info) << "CB scaling: " << scale_val;
-    BOOST_LOG_TRIVIAL(info) << "CB offset: " << offset_val;
 
     std::default_random_engine generator;
     std::normal_distribution<float> normal_dist(0.0, input_level);
@@ -280,9 +284,6 @@ TYPED_TEST(CoherentBeamformerTester, representative_noise_test)
     std::size_t input_size =
         (ntimestamps * config.nantennas() * config.nchans() *
          config.nsamples_per_heap() * config.npol());
-    BOOST_LOG_TRIVIAL(info) << "FTPA input dims: " << config.nchans() << ", "
-                            << ntimestamps * config.nsamples_per_heap() << ", "
-                            << config.npol() << ", " << config.nantennas();
     int nsamples = config.nsamples_per_heap() * ntimestamps;
 
     std::size_t weights_size =
@@ -314,20 +315,28 @@ TYPED_TEST(CoherentBeamformerTester, representative_noise_test)
     typename CBT::WeightsVectorTypeD fbpa_weights_gpu  = fbpa_weights_host;
     typename CBT::PowerVectorTypeD tfb_powers_gpu;
 
-    // Note that below even though this is for the IB we have to use the
-    // CB scrunching parameters to make sure we get the right data out.
-    float ib_scale = std::pow(input_level, 2);
-    float ib_dof   = 2 * config.cb_tscrunch() * config.cb_fscrunch() *
-                   config.nantennas() * config.npol();
-    float ib_power_offset = ib_scale * ib_dof;
-    float ib_power_scaling =
-        ib_scale * std::sqrt(2 * ib_dof) / config.output_level();
+    float4 ib_offset_val{ 
+        static_cast<float>(std::sqrt(4 * config.cb_tscrunch() * config.cb_fscrunch() * config.nantennas() * std::pow(input_level, 2)) / config.output_level()), 
+        0.0f, 
+        0.0f, 
+        0.0f 
+    };
+
+    float ib_scaling = static_cast<float>(std::sqrt(8 * config.cb_tscrunch() * config.cb_fscrunch() * config.nantennas() * std::pow(input_level, 4)) / config.output_level());
+    float4 ib_scale_val{ 
+        ib_scaling, 
+        ib_scaling, 
+        ib_scaling,  
+        ib_scaling 
+    };
+
     typename CBT::ScalingVectorTypeD ib_scales(
         config.nchans() / config.cb_fscrunch() * nbeamsets,
-        ib_power_scaling);
+        ib_scale_val);
     typename CBT::ScalingVectorTypeD ib_offset(
         config.nchans() / config.cb_fscrunch() * nbeamsets,
-        ib_power_offset);
+        ib_offset_val);
+
     typename CBT::IBPowerVectorTypeD tf_powers_gpu;
     typename CBT::RawIBPowerVectorTypeD tf_powers_raw_gpu;
 

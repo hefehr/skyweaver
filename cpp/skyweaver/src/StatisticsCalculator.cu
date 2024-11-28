@@ -191,15 +191,15 @@ void StatisticsCalculator::update_scalings(
                 float var_p1_sum = 0.0f; // sum(sigma_p1^2)
                 float quad_sum = 0.0f;   // sum(sigma_p0^4 + sigma_p1^4)
                 float sum_mul = 0.0f;    // sum(sigma_p0^2 * sigma_p1^2)
-                for (int a_idx = 0; a_idx < _cofig.npol(); ++a_idx) {
+                for (int a_idx = 0; a_idx < _config.npol(); ++a_idx) {
                     // stats are in FPA order
                     // weights are in FPBA order
                     const int input_idx = f_idx * pa + a_idx;
                     Statistics p0 = _stats_h[input_idx];
-                    Statistics p1 = _stats_h[input_idx + nantennas];
+                    Statistics p1 = _stats_h[input_idx + a];
                     const float weight = beamset_weights[beamset_idx * a + a_idx];
-                    const float std_p0 = p0.std * weight;
-                    const float std_p1 = p1.std * weight;
+                    const float std_p0 = p0.std * weight * weights_amp;
+                    const float std_p1 = p1.std * weight * weights_amp;
                     const float var_p0 = std_p0 * std_p0;
                     const float var_p1 = std_p1 * std_p1;
                     meanI += var_p0 + var_p1;
@@ -279,7 +279,7 @@ void StatisticsCalculator::dump_scalings(
         BOOST_LOG_TRIVIAL(error) << error_message.str();
         return;
     }
-    writer.write(static_cast<char*>(ar.data()), ar.size() * sizeof(ScalingType));
+    writer.write(reinterpret_cast<const char*>(thrust::raw_pointer_cast(ar.data())), ar.size() * sizeof(ScalingType));
     writer.close();
 }
 

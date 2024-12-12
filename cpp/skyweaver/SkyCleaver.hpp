@@ -29,6 +29,13 @@ struct BridgeReader {
     std::string freq;
 
 }; // BridgeReader
+
+struct BeamInfo {
+    std::string beam_name;
+    std::string beam_ra;
+    std::string beam_dec;
+};
+
 template <typename InputVectorType, typename OutputVectorType>
 class SkyCleaver
 {
@@ -47,6 +54,7 @@ class SkyCleaver
     std::vector<FreqType> _available_freqs;
     std::size_t _nsamples_to_read;
     ObservationHeader _header;
+    std::vector<BeamInfo> _beam_infos;
 
     std::vector<std::string> _beam_filenames;
     std::map<

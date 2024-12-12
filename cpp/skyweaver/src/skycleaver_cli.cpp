@@ -2,6 +2,7 @@
 #include "skyweaver/SkyCleaver.hpp"
 #include "skyweaver/SkyCleaverConfig.hpp"
 #include "skyweaver/logging.hpp"
+#include "skyweaver/skycleaver_utils.hpp"
 
 #include <algorithm>
 #include <boost/log/expressions.hpp>
@@ -43,51 +44,7 @@ const size_t ERROR_UNHANDLED_EXCEPTION = 2;
 
 const char* build_time = __DATE__ " " __TIME__;
 
-template <typename T>
-std::vector<T>
-get_list_from_string(const std::string& value,
-                     T epsilon = std::numeric_limits<T>::epsilon())
-{
-    std::vector<T> output;
-    std::vector<std::string> comma_chunks;
 
-    // Split the input string by commas
-    std::stringstream ss(value);
-    std::string token;
-    while(std::getline(ss, token, ',')) { comma_chunks.push_back(token); }
-
-    for(const auto& comma_chunk: comma_chunks) {
-        // Check if the chunk contains a colon (indicating a range)
-        if(comma_chunk.find(':') == std::string::npos) {
-            output.push_back(static_cast<T>(std::atof(comma_chunk.c_str())));
-            continue;
-        }
-
-        // Split the range chunk by colons
-        std::stringstream ss_chunk(comma_chunk);
-        std::vector<T> colon_chunks;
-        std::string colon_token;
-        while(std::getline(ss_chunk, colon_token, ':')) {
-            colon_chunks.push_back(
-                static_cast<T>(std::atof(colon_token.c_str())));
-        }
-
-        // Determine the step size
-        T step = colon_chunks.size() == 3 ? colon_chunks[2] : static_cast<T>(1);
-        T start = colon_chunks[0];
-        T stop  = colon_chunks[1];
-
-        // Loop and add values to the output vector
-        if constexpr(std::is_floating_point<T>::value) {
-            for(T k = start; k <= stop + epsilon; k += step) {
-                output.push_back(k);
-            }
-        } else {
-            for(T k = start; k <= stop; k += step) { output.push_back(k); }
-        }
-    }
-    return output;
-}
 
 } // namespace
 
@@ -192,17 +149,23 @@ int main(int argc, char** argv)
             ->notifier(
                 [&config](std::size_t key) { config.nsamples_to_read(key); }),
         "total number of samples to read from start_sample")(
+            "targets_file",
+            po::value<std::string>()->default_value("")->notifier(
+                [&config](std::string key) {
+                    config.targets_file(key);
+                }), "update beam names and positions from this file"
+        )(
         "required_beams",
         po::value<std::string>()->default_value("")->notifier(
             [&config](std::string key) {
-                config.required_beams(get_list_from_string<int>(key));
+                config.required_beams(skyweaver::get_list_from_string<int>(key));
             }),
         "Comma separated list of beams to process. Syntax - beam1, beam2, "
         "beam3:beam4:step, beam5 etc..")(
         "required_dms",
         po::value<std::string>()->default_value("")->notifier(
             [&config](std::string key) {
-                config.required_dms(get_list_from_string<double>(key));
+                config.required_dms(skyweaver::get_list_from_string<double>(key));
             }),
         "Comma separated list of DMs to process. Syntax - dm1, dm2, "
         "dm1:dm2:step, etc..")(
@@ -210,7 +173,7 @@ int main(int argc, char** argv)
         po::value<std::string>()
             ->default_value(config.out_stokes())
             ->notifier([&config](std::string key) {
-                if(key.find_first_not_of("IQUV") != std::string::npos) {
+                if(key.find_first_not_of("IQUVL") != std::string::npos) {
                     throw std::runtime_error("Invalid Stokes mode: " + key);
                 }
                 config.out_stokes(key);

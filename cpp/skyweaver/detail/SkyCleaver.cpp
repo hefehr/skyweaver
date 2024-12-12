@@ -3,6 +3,8 @@
 
 #include "skyweaver/beamformer_utils.cuh"
 #include "skyweaver/types.cuh"
+#include "skyweaver/skycleaver_utils.hpp"
+
 
 #include <cmath>
 #include <filesystem>
@@ -16,9 +18,20 @@ namespace fs = std::filesystem;
 
 using BridgeReader    = skyweaver::BridgeReader;
 using MultiFileReader = skyweaver::MultiFileReader;
+using BeamInfo        = skyweaver::BeamInfo;
 
 namespace
 {
+
+std::string trim(const std::string& str) {
+    auto start = str.find_first_not_of(" \t\n\r");
+    if (start == std::string::npos) {
+        return ""; // String is all whitespace
+    }
+    auto end = str.find_last_not_of(" \t\n\r");
+    return str.substr(start, end - start + 1);
+}
+
 template <typename T>
 std::string to_string_with_padding(T num, int width, int precision = -1)
 {
@@ -71,6 +84,10 @@ std::vector<std::string> get_files(std::string directory_path,
                 if(fs::is_regular_file(entry.status())) {
                     std::string file_name = entry.path().string();
                     if(file_name.find(extension) != std::string::npos) {
+                        //check if .tmp not in filename
+                        if(file_name.find(".tmp") != std::string::npos) {
+                            continue;
+                        }
                         files.push_back(file_name);
                     }
                 }
@@ -88,7 +105,61 @@ std::vector<std::string> get_files(std::string directory_path,
     return files;
 }
 
+
 } // namespace
+
+void parse_target_file(std::string file_name, std::vector<BeamInfo>& beam_infos){
+    std::ifstream targets_file(file_name);
+    if(!targets_file.is_open()) {
+        std::runtime_error("Error opening target file: " + file_name);
+    }
+    // the file is in csv format. First read the header to know the positions of name, ra and dec
+    std::string header;
+    do{
+        std::getline(targets_file, header);
+    } while(header.empty() || header.find("#") != std::string::npos);
+
+    std::vector<std::string> header_tokens;
+    std::stringstream header_stream(header);
+    std::string token;
+    while(std::getline(header_stream, token, ',')) {
+        header_tokens.push_back(token);
+    }
+    std::size_t name_pos = std::distance(header_tokens.begin(), std::find(header_tokens.begin(), header_tokens.end(), "name"));
+    std::size_t ra_pos = std::distance(header_tokens.begin(), std::find(header_tokens.begin(), header_tokens.end(), "ra"));
+    std::size_t dec_pos = std::distance(header_tokens.begin(), std::find(header_tokens.begin(), header_tokens.end(), "dec"));
+
+    if(name_pos == header_tokens.size() || ra_pos == header_tokens.size() || dec_pos == header_tokens.size()) {
+        std::runtime_error("Invalid header in target file: " + file_name);
+    }
+
+    std::string line;
+    while(std::getline(targets_file, line)) {
+
+        line = trim(line);
+
+        //if empty line or # anywhere in line, continue
+        if(line.empty() || line.find("#") != std::string::npos) {
+            BOOST_LOG_TRIVIAL(debug) << "Skipping line: " << line;
+            continue;
+        }
+   
+        std::vector<std::string> tokens;
+        std::stringstream line_stream(line);
+        std::string token;
+        while(std::getline(line_stream, token, ',')) {
+            tokens.push_back(token);
+        }
+        if(tokens.size() != header_tokens.size()) {
+            std::runtime_error("Invalid number of columns in target file: " + file_name);
+        }
+        BeamInfo beam_info;
+        beam_info.beam_name = tokens[name_pos];
+        beam_info.beam_ra = tokens[ra_pos];
+        beam_info.beam_dec = tokens[dec_pos];
+        beam_infos.push_back(beam_info);
+    }
+}
 
 void compare_bridge_headers(const skyweaver::ObservationHeader& first,
                             const skyweaver::ObservationHeader& second)
@@ -202,18 +273,29 @@ void skyweaver::SkyCleaver<InputVectorType, OutputVectorType>::init_readers()
         << " Stokes mode: " << _config.stokes_mode()
         << " Number of channels: " << _config.nchans();
 
-    std::vector<std::size_t> stokes_positions;
-    // make sure that every character in out_stokes is a valid stokes mode
-    // if present add the relevant position to the stokes_positions vector
-    for(auto stokes: _config.out_stokes()) {
+    std::vector<std::vector<std::size_t>> stokes_positions;
+    for(const auto stokes: _config.out_stokes()) {
         std::size_t pos = _config.stokes_mode().find(stokes);
         if(pos == std::string::npos) {
-            throw std::runtime_error("Invalid Stokes mode: " + stokes);
+
+            if(stokes == 'L') {
+                std::size_t pos1 = _config.stokes_mode().find("Q");
+                std::size_t pos2 = _config.stokes_mode().find("U");
+                if(pos1 == std::string::npos || pos2 == std::string::npos) {
+                    throw std::runtime_error("Asked for L, but beamformed data does not have Q and/or U");
+                }
+                stokes_positions.push_back({pos1, pos2});
+                continue;
+            }
+            else {
+                throw std::runtime_error("Requested stokes not found in beamformed data: " + stokes);
+            }
         }
-        stokes_positions.push_back(pos);
+        stokes_positions.push_back({pos});
     }
 
     _config.stokes_positions(stokes_positions);
+
 
     long double obs_centre_freq = _header.obs_frequency;
     long double obs_bandwidth   = _header.obs_bandwidth;
@@ -350,15 +432,16 @@ template <typename InputVectorType, typename OutputVectorType>
 void skyweaver::SkyCleaver<InputVectorType, OutputVectorType>::init_writers()
 {
     BOOST_LOG_NAMED_SCOPE("SkyCleaver::init_writers")
+
     BOOST_LOG_TRIVIAL(debug)
         << "_config.output_dir(); " << _config.output_dir();
-
-    if(!fs::exists(_config.output_dir())) {
-        fs::create_directories(_config.output_dir());
-    }
     std::string output_dir = _config.output_dir();
 
-    for(std::size_t istokes = 0; istokes < _config.stokes_positions().size();
+    if(!fs::exists(output_dir)) {
+        fs::create_directories(output_dir);
+    }
+
+    for(std::size_t istokes = 0; istokes < _config.out_stokes().size();
         istokes++) {
         for(int idm = 0; idm < _config.ndms(); idm++) {
             if(!_config.required_dms().empty()) {
@@ -385,19 +468,18 @@ void skyweaver::SkyCleaver<InputVectorType, OutputVectorType>::init_writers()
                         continue;
                     }
                 }
+                BeamInfo beam_info = _beam_infos[ibeam];
                 MultiFileWriterConfig writer_config;
                 writer_config.header_size   = _config.dada_header_size();
                 writer_config.max_file_size = _config.max_output_filesize();
                 writer_config.stokes_mode   = _config.out_stokes().at(istokes);
                 writer_config.base_output_dir = output_dir;
                 writer_config.prefix          = _config.out_prefix();
-                std::string suffix =
-                    _config.ndms() > 1
-                        ? "_idm_" +
-                              to_string_with_padding(_header.dms[idm], 9, 3)
-                        : "";
-                writer_config.suffix = suffix + "_cb_" +
-                                       to_string_with_padding(ibeam, 5) + "_" +
+                std::string suffix = "idm_" +
+                              to_string_with_padding(_header.dms[idm], 9, 3);
+                    
+                writer_config.suffix = suffix + "_" +
+                                       beam_info.beam_name + "_" +
                                        _config.out_stokes().at(istokes);
                 writer_config.extension = ".fil";
 
@@ -414,6 +496,9 @@ void skyweaver::SkyCleaver<InputVectorType, OutputVectorType>::init_writers()
                         "",
                         create_stream_callback_sigproc);
                 _header.ibeam = ibeam;
+
+                _header.ra = beam_info.beam_ra;
+                _header.dec = beam_info.beam_dec;
                 _beam_writers[istokes][idm][ibeam]->init(_header);
 
                 _beam_data[istokes][idm][ibeam] =
@@ -436,9 +521,37 @@ skyweaver::SkyCleaver<InputVectorType, OutputVectorType>::SkyCleaver(
     SkyCleaverConfig& config)
     : _config(config)
 {
+    BOOST_LOG_TRIVIAL(info) << "Reading and initialising beam details from file: "
+                        << _config.targets_file();
+    
+    parse_target_file(_config.targets_file(), _beam_infos);
+
+    BOOST_LOG_TRIVIAL(info) << "Number of beams in target file: " << _beam_infos.size();
+
     _timer.start("skycleaver::init_readers");
     init_readers();
     _timer.stop("skycleaver::init_readers");
+    
+
+    if(_beam_infos.size() < _config.nbeams()){ // there are some null beams with zeros, do not create filterbanks for them. 
+        std::string required_beams = "0:" + std::to_string(_beam_infos.size()-1);
+        std::vector<int> required_beam_numbers = skyweaver::get_list_from_string<int>(required_beams);
+
+        if(_config.required_beams().empty()) { // if nothing given, set the valid beams to required beams
+        BOOST_LOG_TRIVIAL(warning) << "Number of beams in target file is less than the number of beams in the header. "
+                                << "Setting required beams to: " << required_beams;            
+        _config.required_beams(skyweaver::get_list_from_string<int>(required_beams));
+        }
+        else{
+            for(auto beam_num: _config.required_beams()){ // if given, check if all requested beams are valid beams
+                if(std::find(required_beam_numbers.begin(), required_beam_numbers.end(), beam_num) == required_beam_numbers.end()){
+                    std::runtime_error("Beam number " + std::to_string(beam_num) + " not found in target file.");
+                }
+            }
+        }
+    }
+    
+
     _timer.start("skycleaver::init_writers");
     init_writers();
     _timer.stop("skycleaver::init_writers");
@@ -524,7 +637,7 @@ void skyweaver::SkyCleaver<InputVectorType, OutputVectorType>::cleave()
         std::size_t nbridges    = _config.nbridges();
         std::size_t ndms        = _config.ndms();
         std::size_t nbeams      = _config.nbeams();
-        std::size_t nstokes_out = _config.stokes_positions().size();
+        std::size_t nstokes_out = _config.out_stokes().size();
         std::size_t nstokes_in  = _config.stokes_mode().size();
 
 #pragma omp parallel for schedule(static) collapse(3)
@@ -532,9 +645,7 @@ void skyweaver::SkyCleaver<InputVectorType, OutputVectorType>::cleave()
             for(std::size_t ibeam = 0; ibeam < nbeams; ibeam++) {
                 for(std::size_t idm = 0; idm < ndms;
                     idm++) { // cannot separate loops, so do checks later
-                    BOOST_LOG_TRIVIAL(debug)
-                        << "Processing data for stokes: " << istokes
-                        << " beam: " << ibeam << " dm: " << idm;
+
                     if(_beam_data.find(istokes) == _beam_data.end()) {
                         continue;
                     }
@@ -546,29 +657,55 @@ void skyweaver::SkyCleaver<InputVectorType, OutputVectorType>::cleave()
                        _beam_data[istokes][idm].end()) {
                         continue;
                     }
-                    const int stokes_position =
-                        _config.stokes_positions()[istokes];
 
+
+                    const std::vector<std::size_t> stokes_positions =
+                        _config.stokes_positions()[istokes];
+                
 #pragma omp simd
                     for(std::size_t isample = 0; isample < gulp_samples;
                         isample++) {
-                        // This is the input, so use nstokes_in
-                        const std::size_t base_index =
+                        const std::size_t out_offset = isample * nbridges;
+
+                        // This is stupid but preferred over a more elegant solution that is not fast, this can be easily vectorised
+                        if(stokes_positions.size() == 1) {
+                            const std::size_t base_index =
                             isample * ndms * nbeams * nstokes_in +
                             idm * nbeams * nstokes_in + ibeam * nstokes_in +
-                            stokes_position;
-
-                        std::size_t ifreq            = 0;
-                        const std::size_t out_offset = isample * nbridges;
-                        for(const auto& [freq, ifreq_data]:
+                            stokes_positions[0];
+ 
+                            std::size_t ifreq            = 0;
+                            for(const auto& [freq, ifreq_data]:
                             _bridge_data) { // for each frequency
                             _beam_data[istokes][idm][ibeam]->at(
                                 out_offset + nbridges - 1 - ifreq) =
                                 clamp<uint8_t>(127 +
                                                ifreq_data->at(base_index));
                             ++ifreq;
+                            }
                         }
+                        else{
+                            std::size_t ifreq            = 0;
+                            for(const auto& [freq, ifreq_data]: _bridge_data) { 
+                                float value = 0;
+                                for(int stokes_position=0; stokes_position<stokes_positions.size(); stokes_position++) {
+                                    const std::size_t base_index =
+                                        isample * ndms * nbeams * nstokes_in +
+                                        idm * nbeams * nstokes_in + ibeam * nstokes_in +
+                                        stokes_positions[stokes_position];
+                                    value += (ifreq_data->at(base_index) * ifreq_data->at(base_index));
+                                }
+                                // for each frequency
+                                _beam_data[istokes][idm][ibeam]->at(
+                                    out_offset + nbridges - 1 - ifreq) =
+                                    clamp<uint8_t>(127 +
+                                                sqrt(value));
+                                ++ifreq;
+                            }
+                        }
+
                     }
+                        
                 }
             }
         }
@@ -578,15 +715,16 @@ void skyweaver::SkyCleaver<InputVectorType, OutputVectorType>::cleave()
         write();
         _timer.stop("skyweaver::write_data");
     }
-
     _timer.show_all_timings();
+
 }
+
 template <typename InputVectorType, typename OutputVectorType>
 void skyweaver::SkyCleaver<InputVectorType, OutputVectorType>::write()
 {
     omp_set_num_threads(_config.nthreads());
 #pragma omp parallel for schedule(static) collapse(3)
-    for(std::size_t istokes = 0; istokes < _config.stokes_positions().size();
+    for(std::size_t istokes = 0; istokes < _config.out_stokes().size();
         istokes++) {
         for(std::size_t idm = 0; idm < _config.ndms(); idm++) {
             for(std::size_t ibeam = 0; ibeam < _config.nbeams(); ibeam++) {

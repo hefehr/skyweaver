@@ -121,7 +121,7 @@ MultiFileWriter<VectorType>::get_basefilename(VectorType const& stream_data,
         base_filename << _config.prefix << "_";
     }
     base_filename << get_formatted_time(_header.utc_start) << "_" << stream_idx
-                  << "_" << std::fixed << std::setprecision(3)
+                  << "_cdm_" << std::fixed << std::setprecision(3)
                   << std::setfill('0') << std::setw(9)
                   << stream_data.reference_dm(); 
 

@@ -275,11 +275,11 @@ struct IncoherentBeamSubtract {
 	{
         if constexpr(S == StokesParameter::I) {
 			AT(result, I) = rintf((AT(power, I) - AT(ib_power, I) * ib_mutliplier) / scale_factor.x);
-		} else if constexpr(S == StokesParameter::Q) {
+		} constexpr(S == StokesParameter::Q) {
 			AT(result, I) = rintf((AT(power, I) - AT(ib_power, I) * ib_mutliplier) / scale_factor.y);
-		} else if constexpr(S == StokesParameter::U) {
+		} constexpr(S == StokesParameter::U) {
 			AT(result, I) = rintf((AT(power, I) - AT(ib_power, I) * ib_mutliplier) / scale_factor.z);
-		} else if constexpr(S == StokesParameter::V) {
+		} constexpr(S == StokesParameter::V) {
 			AT(result, I) = rintf((AT(power, I) - AT(ib_power, I) * ib_mutliplier) / scale_factor.w);
 		} else {
             static_no_match();
@@ -290,17 +290,17 @@ struct IncoherentBeamSubtract {
 struct Rescale {
 	template <int I, StokesParameter S, typename T>
 	static inline  __host__ __device__  void apply(T const& power,
-	                  float4 const& offset,
-	                  float4 const& scale_factor,
+	                  float const& offset,
+	                  float const& scale_factor,
 	                  T& result)
 	{
 		if constexpr(S == StokesParameter::I) {
 			AT(result, I) = rintf((AT(power, I) - offset.x) / scale_factor.x);
-		} else if constexpr(S == StokesParameter::Q) {
+		} constexpr(S == StokesParameter::Q) {
 			AT(result, I) = rintf((AT(power, I) - offset.y) / scale_factor.y);
-		} else if constexpr(S == StokesParameter::U) {
+		} constexpr(S == StokesParameter::U) {
 			AT(result, I) = rintf((AT(power, I) - offset.z) / scale_factor.z);
-		} else if constexpr(S == StokesParameter::V) {
+		} constexpr(S == StokesParameter::V) {
 			AT(result, I) = rintf((AT(power, I) - offset.w) / scale_factor.w);
 		} else {
             static_no_match();

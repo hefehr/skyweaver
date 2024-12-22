@@ -70,7 +70,7 @@ class BeamformerBencher: public benchmark::Fixture
     typename CoherentBeamformer::PowerVectorTypeD btf_powers_gpu;
     typename CoherentBeamformer::ScalingVectorTypeD scales;
     typename CoherentBeamformer::ScalingVectorTypeD offsets;
-    typename IncoherentBeamformer::BeamsetWeightsVectorTypeD _antenna_weights;
+    typename CoherentBeamformer::ScalingVectorTypeD _antenna_weights;
     typename IncoherentBeamformer::PowerVectorTypeD tf_powers_gpu;
     typename IncoherentBeamformer::RawPowerVectorTypeD tf_powers_raw_gpu;
     typename CoherentBeamformer::MappingVectorTypeD _beamset_mapping;

@@ -104,7 +104,7 @@ class StatisticsCalculator
     void dump_scalings(std::string const& timestamp,
                        std::string const& tag,
                        std::string const& path,
-                       ScalingVectorTypeH const& ar) const;
+                       thrust::host_vector<float> const& ar) const;
 
   private:
     PipelineConfig const& _config;

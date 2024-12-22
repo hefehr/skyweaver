@@ -49,7 +49,7 @@ void IncoherentBeamformerTester<BfTraits>::beamformer_c_reference(
     int nantennas,
     HostScalingVectorType const& scale,
     HostScalingVectorType const& offset,
-    HostBeamsetWeightsVectorType const& beamset_weights,
+    HostScalingVectorType const& beamset_weights,
     int nbeamsets)
 {
     static_assert(SKYWEAVER_NPOL == 2, "Tests only work for dual poln data.");
@@ -109,7 +109,7 @@ void IncoherentBeamformerTester<BfTraits>::compare_against_host(
     DevicePowerVectorType& tf_powers_gpu,
     ScalingVectorTypeD const& scaling_vector,
     ScalingVectorTypeD const& offset_vector,
-    BeamsetWeightsVectorTypeD const& beamset_weights,
+    ScalingVectorTypeD const& beamset_weights,
     int ntimestamps,
     int nbeamsets)
 {
@@ -118,7 +118,7 @@ void IncoherentBeamformerTester<BfTraits>::compare_against_host(
     HostRawPowerVectorType tf_powers_raw_cuda = tf_powers_raw_gpu;
     HostScalingVectorType h_scaling_vector    = scaling_vector;
     HostScalingVectorType h_offset_vector     = offset_vector;
-    HostBeamsetWeightsVectorType h_beamset_weights   = beamset_weights;
+    HostScalingVectorType h_beamset_weights   = beamset_weights;
     HostRawPowerVectorType tf_powers_raw_host;
     tf_powers_raw_host.like(tf_powers_raw_gpu);
     HostPowerVectorType tf_powers_host;
@@ -175,31 +175,23 @@ TYPED_TEST(IncoherentBeamformerTester, ib_representative_noise_test)
             static_cast<int8_t>(std::lround(normal_dist(generator)));
     }
 
-    float4 ib_offset_val{ 
-        static_cast<float>(std::sqrt(4 * config.cb_tscrunch() * config.cb_fscrunch() * config.nantennas() * std::pow(input_level, 2)) / config.output_level()), 
-        0.0f, 
-        0.0f, 
-        0.0f 
-    };
-
-    float ib_scaling = static_cast<float>(std::sqrt(8 * config.cb_tscrunch() * config.cb_fscrunch() * config.nantennas() * std::pow(input_level, 4)) / config.output_level());
-    float4 ib_scale_val{ 
-        ib_scaling, 
-        ib_scaling, 
-        ib_scaling,  
-        ib_scaling 
-    };
+    float ib_scale = std::pow(input_level, 2);
+    float ib_dof   = 2 * config.ib_tscrunch() * config.ib_fscrunch() *
+                   config.nantennas() * config.npol();
+    float ib_power_offset = ib_scale * ib_dof;
+    float ib_power_scaling =
+        ib_scale * std::sqrt(2 * ib_dof) / config.output_level();
 
     for(int nbeamsets = 1; nbeamsets < 5; ++nbeamsets) {
         typename IBT::ScalingVectorTypeD scales(
             config.nchans() / config.ib_fscrunch() * nbeamsets,
-            ib_scale_val);
+            ib_power_scaling);
         typename IBT::ScalingVectorTypeD offset(
             config.nchans() / config.ib_fscrunch() * nbeamsets,
-            ib_offset_val);
-        typename IBT::BeamsetWeightsVectorTypeD beamset_weights(config.nantennas() *
+            ib_power_offset);
+        typename IBT::ScalingVectorTypeD beamset_weights(config.nantennas() *
                                                              nbeamsets,
-                                                             1.0f);
+                                                         1.0f);
 
         typename IBT::VoltageVectorTypeD ftpa_voltages_gpu = ftpa_voltages_host;
         typename IBT::DevicePowerVectorType tf_powers_gpu;

@@ -270,20 +270,10 @@ struct IncoherentBeamSubtract {
 	static inline  __host__ __device__  void apply(T const& power,
 	                  T const& ib_power,
 	                  float const& ib_mutliplier, // 127^2 as default
-	                  float4 const& scale_factor,
+	                  float const& scale_factor,
 	                  T& result)
 	{
-        if constexpr(S == StokesParameter::I) {
-			AT(result, I) = rintf((AT(power, I) - AT(ib_power, I) * ib_mutliplier) / scale_factor.x);
-		} constexpr(S == StokesParameter::Q) {
-			AT(result, I) = rintf((AT(power, I) - AT(ib_power, I) * ib_mutliplier) / scale_factor.y);
-		} constexpr(S == StokesParameter::U) {
-			AT(result, I) = rintf((AT(power, I) - AT(ib_power, I) * ib_mutliplier) / scale_factor.z);
-		} constexpr(S == StokesParameter::V) {
-			AT(result, I) = rintf((AT(power, I) - AT(ib_power, I) * ib_mutliplier) / scale_factor.w);
-		} else {
-            static_no_match();
-        }
+		AT(result, I) = rintf((AT(power, I) - AT(ib_power, I) * ib_mutliplier) / scale_factor);
 	}
 };
 
@@ -295,16 +285,10 @@ struct Rescale {
 	                  T& result)
 	{
 		if constexpr(S == StokesParameter::I) {
-			AT(result, I) = rintf((AT(power, I) - offset.x) / scale_factor.x);
-		} constexpr(S == StokesParameter::Q) {
-			AT(result, I) = rintf((AT(power, I) - offset.y) / scale_factor.y);
-		} constexpr(S == StokesParameter::U) {
-			AT(result, I) = rintf((AT(power, I) - offset.z) / scale_factor.z);
-		} constexpr(S == StokesParameter::V) {
-			AT(result, I) = rintf((AT(power, I) - offset.w) / scale_factor.w);
+			AT(result, I) = rintf((AT(power, I) - offset) / scale_factor);
 		} else {
-            static_no_match();
-        }
+			AT(result, I) = rintf(AT(power, I) / scale_factor);
+		}
 	}
 };
 
@@ -351,16 +335,16 @@ struct StokesTraits
 	ib_subtract(RawPowerType const& power,
 	            RawPowerType const& ib_power,
 	            float const& ib_mutliplier,
-	            float4 const& scale_factor) {
+	            float const& scale_factor) {
 		RawPowerType result{};
-        Iterate<0, Stokes...>::template apply<IncoherentBeamSubtract>(power, ib_power, ib_mutliplier, scale_factor, result);
+		Iterate<0, Stokes...>::template apply<IncoherentBeamSubtract>(power, ib_power, ib_mutliplier, scale_factor, result);
 		return result;
 	}
 
 	static inline __host__ __device__ RawPowerType
 	rescale(RawPowerType const& power,
-	        float4 const& offset,
-	        float4 const& scale_factor) {
+	        float const& offset,
+	        float const& scale_factor) {
 		RawPowerType result{};
 		Iterate<0, Stokes...>::template apply<Rescale>(power, offset, scale_factor, result);
 		return result;

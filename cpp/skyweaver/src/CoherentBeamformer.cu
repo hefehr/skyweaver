@@ -14,8 +14,8 @@ __global__ void bf_ftpa_general_k(
     int2 const* __restrict__ ftpa_voltages,
     int2 const* __restrict__ fbpa_weights,
     typename BfTraits::QuantisedPowerType* __restrict__ tfb_powers,
-    float4 const* __restrict__ output_scale,
-    float4 const* __restrict__ output_offset,
+    float const* __restrict__ output_scale,
+    float const* __restrict__ output_offset,
     int const* __restrict__ beamset_mapping,
     typename BfTraits::RawPowerType const* __restrict__ ib_powers,
     int nsamples)
@@ -156,7 +156,7 @@ __global__ void bf_ftpa_general_k(
     int const ib_power_idx = beamset_idx * nsamps_out * gridDim.y +
                              output_sample_idx * gridDim.y + blockIdx.y;
     int const scloff_idx = beamset_idx * gridDim.y + blockIdx.y;
-    float4 scale          = output_scale[scloff_idx];
+    float scale          = output_scale[scloff_idx];
     typename BfTraits::RawPowerType ib_power = ib_powers[ib_power_idx];
 #if SKYWEAVER_IB_SUBTRACTION
     /*
@@ -246,9 +246,9 @@ void CoherentBeamformer<BfTraits>::beamform(
     char2 const* fbpa_weights_ptr  = thrust::raw_pointer_cast(weights.data());
     typename BfTraits::QuantisedPowerType* tfb_powers_ptr =
         thrust::raw_pointer_cast(output.data());
-    float4 const* power_scaling_ptr =
+    float const* power_scaling_ptr =
         thrust::raw_pointer_cast(output_scale.data());
-    float4 const* power_offset_ptr =
+    float const* power_offset_ptr =
         thrust::raw_pointer_cast(output_offset.data());
     typename BfTraits::RawPowerType const* ib_powers_ptr =
         thrust::raw_pointer_cast(ib_powers.data());

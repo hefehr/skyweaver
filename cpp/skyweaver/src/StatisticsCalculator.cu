@@ -130,7 +130,7 @@ void StatisticsCalculator::calculate_statistics(
 }
 
 void StatisticsCalculator::update_scalings(
-    BeamsetWeightsVectorTypeH const& beamset_weights,
+    ScalingVectorTypeH const& beamset_weights,
     int nbeamsets)
 {
     // At this stage we have the standard deviations of each channel
@@ -139,107 +139,99 @@ void StatisticsCalculator::update_scalings(
     // disk.
     const float weights_amp = 127.0f;
 
-    if ((_config.ib_fscrunch() != _config.cb_fscrunch()) || 
-        (_config.ib_tscrunch() != _config.cb_tscrunch())) {
-        throw std::invalid_argument("IB and CB must share same F and T scrunch");
-    }
-    const std::size_t output_nchans = _config.nchans() / _config.cb_fscrunch();
-    const std::size_t fscrunch = _config.cb_fscrunch();
-    const std::size_t tscrunch = _config.cb_tscrunch();
+    std::size_t reduced_nchans_ib = _config.nchans() / _config.ib_fscrunch();
+    std::size_t reduced_nchans_cb = _config.nchans() / _config.cb_fscrunch();
 
     // Offsets for the coherent beams
-    _cb_offsets_d.resize(output_nchans * nbeamsets);
-    _cb_offsets_h.resize(output_nchans * nbeamsets);
+    _cb_offsets_d.resize(reduced_nchans_cb * nbeamsets);
+    _cb_offsets_h.resize(reduced_nchans_cb * nbeamsets);
 
     // Scalings for the coherent beams
-    _cb_scaling_d.resize(output_nchans * nbeamsets);
-    _cb_scaling_h.resize(output_nchans * nbeamsets);
+    _cb_scaling_d.resize(reduced_nchans_cb * nbeamsets);
+    _cb_scaling_h.resize(reduced_nchans_cb * nbeamsets);
 
     // Offsets for the incoherent beam
-    _ib_offsets_d.resize(output_nchans * nbeamsets);
-    _ib_offsets_h.resize(output_nchans * nbeamsets);
+    _ib_offsets_d.resize(reduced_nchans_ib * nbeamsets);
+    _ib_offsets_h.resize(reduced_nchans_ib * nbeamsets);
 
     // Scalings for the incoherent beam
-    _ib_scaling_d.resize(output_nchans * nbeamsets);
-    _ib_scaling_h.resize(output_nchans * nbeamsets);
+    _ib_scaling_d.resize(reduced_nchans_ib * nbeamsets);
+    _ib_scaling_h.resize(reduced_nchans_ib * nbeamsets);
 
     const std::uint32_t pa = _config.npol() * _config.nantennas();
     const std::uint32_t a  = _config.nantennas();
 
     for(std::uint32_t beamset_idx = 0; beamset_idx < nbeamsets; ++beamset_idx) {
-
-        // Here we compute the offsets and scaling factors for I, Q, U and V for each beamset
-        // Statistics are in FPA order
-
-        for(int fo_idx = 0; fo_idx < output_nchans; ++fo_idx) {
-
-            const int output_idx = beamset_idx * nbeamsets + fo_idx;
-
-            // reset main accumulators
-            float meanI  = 0.0f;
-            float meanQ  = 0.0f;
-            float varIQc = 0.0f;
-            float varUVc = 0.0f;
-            float varIQi = 0.0f;
-            float varUVi = 0.0f;
-
-            for(int fs_idx = 0; fs_idx < fscrunch; ++fs_idx) {
-                const int f_idx = fo_idx * fscrunch + fs_idx;
-
-                // Per antenna/pol accumulators
-                float var_p0_sum = 0.0f; // sum(sigma_p0^2)
-                float var_p1_sum = 0.0f; // sum(sigma_p1^2)
-                float quad_sum = 0.0f;   // sum(sigma_p0^4 + sigma_p1^4)
-                float sum_mul = 0.0f;    // sum(sigma_p0^2 * sigma_p1^2)
-                for (int a_idx = 0; a_idx < _cofig.npol(); ++a_idx) {
-                    // stats are in FPA order
-                    // weights are in FPBA order
-                    const int input_idx = f_idx * pa + a_idx;
-                    Statistics p0 = _stats_h[input_idx];
-                    Statistics p1 = _stats_h[input_idx + nantennas];
-                    const float weight = beamset_weights[beamset_idx * a + a_idx];
-                    const float std_p0 = p0.std * weight;
-                    const float std_p1 = p1.std * weight;
-                    const float var_p0 = std_p0 * std_p0;
-                    const float var_p1 = std_p1 * std_p1;
-                    meanI += var_p0 + var_p1;
-                    meanQ += var_p0 - var_p1;
-                    var_p0_sum += var_p0;
-                    var_p1_sum += var_p1;
-                    quad_sum += (var_p0 * var_p0) + (var_p1 * var_p1);
-                    sum_mul += var_p0 * var_p1;
+        // For each frequency channel we average the std estimates then
+        // calculate the offsets and scalings.
+        for(int f_idx = 0; f_idx < _config.nchans(); ++f_idx) {
+            float sum   = 0.0f;
+            float count = 0.0f;
+            for(int p_idx = 0; p_idx < _config.npol(); ++p_idx) {
+                for(int a_idx = 0; a_idx < _config.nantennas(); ++a_idx) {
+                    const float weight =
+                        beamset_weights[_config.nantennas() * beamset_idx +
+                                        a_idx];
+                    sum +=
+                        weight * _stats_h[f_idx * pa + p_idx * a + a_idx].std;
+                    count += weight;
                 }
-                varIQc += (var_p0_sum * var_p0_sum) + (var_p1_sum * var_p1_sum);
-                varIQi += quad_sum;
-                varUVc += var_p0_sum * var_p1_sum;
-                varUVi += sum_mul;
+            }
+            const float avg_std = sum / count;
+            BOOST_LOG_TRIVIAL(debug) << "Channel " << f_idx;
+            BOOST_LOG_TRIVIAL(debug)
+                << "Averaged standard deviation = " << avg_std;
+            float const effective_nantennas = count / _config.npol();
+
+            // CB OFFSET
+            {
+                float scale = std::pow(weights_amp * avg_std *
+                                           std::sqrt(effective_nantennas),
+                                       2);
+                float dof   = 2 * _config.cb_tscrunch() * _config.npol();
+                _cb_offsets_h[f_idx] = scale * dof;
+                BOOST_LOG_TRIVIAL(debug)
+                    << "CB offset = " << _cb_offsets_h[f_idx];
             }
 
-            // Coherent offsets
-            _cb_offsets_h[output_idx].x = 2 * tscrunch * meanI;  // I
-            _cb_offsets_h[output_idx].y = 2 * tscrunch * meanQ;  // Q
-            _cb_offsets_h[output_idx].z = 0.0f;                  // U
-            _cb_offsets_h[output_idx].w = 0.0f;                  // V
+            // CB SCALE
+            {
+                float scale = std::pow(weights_amp * avg_std *
+                                           std::sqrt(effective_nantennas),
+                                       2);
+                float dof   = 2 * _config.cb_tscrunch() * _config.npol();
+                _cb_scaling_h[f_idx] =
+                    scale * std::sqrt(2 * dof) / _config.output_level();
+                BOOST_LOG_TRIVIAL(debug)
+                    << "CB scaling = " << _cb_scaling_h[f_idx];
+            }
 
-            // Coherent scales
-            _cb_scaling_h[output_idx].x = 4 * tscrunch * varIQc / _config.output_level(); // I
-            _cb_scaling_h[output_idx].y = 4 * tscrunch * varIQc / _config.output_level(); // Q
-            _cb_scaling_h[output_idx].z = 8 * tscrunch * varUVc / _config.output_level(); // U
-            _cb_scaling_h[output_idx].w = 8 * tscrunch * varUVc / _config.output_level(); // V
+            // IB OFFSET
+            {
+                float scale = std::pow(avg_std, 2);
+                float dof   = 2 * _config.ib_tscrunch() * effective_nantennas *
+                            _config.npol();
+                _ib_offsets_h[f_idx] = scale * dof;
+                BOOST_LOG_TRIVIAL(debug)
+                    << "IB offset = " << _ib_offsets_h[f_idx];
+            }
 
-            // Incoherent offsets
-            _ib_offsets_h[output_idx].x = 2 * tscrunch * meanI;  // I
-            _ib_offsets_h[output_idx].y = 2 * tscrunch * meanQ;  // Q
-            _ib_offsets_h[output_idx].z = 0.0f;                  // U
-            _ib_offsets_h[output_idx].w = 0.0f;                  // V
-
-            // Incoherent scales
-            _ib_scaling_h[output_idx].x = 4 * tscrunch * varIQi / _config.output_level(); // I
-            _ib_scaling_h[output_idx].y = 4 * tscrunch * varIQi / _config.output_level(); // Q
-            _ib_scaling_h[output_idx].z = 8 * tscrunch * varUVi / _config.output_level(); // U
-            _ib_scaling_h[output_idx].w = 8 * tscrunch * varUVi / _config.output_level(); // V
+            // IB SCALE
+            {
+                float scale = std::pow(avg_std, 2);
+                float dof   = 2 * _config.ib_tscrunch() * effective_nantennas *
+                            _config.npol();
+                _ib_scaling_h[f_idx] =
+                    scale * std::sqrt(2 * dof) / _config.output_level();
+                BOOST_LOG_TRIVIAL(debug)
+                    << "IB scaling = " << _ib_scaling_h[f_idx];
+            }
         }
     }
+    // At this stage, all scaling vectors are available on the host and
+    // could be written to disk.
+
+    // Copying these back to the device
     _cb_offsets_d = _cb_offsets_h;
     _cb_scaling_d = _cb_scaling_h;
     _ib_offsets_d = _ib_offsets_h;
@@ -264,7 +256,7 @@ void StatisticsCalculator::dump_scalings(
     std::string const& timestamp,
     std::string const& tag,
     std::string const& path,
-    ScalingVectorTypeH const& ar) const
+    thrust::host_vector<float> const& ar) const
 {
     std::ofstream writer;
     std::string filename = path + "/" + timestamp + "_" + tag + "_" +
@@ -279,7 +271,7 @@ void StatisticsCalculator::dump_scalings(
         BOOST_LOG_TRIVIAL(error) << error_message.str();
         return;
     }
-    writer.write(static_cast<char*>(ar.data()), ar.size() * sizeof(ScalingType));
+    writer.write((char*)ar.data(), ar.size() * sizeof(float));
     writer.close();
 }
 

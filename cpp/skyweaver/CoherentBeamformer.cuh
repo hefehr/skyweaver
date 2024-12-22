@@ -33,8 +33,8 @@ __global__ void bf_ftpa_general_k(
     int2 const* __restrict__ ftpa_voltages,
     int2 const* __restrict__ fbpa_weights,
     typename BfTraits::QuantisedPowerType* __restrict__ btf_powers,
-    float4 const* __restrict__ output_scale,
-    float4 const* __restrict__ output_offset,
+    float const* __restrict__ output_scale,
+    float const* __restrict__ output_offset,
     int const* __restrict__ beamset_mapping,
     typename BfTraits::RawPowerType const* __restrict__ ib_powers,
     int nsamples);
@@ -55,7 +55,7 @@ class CoherentBeamformer
     typedef BTFPowersD<typename BfTraits::RawPowerType> RawPowerVectorTypeD;
     // FBA order (assuming equal weight per polarisation)
     typedef thrust::device_vector<char2> WeightsVectorTypeD;
-    typedef thrust::device_vector<float4> ScalingVectorTypeD;
+    typedef thrust::device_vector<float> ScalingVectorTypeD;
     typedef thrust::device_vector<int> MappingVectorTypeD;
 
   public:

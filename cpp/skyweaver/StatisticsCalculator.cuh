@@ -39,11 +39,9 @@ struct StatisticsFileHeader {
 class StatisticsCalculator
 {
   public:
-    typedef float4 ScalingType; // Always caclulate for full stokes
+    typedef float ScalingType;
     typedef thrust::device_vector<ScalingType> ScalingVectorTypeD;
     typedef thrust::host_vector<ScalingType> ScalingVectorTypeH;
-    typedef thrust::device_vector<float> BeamsetWeightsVectorTypeD;
-    typedef thrust::host_vector<float> BeamsetWeightsVectorTypeH;
     typedef FPAStatsD<Statistics> StatisticsVectorTypeD;
     typedef FPAStatsH<Statistics> StatisticsVectorTypeH;
 
@@ -95,7 +93,7 @@ class StatisticsCalculator
      * @brief Update the scaling arrays based on the last statistics
      *        calculation.
      */
-    void update_scalings(BeamsetWeightsVectorTypeH const& beamset_weights,
+    void update_scalings(ScalingVectorTypeH const& beamset_weights,
                          int nbeamsets);
 
   private:

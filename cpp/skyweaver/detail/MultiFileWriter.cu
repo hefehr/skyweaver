@@ -47,6 +47,7 @@ MultiFileWriter<VectorType>::MultiFileWriter(
     _config.max_file_size   = config.max_output_filesize();
     _config.stokes_mode     = config.stokes_mode();
     _config.base_output_dir = config.output_dir();
+    _config.inner_dir = "";
 
 }
 
@@ -105,6 +106,10 @@ MultiFileWriter<VectorType>::get_output_dir(VectorType const& stream_data,
     std::stringstream output_dir;
     output_dir << _config.base_output_dir << "/"
                << get_formatted_time(_header.utc_start) << "/" << stream_idx;
+
+    if(!_config.inner_dir.empty()) {
+        output_dir << "/" << _config.inner_dir;
+    }
 
     return output_dir.str();
 }

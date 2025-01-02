@@ -474,6 +474,7 @@ void skyweaver::SkyCleaver<InputVectorType, OutputVectorType>::init_writers()
                 writer_config.max_file_size = _config.max_output_filesize();
                 writer_config.stokes_mode   = _config.out_stokes().at(istokes);
                 writer_config.base_output_dir = output_dir;
+                writer_config.inner_dir = beam_info.beam_name;
                 writer_config.prefix          = _config.out_prefix();
                 std::string suffix = "idm_" +
                               to_string_with_padding(_header.dms[idm], 9, 3);

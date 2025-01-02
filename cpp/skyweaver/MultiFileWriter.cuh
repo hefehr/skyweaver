@@ -19,6 +19,7 @@ struct MultiFileWriterConfig {
     std::string stokes_mode;
     std::string output_dir;
     std::string base_output_dir;
+    std::string inner_dir;
     std::string prefix;
     std::string extension;
     std::string output_basename;
@@ -26,7 +27,7 @@ struct MultiFileWriterConfig {
 
     MultiFileWriterConfig()
         : header_size(4096), max_file_size(2147483647), stokes_mode("I"),
-          output_dir("default/"), prefix(""), extension(""), output_basename(""), suffix("") {};
+          output_dir("default/"), base_output_dir("default_base/"), inner_dir(""), prefix(""), extension(""), output_basename(""), suffix("") {};
 
     MultiFileWriterConfig(std::size_t header_size,
                           std::size_t max_file_size,
@@ -47,7 +48,8 @@ struct MultiFileWriterConfig {
                ", stokes_mode: " + stokes_mode + ", output_dir: " + output_dir +
                ", prefix: " + prefix + ", extension: " + extension +
                ", output_basename: " + output_basename +
-               ", base_output_dir: " + base_output_dir;
+               ", base_output_dir: " + base_output_dir + 
+                ", inner_dir: " + inner_dir + ", suffix: " + suffix;
     }
 };
 /**

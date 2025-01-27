@@ -101,6 +101,7 @@ void IncoherentDedispersionPipeline<InputType, OutputType, Handler>::
                 }
 
             }
+            _beamsplit_buffer.beam0_idx(tdb_file_idx * _config.nbeams_per_file());
             _handler(_beamsplit_buffer, ref_dm_idx * _n_tdb_files + tdb_file_idx);
         }
     }

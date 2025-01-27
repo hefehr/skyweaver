@@ -1,12 +1,16 @@
+#include "skyweaver/DescribedVector.hpp"
 #include "skyweaver/SkyCleaver.hpp"
 #include "skyweaver/SkyCleaverConfig.hpp"
 #include "skyweaver/logging.hpp"
+#include "skyweaver/skycleaver_utils.hpp"
 
 #include <algorithm>
 #include <boost/log/expressions.hpp>
 #include <boost/log/trivial.hpp>
 #include <boost/program_options.hpp>
 #include <cerrno>
+#include <cmath>
+#include <cstdlib>
 #include <fstream>
 #include <iomanip>
 #include <ios>
@@ -18,10 +22,8 @@
 #include <string>
 #include <sys/types.h>
 #include <thread>
-#include <vector>
-#include <cmath>
-#include <cstdlib>
 #include <type_traits>
+#include <vector>
 
 #define BOOST_LOG_DYN_LINK 1
 
@@ -43,51 +45,6 @@ const size_t ERROR_UNHANDLED_EXCEPTION = 2;
 const char* build_time = __DATE__ " " __TIME__;
 
 
-template <typename T>
-std::vector<T>
-get_list_from_string(const std::string& value,
-                     T epsilon = std::numeric_limits<T>::epsilon())
-{
-    std::vector<T> output;
-    std::vector<std::string> comma_chunks;
-
-    // Split the input string by commas
-    std::stringstream ss(value);
-    std::string token;
-    while(std::getline(ss, token, ',')) { comma_chunks.push_back(token); }
-
-    for(const auto& comma_chunk: comma_chunks) {
-        // Check if the chunk contains a colon (indicating a range)
-        if(comma_chunk.find(':') == std::string::npos) {
-            output.push_back(static_cast<T>(std::atof(comma_chunk.c_str())));
-            continue;
-        }
-
-        // Split the range chunk by colons
-        std::stringstream ss_chunk(comma_chunk);
-        std::vector<T> colon_chunks;
-        std::string colon_token;
-        while(std::getline(ss_chunk, colon_token, ':')) {
-            colon_chunks.push_back(
-                static_cast<T>(std::atof(colon_token.c_str())));
-        }
-
-        // Determine the step size
-        T step = colon_chunks.size() == 3 ? colon_chunks[2] : static_cast<T>(1);
-        T start = colon_chunks[0];
-        T stop  = colon_chunks[1];
-
-        // Loop and add values to the output vector
-        if constexpr(std::is_floating_point<T>::value) {
-            for(T k = start; k <= stop + epsilon; k += step) {
-                output.push_back(k);
-            }
-        } else {
-            for(T k = start; k <= stop; k += step) { output.push_back(k); }
-        }
-    }
-    return output;
-}
 
 } // namespace
 
@@ -99,6 +56,12 @@ std::ostream& operator<<(std::ostream& os, const std::vector<float>& vec)
     return os;
 }
 } // namespace std
+template <typename InputVectorType, typename OutputVectorType>
+void run_pipeline(skyweaver::SkyCleaverConfig& config)
+{
+    skyweaver::SkyCleaver<InputVectorType, OutputVectorType> skycleaver(config);
+    skycleaver.cleave();
+}
 
 int main(int argc, char** argv)
 {
@@ -126,11 +89,6 @@ int main(int argc, char** argv)
             ->default_value(config.output_dir())
             ->notifier([&config](std::string key) { config.output_dir(key); }),
         "The output directory for all results")(
-        "root-prefix",
-        po::value<std::string>()
-            ->default_value(config.root_prefix())
-            ->notifier([&config](std::string key) { config.root_prefix(key); }),
-        "The prefix for all output files")(
         "out-prefix",
         po::value<std::string>()
             ->default_value(config.out_prefix())
@@ -147,31 +105,11 @@ int main(int argc, char** argv)
             ->notifier(
                 [&config](std::size_t key) { config.nsamples_per_block(key); }),
         "The number of samples per block")(
-        "nchans",
-        po::value<std::size_t>()
-            ->default_value(config.nchans())
-            ->notifier([&config](std::size_t key) { config.nchans(key); }),
-        "The number of channels")(
         "nbridges",
         po::value<std::size_t>()
             ->default_value(config.nbridges())
             ->notifier([&config](std::size_t key) { config.nbridges(key); }),
         "The number of bridges")(
-        "nbeams",
-        po::value<std::size_t>()
-            ->default_value(config.nbeams())
-            ->notifier([&config](std::size_t key) { config.nbeams(key); }),
-        "The number of beams")(
-        "ndms",
-        po::value<std::size_t>()
-            ->default_value(config.ndms())
-            ->notifier([&config](std::size_t key) { config.ndms(key); }),
-        "The number of DMs")(
-        "stokes-mode",
-        po::value<std::string>()
-            ->default_value(config.stokes_mode())
-            ->notifier([&config](std::string key) { config.stokes_mode(key); }),
-        "The stokes mode")(
         "stream-id",
         po::value<std::size_t>()
             ->default_value(config.stream_id())
@@ -211,22 +149,36 @@ int main(int argc, char** argv)
             ->notifier(
                 [&config](std::size_t key) { config.nsamples_to_read(key); }),
         "total number of samples to read from start_sample")(
+            "targets_file",
+            po::value<std::string>()->default_value("")->notifier(
+                [&config](std::string key) {
+                    config.targets_file(key);
+                }), "update beam names and positions from this file"
+        )(
         "required_beams",
-        po::value<std::string>()
-            ->default_value("")
-            ->notifier([&config](std::string key) {
-                config.required_beams(get_list_from_string<int>(key));
+        po::value<std::string>()->default_value("")->notifier(
+            [&config](std::string key) {
+                config.required_beams(skyweaver::get_list_from_string<int>(key));
             }),
         "Comma separated list of beams to process. Syntax - beam1, beam2, "
         "beam3:beam4:step, beam5 etc..")(
         "required_dms",
-        po::value<std::string>()
-            ->default_value("")
-            ->notifier([&config](std::string key) {
-                config.required_dms(get_list_from_string<double>(key));
+        po::value<std::string>()->default_value("")->notifier(
+            [&config](std::string key) {
+                config.required_dms(skyweaver::get_list_from_string<double>(key));
             }),
         "Comma separated list of DMs to process. Syntax - dm1, dm2, "
-        "dm1:dm2:step, etc..");
+        "dm1:dm2:step, etc..")(
+        "out-stokes",
+        po::value<std::string>()
+            ->default_value(config.out_stokes())
+            ->notifier([&config](std::string key) {
+                if(key.find_first_not_of("IQUVL") != std::string::npos) {
+                    throw std::runtime_error("Invalid Stokes mode: " + key);
+                }
+                config.out_stokes(key);
+            }),
+        "The list of stokes needed - these will be separte output files");
 
     po::options_description cmdline_options;
     cmdline_options.add(generic).add(main_options);
@@ -271,7 +223,6 @@ int main(int argc, char** argv)
     BOOST_LOG_TRIVIAL(info) << "Configuration: " << config_file;
     BOOST_LOG_TRIVIAL(info) << "root_dir: " << config.root_dir();
     BOOST_LOG_TRIVIAL(info) << "output_dir: " << config.output_dir();
-    BOOST_LOG_TRIVIAL(info) << "root_prefix: " << config.root_prefix();
     BOOST_LOG_TRIVIAL(info) << "out_prefix: " << config.out_prefix();
     BOOST_LOG_TRIVIAL(info) << "nthreads: " << config.nthreads();
     BOOST_LOG_TRIVIAL(info)
@@ -283,22 +234,46 @@ int main(int argc, char** argv)
     BOOST_LOG_TRIVIAL(info) << "max_ram_gb: " << config.max_ram_gb();
     BOOST_LOG_TRIVIAL(info)
         << "max_output_filesize: " << config.max_output_filesize();
-    BOOST_LOG_TRIVIAL(info) << "dada_header_size: " << config.dada_header_size();
+    BOOST_LOG_TRIVIAL(info)
+        << "dada_header_size: " << config.dada_header_size();
     BOOST_LOG_TRIVIAL(info) << "start_sample: " << config.start_sample();
-    BOOST_LOG_TRIVIAL(info) << "nsamples_to_read: " << config.nsamples_to_read();
+    BOOST_LOG_TRIVIAL(info)
+        << "nsamples_to_read: " << config.nsamples_to_read();
+    BOOST_LOG_TRIVIAL(info) << "out_stokes: " << config.out_stokes();
+
     if(config.required_beams().size() > 0) {
-       for (auto beam : config.required_beams()) {
-           BOOST_LOG_TRIVIAL(info) << "required_beam: " << beam;
-       }
+        for(auto beam: config.required_beams()) {
+            BOOST_LOG_TRIVIAL(info) << "required_beam: " << beam;
+        }
     }
     if(config.required_dms().size() > 0) {
-       for (auto dm : config.required_dms()) {
-           BOOST_LOG_TRIVIAL(info) << "required_dm: " << dm;
-       }
+        for(auto dm: config.required_dms()) {
+            BOOST_LOG_TRIVIAL(info) << "required_dm: " << dm;
+        }
     }
+    
+
+    run_pipeline<skyweaver::TDBPowersStdH<char>,
+                     skyweaver::TFPowersStdH<uint8_t>>(config);
 
 
+    // skyweaver::SkyCleaver skycleaver(config);
+    // skycleaver.cleave();
 
-    skyweaver::SkyCleaver skycleaver(config);
-    skycleaver.cleave();
+    // if(config.stokes_mode() == "I" || config.stokes_mode() == "Q" ||
+    //    config.stokes_mode() == "U" || config.stokes_mode() == "V") {
+    //     run_pipeline<skyweaver::TDBPowersStdH<std::vector<char>>,
+    //                  skyweaver::TFPowersStdH<uint8_t>>(config);
+    // } else if(config.stokes_mode() == "IV" || config.stokes_mode() == "QU") {
+    //     run_pipeline<skyweaver::TDBPowersStdH<char2>,
+    //                  skyweaver::TFPowersStdH<uint8_t>>(config);
+
+    // } else if(config.stokes_mode() == "IQUV") {
+    //     run_pipeline<skyweaver::TDBPowersStdH<char4>,
+    //                  skyweaver::TFPowersStdH<uint8_t>>(config);
+    // } else {
+    //     throw std::runtime_error("Invalid Stokes mode: " +
+    //                              config.stokes_mode());
+    // }
+
 }

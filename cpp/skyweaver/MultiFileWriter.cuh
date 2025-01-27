@@ -19,25 +19,28 @@ struct MultiFileWriterConfig {
     std::string stokes_mode;
     std::string output_dir;
     std::string base_output_dir;
+    std::string inner_dir;
     std::string prefix;
     std::string extension;
     std::string output_basename;
+    std::string suffix;
 
     MultiFileWriterConfig()
         : header_size(4096), max_file_size(2147483647), stokes_mode("I"),
-          output_dir("default/"), prefix(""), extension("") {};
+          output_dir("default/"), base_output_dir("default_base/"), inner_dir(""), prefix(""), extension(""), output_basename(""), suffix("") {};
 
     MultiFileWriterConfig(std::size_t header_size,
                           std::size_t max_file_size,
                           std::string stokes_mode,
                           std::string output_dir,
                           std::string prefix,
-                          std::string extension)
+                          std::string extension,
+                          std::string suffix)
         : header_size(header_size), max_file_size(max_file_size),
           stokes_mode(stokes_mode), output_dir(output_dir), prefix(prefix),
-          extension(extension), output_basename("") {};
+          extension(extension), suffix(suffix), output_basename("") {};
 
-
+    
     std::string to_string()
     {
         return "header_size: " + std::to_string(header_size) +
@@ -45,7 +48,8 @@ struct MultiFileWriterConfig {
                ", stokes_mode: " + stokes_mode + ", output_dir: " + output_dir +
                ", prefix: " + prefix + ", extension: " + extension +
                ", output_basename: " + output_basename +
-               ", base_output_dir: " + base_output_dir;
+               ", base_output_dir: " + base_output_dir + 
+                ", inner_dir: " + inner_dir + ", suffix: " + suffix;
     }
 };
 /**

@@ -271,6 +271,7 @@ class PipelineConfig
     /**
      * @brief      Return the total number of antennas that will be beamformed
      */
+
     std::size_t nantennas() const { return SKYWEAVER_NANTENNAS; }
 
     /**

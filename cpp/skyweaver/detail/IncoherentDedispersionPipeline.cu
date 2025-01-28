@@ -91,13 +91,22 @@ void IncoherentDedispersionPipeline<InputType, OutputType, Handler>::
         _beamsplit_buffer.metalike(_output_buffers[ref_dm_idx]);
         _beamsplit_buffer.resize({nsamples, ndms, nbeams_per_file});
 
+        std::size_t td_input_offset;
+        std::size_t td_output_offset;
+        std::size_t b_offset;
+
         for (std::size_t tdb_file_idx = 0; tdb_file_idx < _n_tdb_files; ++tdb_file_idx)
         {
+            b_offset = tdb_file_idx * nbeams_per_file;
+
             for (std::size_t tdidx = 0; tdidx < nsamples * ndms; ++tdidx)
             {
+                td_input_offset = tdidx * nbeams;
+                td_output_offset = tdidx * nbeams_per_file;
+
                 for (std::size_t bidx = 0; bidx < nbeams_per_file ; ++bidx)
                 {
-                    _beamsplit_buffer[tdidx * nbeams_per_file + bidx] = _output_buffers[ref_dm_idx][tdidx * nbeams + tdb_file_idx * nbeams_per_file + bidx];
+                    _beamsplit_buffer[td_output_offset + bidx] = _output_buffers[ref_dm_idx][td_input_offset + b_offset + bidx];
                 }
 
             }

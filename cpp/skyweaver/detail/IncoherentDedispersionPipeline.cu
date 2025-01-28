@@ -97,7 +97,7 @@ void IncoherentDedispersionPipeline<InputType, OutputType, Handler>::
             {
                 for (std::size_t bidx = 0; bidx < nbeams_per_file ; ++bidx)
                 {
-                    _beamsplit_buffer[tdidx + bidx] = _output_buffers[ref_dm_idx][tdidx + bidx + tdb_file_idx * nbeams_per_file];
+                    _beamsplit_buffer[tdidx * nbeams_per_file + bidx] = _output_buffers[ref_dm_idx][tdidx * nbeams + tdb_file_idx * nbeams_per_file + bidx];
                 }
 
             }

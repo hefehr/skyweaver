@@ -87,12 +87,12 @@ create_dada_file_stream(MultiFileWriterConfig const& config,
 
     std::stringstream output_dir;
     output_dir << config.output_dir << "/" << std::fixed << std::setfill('0')
-               << std::setw(9) << static_cast<int>(header.frequency);
+               << std::setw(9) << static_cast<std::size_t>(header.frequency);
 
     std::stringstream output_basename;
     output_basename << config.output_basename << "_" << std::fixed
                     << std::setfill('0') << std::setw(9)
-                    << static_cast<int>(header.frequency);
+                    << static_cast<std::size_t>(header.frequency);
 
     std::unique_ptr<FileOutputStream> file_stream =
         std::make_unique<FileOutputStream>(

@@ -171,7 +171,8 @@ struct DescribedVector {
           _frequencies(other._frequencies), _dms_stale(other._dms_stale),
           _tsamp(other._tsamp), _utc_offset(other._utc_offset),
           _reference_dm(other._reference_dm),
-          _frequencies_stale(other._frequencies_stale)
+          _frequencies_stale(other._frequencies_stale),
+          _beam0_idx(other._beam0_idx)
     {
     }
 
@@ -206,6 +207,7 @@ struct DescribedVector {
         _tsamp             = other._tsamp;
         _utc_offset        = other._utc_offset;
         _reference_dm      = other._reference_dm;
+        _beam0_idx         = other._beam0_idx;
     }
 
     /**
@@ -611,7 +613,7 @@ struct DescribedVector {
     double _tsamp       = 0.0;
     double _utc_offset  = 0.0;
     float _reference_dm = 0.0;
-    std::size_t _beam0_idx;
+    std::size_t _beam0_idx = 0;
     VectorType _vector;
 };
 

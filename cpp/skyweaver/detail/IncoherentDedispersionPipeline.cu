@@ -104,11 +104,9 @@ void IncoherentDedispersionPipeline<InputType, OutputType, Handler>::
                 td_input_offset = tdidx * nbeams;
                 td_output_offset = tdidx * nbeams_per_file;
 
-                for (std::size_t bidx = 0; bidx < nbeams_per_file ; ++bidx)
-                {
-                    _beamsplit_buffer[td_output_offset + bidx] = _output_buffers[ref_dm_idx][td_input_offset + b_offset + bidx];
-                }
-
+                std::copy(&_output_buffers[ref_dm_idx][td_input_offset + b_offset],
+                          &_output_buffers[ref_dm_idx][td_input_offset + b_offset + nbeams_per_file],
+                          &_beamsplit_buffer[td_output_offset]);
             }
             _beamsplit_buffer.beam0_idx(tdb_file_idx * _config.nbeams_per_file());
             _handler(_beamsplit_buffer, ref_dm_idx * _n_tdb_files + tdb_file_idx);

@@ -479,7 +479,7 @@ int main(int argc, char** argv)
              "The logging level to use (debug, info, warning, error)")
 
 
-            ("nbeams_per_file",
+            ("nbeams-per-file",
              po::value<std::size_t>()->default_value(SKYWEAVER_NBEAMS)->notifier(
                  [&config](std::size_t key) { config.nbeams_per_file(key); }),
              "The number of beams per output file. Default = all beams.");

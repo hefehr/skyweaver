@@ -47,7 +47,9 @@ IncoherentDedispersionPipeline<InputType, OutputType, Handler>::
         // TODO: give these sensible numbers
         // TODO: work out how to get the max delay into the handler
     }
-    _n_tdb_files = _config.nbeams() / _config.nbeams_per_file();
+
+    // ceil division
+    _n_tdb_files = (_config.nbeams() + _config.nbeams_per_file() - 1) / _config.nbeams_per_file();
 }
 
 template <typename InputType, typename OutputType, typename Handler>
@@ -86,18 +88,22 @@ void IncoherentDedispersionPipeline<InputType, OutputType, Handler>::
         const std::size_t ndms     = _output_buffers[ref_dm_idx].ndms();
         const std::size_t nbeams   = _output_buffers[ref_dm_idx].nbeams();
         const std::size_t nsamples = _output_buffers[ref_dm_idx].nsamples();
-        const std::size_t nbeams_per_file = _config.nbeams_per_file();
 
-        _beamsplit_buffer.metalike(_output_buffers[ref_dm_idx]);
-        _beamsplit_buffer.resize({nsamples, ndms, nbeams_per_file});
+        std::size_t nbeams_per_file = _config.nbeams_per_file();
+        std::size_t td_input_offset = 0;
+        std::size_t td_output_offset = 0;
+        std::size_t b_offset = 0;
+        std::size_t tdb_file_idx = 0;
 
-        std::size_t td_input_offset;
-        std::size_t td_output_offset;
-        std::size_t b_offset;
-
-        for (std::size_t tdb_file_idx = 0; tdb_file_idx < _n_tdb_files; ++tdb_file_idx)
+        while (b_offset < nbeams)
         {
-            b_offset = tdb_file_idx * nbeams_per_file;
+            if (b_offset + nbeams_per_file > nbeams)
+            {
+                nbeams_per_file = nbeams - b_offset;
+            }
+
+            _beamsplit_buffer.metalike(_output_buffers[ref_dm_idx]);
+            _beamsplit_buffer.resize({nsamples, ndms, nbeams_per_file});
 
             for (std::size_t tdidx = 0; tdidx < nsamples * ndms; ++tdidx)
             {
@@ -108,8 +114,12 @@ void IncoherentDedispersionPipeline<InputType, OutputType, Handler>::
                           &_output_buffers[ref_dm_idx][td_input_offset + b_offset + nbeams_per_file],
                           &_beamsplit_buffer[td_output_offset]);
             }
-            _beamsplit_buffer.beam0_idx(tdb_file_idx * _config.nbeams_per_file());
+
+            _beamsplit_buffer.beam0_idx(b_offset);
             _handler(_beamsplit_buffer, ref_dm_idx * _n_tdb_files + tdb_file_idx);
+
+            b_offset += nbeams_per_file;
+            tdb_file_idx++;
         }
     }
     else

@@ -115,7 +115,10 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
     _utc_offset = utc_offset;
     _cb_handler.init(_header);
     _ib_handler.init(_header);
-    _stats_handler.init(_header);
+    if (_config.output_statistics())
+    {
+	_stats_handler.init(_header);
+    }
     NVTX_RANGE_POP();
 }
 
@@ -161,20 +164,23 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
     _timer.stop("transpose TAFTP to FTPA");
     NVTX_RANGE_POP();
 
-    NVTX_RANGE_PUSH("Calculate statistics");
-    BOOST_LOG_TRIVIAL(debug) << "Checking if channel statistics update request";
-    _timer.start("calculate statistics");
-    _stats_manager->calculate_statistics(_ftpa_post_transpose);
-    _timer.stop("calculate statistics");
-    NVTX_RANGE_POP();
-    NVTX_RANGE_PUSH("Update scalings");
-    if(_call_count == 0) {
+    if ((_call_count == 0) || _config.output_statistics())
+    {
+      NVTX_RANGE_PUSH("Calculate statistics");
+      BOOST_LOG_TRIVIAL(debug) << "Checking if channel statistics update request";
+      _timer.start("calculate statistics");
+      _stats_manager->calculate_statistics(_ftpa_post_transpose);
+      _timer.stop("calculate statistics");
+      NVTX_RANGE_POP();
+      if(_call_count == 0) {
+        NVTX_RANGE_PUSH("Update scalings");
         _timer.start("update scalings");
         _stats_manager->update_scalings(_delay_manager->beamset_weights(),
                                         _delay_manager->nbeamsets());
         _timer.stop("update scalings");
+        NVTX_RANGE_POP();
+      }
     }
-    NVTX_RANGE_POP();
     // BOOST_LOG_TRIVIAL(debug) << "Peeking the statistics";
     // peek(_stats_manager->statistics(), 64);
 
@@ -251,11 +257,14 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
         NVTX_RANGE_POP();
     }
     NVTX_RANGE_POP();
-    NVTX_RANGE_PUSH("Stats handler");
-    _timer.start("statistics handler");
-    _stats_handler(_stats_manager->statistics());
-    _timer.stop("statistics handler");
-    NVTX_RANGE_POP();
+    if (_config.output_statistics())
+    {
+      NVTX_RANGE_PUSH("Stats handler");
+      _timer.start("statistics handler");
+      _stats_handler(_stats_manager->statistics());
+      _timer.stop("statistics handler");
+      NVTX_RANGE_POP();
+    }
     NVTX_RANGE_POP();
 }
 

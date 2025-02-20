@@ -15,7 +15,7 @@ PipelineConfig::PipelineConfig()
       _bw(13375000.0), _channel_frequencies_stale(true),
       _gulp_length_samps(4096), _start_time(0.0f),
       _duration(std::numeric_limits<float>::infinity()), _total_nchans(4096),
-      _stokes_mode("I"), _output_level(24.0f)
+      _stokes_mode("I"), _output_level(24.0f), _output_statistics(true)
 {
 }
 
@@ -167,6 +167,16 @@ void PipelineConfig::enable_incoherent_dedispersion(bool enable)
 bool PipelineConfig::enable_incoherent_dedispersion() const
 {
     return _enable_incoherent_dedispersion;
+}
+
+void PipelineConfig::output_statistics(bool enable)
+{
+    _output_statistics = enable;
+}
+
+bool PipelineConfig::output_statistics() const
+{
+    return _output_statistics;
 }
 
 std::vector<double> const& PipelineConfig::channel_frequencies() const

@@ -165,7 +165,6 @@ class PipelineConfig
      */
     bool enable_incoherent_dedispersion() const;
 
-
     /**
      * @brief      Enable/disable calculation and writing of voltage statistics
      */
@@ -175,6 +174,16 @@ class PipelineConfig
      * @brief      Check if calculation of voltage statistics is enabled
      */
     bool output_statistics() const;
+
+    /**
+     * @brief      Enable/disable writing out the incoherent beam
+     */
+    void output_incoherent_beam(bool enable);
+
+    /**
+     * @brief      Check if outputting incoherent beam is enabled
+     */
+    bool output_incoherent_beam() const;
 
     /**
      * @brief      Return the number of time samples to be integrated
@@ -351,6 +360,7 @@ class PipelineConfig
     std::string _output_file_prefix;
     bool _enable_incoherent_dedispersion;
     bool _output_statistics;
+    bool _output_incoherent_beam;
     double _cfreq;
     double _bw;
     mutable bool _channel_frequencies_stale;

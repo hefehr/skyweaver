@@ -114,7 +114,10 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
     _header     = header;
     _utc_offset = utc_offset;
     _cb_handler.init(_header);
-    _ib_handler.init(_header);
+    if (_config.output_incoherent_beam())
+    {
+      _ib_handler.init(_header);
+    }
     if (_config.output_statistics())
     {
 	_stats_handler.init(_header);
@@ -250,11 +253,14 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
         _timer.stop("coherent beam handler");
         NVTX_RANGE_POP();
 
-        NVTX_RANGE_PUSH("Incoherent beamformer handler");
-        _timer.start("incoherent beam handler");
-        _ib_handler(_tf_ib, dm_idx);
-        _timer.stop("incoherent beam handler");
-        NVTX_RANGE_POP();
+	if (_config.output_incoherent_beam())
+	{
+          NVTX_RANGE_PUSH("Incoherent beamformer handler");
+          _timer.start("incoherent beam handler");
+          _ib_handler(_tf_ib, dm_idx);
+          _timer.stop("incoherent beam handler");
+          NVTX_RANGE_POP();
+	}
     }
     NVTX_RANGE_POP();
     if (_config.output_statistics())

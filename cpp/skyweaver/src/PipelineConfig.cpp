@@ -9,7 +9,7 @@ namespace skyweaver
 
 PipelineConfig::PipelineConfig()
     : _input_files({}), _check_input_contiguity(false), _dada_header_size(4096),
-      _delay_file(""), _output_dir("./"), _max_output_filesize(10000000000000),
+      _delay_file(""), _output_dir("./"), _max_output_filesize(33558528),
       _output_file_prefix(""), 
       _enable_incoherent_dedispersion(true), _cfreq(1284000000.0),
       _bw(13375000.0), _channel_frequencies_stale(true),

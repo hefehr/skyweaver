@@ -116,7 +116,7 @@ void IncoherentDedispersionPipeline<InputType, OutputType, Handler>::
             }
 
             _beamsplit_buffer.beam0_idx(b_offset);
-            _handler(_beamsplit_buffer, ref_dm_idx * _n_tdb_files + tdb_file_idx);
+            _handler(_beamsplit_buffer, tdb_file_idx * _config.coherent_dms().size() + ref_dm_idx);
 
             b_offset += nbeams_per_file;
             tdb_file_idx++;

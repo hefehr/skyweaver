@@ -303,7 +303,7 @@ void skyweaver::SkyCleaver<InputVectorType, OutputVectorType>::init_readers()
     long double start_freq = obs_centre_freq - obs_bandwidth / 2;
 
     for(int i = 0; i < _config.nbridges(); i++) {
-        int ifreq = std::lround(std::floor(
+      std::size_t ifreq = std::lround(std::floor(
             start_freq + (i + 0.5) * obs_bandwidth / _config.nbridges()));
         _expected_freqs.push_back(ifreq);
         BOOST_LOG_TRIVIAL(info)

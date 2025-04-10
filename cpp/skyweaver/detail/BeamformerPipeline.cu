@@ -96,6 +96,11 @@ template <typename CBHandler,
 BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
     ~BeamformerPipeline()
 {
+    if (_cb_handler_thread) {
+        if (_cb_handler_thread->joinable()) {
+            _cb_handler_thread->join();
+        }
+    }
     BOOST_LOG_NAMED_SCOPE("BeamformerPipeline::~BeamformerPipeline");
     CUDA_ERROR_CHECK(cudaStreamDestroy(_h2d_copy_stream));
     CUDA_ERROR_CHECK(cudaStreamDestroy(_processing_stream));
@@ -251,8 +256,13 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
         NVTX_RANGE_PUSH("Coherent beamformer handler");
         _timer.start("coherent beam handler");
         _btf_cbs.swap();
-        _cb_handler_wrapper.reset(
-            new ThreadWrapper([this]() { _cb_handler(_btf_cbs.b(), dm_idx); }));
+        if (_cb_handler_thread) {
+            if (_cb_handler_thread->joinable()) {
+                _cb_handler_thread->join();
+            }
+        }
+        _cb_handler_thread.reset(
+            new std::thread([this, dm_idx]() { _cb_handler(_btf_cbs.b(), dm_idx); }));
         _timer.stop("coherent beam handler");
         NVTX_RANGE_POP();
 

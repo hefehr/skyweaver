@@ -133,7 +133,7 @@ class BeamformerPipeline
     TAFTPVoltagesD<char2> _taftp_from_host;
     FTPAVoltagesD<char2> _ftpa_post_transpose;
     FTPAVoltagesD<char2> _ftpa_dedispersed;
-    TFBPowersD<typename BeamformerTraits::QuantisedPowerType> _btf_cbs;
+    DoubleDescribedVector<TFBPowersD<typename BeamformerTraits::QuantisedPowerType>> _btf_cbs;
     BTFPowersD<typename BeamformerTraits::RawPowerType> _tf_ib_raw;
     BTFPowersD<typename BeamformerTraits::QuantisedPowerType> _tf_ib;
 

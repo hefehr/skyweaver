@@ -252,7 +252,7 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
         _timer.start("coherent beam handler");
         _btf_cbs.swap();
         _cb_handler_wrapper.reset(
-            new ThreadWrapper([this]() { _cb_handler(_btf_cbs.b(), dm_idx); }));
+            new ThreadWrapper([this, dm_idx]() { _cb_handler(_btf_cbs.b(), dm_idx); }));
         _timer.stop("coherent beam handler");
         NVTX_RANGE_POP();
 

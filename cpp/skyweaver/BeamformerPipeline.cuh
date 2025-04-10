@@ -17,9 +17,40 @@
 #include "skyweaver/WeightsManager.cuh"
 
 #include <functional>
+#include <thread>
 
 namespace skyweaver
 {
+
+class ThreadWrapper
+{
+  public:
+    // Construct and start the thread
+    template <typename Callable>
+    explicit ThreadWrapper(Callable&& func)
+        : _thread(std::forward<Callable>(func))
+    {
+    }
+
+    // Non-copyable
+    ThreadWrapper(const ThreadWrapper&)            = delete;
+    ThreadWrapper& operator=(const ThreadWrapper&) = delete;
+
+    // Movable
+    ThreadWrapper(ThreadWrapper&&)            = default;
+    ThreadWrapper& operator=(ThreadWrapper&&) = default;
+
+    // Join on destruction
+    ~ThreadWrapper()
+    {
+        if(_thread.joinable()) {
+            _thread.join();
+        }
+    }
+
+  private:
+    std::thread _thread;
+};
 
 template <typename CBHandler,
           typename IBHandler,
@@ -79,6 +110,7 @@ class BeamformerPipeline
 
     // Handlers
     CBHandler& _cb_handler;
+    std::unique_ptr<ThreadWrapper> _cb_handler_wrapper;
     IBHandler& _ib_handler;
     StatsHandler& _stats_handler;
 

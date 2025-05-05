@@ -16,6 +16,7 @@ PipelineConfig::PipelineConfig()
       _gulp_length_samps(4096), _start_time(0.0f),
       _duration(std::numeric_limits<float>::infinity()), _total_nchans(4096),
       _stokes_mode("I"), _output_level(24.0f),
+      _output_statistics(true), _output_incoherent_beam(true)
       _nbeams_per_file(SKYWEAVER_NBEAMS)
 {
 }
@@ -168,6 +169,26 @@ void PipelineConfig::enable_incoherent_dedispersion(bool enable)
 bool PipelineConfig::enable_incoherent_dedispersion() const
 {
     return _enable_incoherent_dedispersion;
+}
+
+void PipelineConfig::output_statistics(bool enable)
+{
+    _output_statistics = enable;
+}
+
+bool PipelineConfig::output_statistics() const
+{
+    return _output_statistics;
+}
+
+void PipelineConfig::output_incoherent_beam(bool enable)
+{
+    _output_incoherent_beam = enable;
+}
+
+bool PipelineConfig::output_incoherent_beam() const
+{
+    return _output_incoherent_beam;
 }
 
 std::vector<double> const& PipelineConfig::channel_frequencies() const

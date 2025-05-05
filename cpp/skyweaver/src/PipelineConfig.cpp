@@ -16,7 +16,7 @@ PipelineConfig::PipelineConfig()
       _gulp_length_samps(4096), _start_time(0.0f),
       _duration(std::numeric_limits<float>::infinity()), _total_nchans(4096),
       _stokes_mode("I"), _output_level(24.0f),
-      _output_statistics(true), _output_incoherent_beam(true)
+      _output_statistics(true), _output_incoherent_beam(true),
       _nbeams_per_file(SKYWEAVER_NBEAMS)
 {
 }

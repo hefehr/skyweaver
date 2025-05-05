@@ -478,18 +478,18 @@ int main(int argc, char** argv)
                  [](std::string level) { skyweaver::set_log_level(level); }),
              "The logging level to use (debug, info, warning, error)")
 
-	     ("statistics",
+       	    ("statistics",
              po::value<bool>()->default_value(true)->notifier(
-		  [&config](bool const& enable) {
-                         config.output_statistics(enable); }),
-	     "Turn on/off calculation and output of voltage statistics")
+		             [&config](bool const& enable) {
+                     config.output_statistics(enable); }),
+	           "Turn on/off calculation and output of voltage statistics")
 
-	    ("write-incoherent-beam",
+            ("write-incoherent-beam",
              po::value<bool>()->default_value(true)->notifier(
-		  [&config](bool const& enable) {
+                 [&config](bool const& enable) {
                          config.output_incoherent_beam(enable); }),
-	     "Turn on/off output of incoherent beam"
-	     "Turning off does not disable incoherent beam subtraction")
+             "Turn on/off output of incoherent beam"
+             "Turning off does not disable incoherent beam subtraction")
 
             ("nbeams-per-file",
              po::value<std::size_t>()->default_value(SKYWEAVER_NBEAMS)->notifier(

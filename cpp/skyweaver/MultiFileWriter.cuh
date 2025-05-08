@@ -84,6 +84,14 @@ class MultiFileWriter
     MultiFileWriter(MultiFileWriterConfig config,
                     std::string tag,
                     CreateStreamCallBackType create_stream_callback);
+    MultiFileWriter(PipelineConfig const& config,
+                    std::string tag,
+                    CreateStreamCallBackType create_stream_callback,
+                    PreWriteCallback pre_write_callback);
+    MultiFileWriter(MultiFileWriterConfig config,
+                    std::string tag,
+                    CreateStreamCallBackType create_stream_callback,
+                    PreWriteCallback pre_write_callback);
     MultiFileWriter(MultiFileWriter const&) = delete;
 
     /**

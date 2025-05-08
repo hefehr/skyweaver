@@ -68,8 +68,8 @@ class MultiFileWriter
             ObservationHeader const&,
             VectorType const&,
             std::size_t)>;
-
   public:
+     using PreWriteCallback = std::function<void(std::size_t, MultiFileWriterConfig const&)>;
     /**
      * @brief Construct a new Multi File Writer object
      *

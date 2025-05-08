@@ -24,7 +24,8 @@ struct MultiFileWriterConfig {
     std::string extension;
     std::string output_basename;
     std::string suffix;
-
+    PreWriteConfig pre_write;
+    
     MultiFileWriterConfig()
         : header_size(4096), max_file_size(2147483647), stokes_mode("I"),
           output_dir("default/"), base_output_dir("default_base/"), inner_dir(""), prefix(""), extension(""), output_basename(""), suffix("") {};
@@ -51,6 +52,7 @@ struct MultiFileWriterConfig {
                ", base_output_dir: " + base_output_dir + 
                 ", inner_dir: " + inner_dir + ", suffix: " + suffix;
     }
+  }
 };
 /**
  * @brief A class for handling writing of DescribedVectors

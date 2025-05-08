@@ -41,7 +41,6 @@ struct MultiFileWriterConfig {
           stokes_mode(stokes_mode), output_dir(output_dir), prefix(prefix),
           extension(extension), suffix(suffix), output_basename("") {};
 
-    
     std::string to_string()
     {
         return "header_size: " + std::to_string(header_size) +

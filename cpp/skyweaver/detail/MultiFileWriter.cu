@@ -43,12 +43,29 @@ MultiFileWriter<VectorType>::MultiFileWriter(
     CreateStreamCallBackType create_stream_callback)
     : _tag(tag), _create_stream_callback(create_stream_callback)
 {
+<<<<<<< HEAD
     _config.header_size     = config.dada_header_size();
     _config.max_file_size   = config.max_output_filesize();
     _config.stokes_mode     = config.stokes_mode();
     _config.base_output_dir = config.output_dir();
     _config.inner_dir = "";
+    _pre_write_callback = nullptr;
+}
 
+template <typename VectorType>
+MultiFileWriter<VectorType>::MultiFileWriter(
+    PipelineConfig const& config,
+    std::string tag,
+    CreateStreamCallBackType create_stream_callback,
+    PreWriteCallback pre_write_callback)
+    : _tag(tag), _create_stream_callback(create_stream_callback), _pre_write_callback(pre_write_callback)
+{
+    _config.header_size     = config.dada_header_size();
+    _config.max_file_size   = config.max_output_filesize();
+    _config.stokes_mode     = config.stokes_mode();
+    _config.base_output_dir = config.output_dir();
+    _config.inner_dir = "";
+    _config.pre_write = writer_config.pre_write;
 }
 
 template <typename VectorType>
@@ -58,6 +75,19 @@ MultiFileWriter<VectorType>::MultiFileWriter(
     CreateStreamCallBackType create_stream_callback)
     : _config(config), _tag(tag),
       _create_stream_callback(create_stream_callback)
+{
+   _pre_write_callback = nullptr;
+}
+
+template <typename VectorType>
+MultiFileWriter<VectorType>::MultiFileWriter(
+     MultiFileWriterConfig config,
+     std::string tag,
+     CreateStreamCallBackType create_stream_callback,
+     PreWriteCallback pre_write_callback)
+    : _config(config), _tag(tag),
+      _create_stream_callback(create_stream_callback),
+      _pre_write_callback(pre_write_callback)
 {
 }
 

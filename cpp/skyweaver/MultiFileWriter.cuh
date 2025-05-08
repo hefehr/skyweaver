@@ -51,6 +51,7 @@ struct MultiFileWriterConfig {
                ", base_output_dir: " + base_output_dir + 
                 ", inner_dir: " + inner_dir + ", suffix: " + suffix;
     }
+
   }
 };
 /**

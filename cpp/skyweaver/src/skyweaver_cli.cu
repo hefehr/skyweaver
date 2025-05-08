@@ -307,7 +307,6 @@ void setup_pipeline(skyweaver::PipelineConfig& config)
         using CBWriterType =
             skyweaver::MultiFileWriter<skyweaver::TDBPowersH<OutputType>>;
         typename CBWriterType::CreateStreamCallBackType
-<<<<<<< HEAD
             create_stream_callback_cb =
                 skyweaver::detail::create_dada_file_stream<
                     skyweaver::TDBPowersH<OutputType>>;

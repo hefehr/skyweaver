@@ -22,7 +22,6 @@ namespace skyweaver
     WaitConfig wait;
   };
 
-
 /**
  * @brief      Class for wrapping the skyweaver pipeline configuration.
  */

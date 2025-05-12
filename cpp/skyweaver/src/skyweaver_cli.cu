@@ -294,14 +294,13 @@ void setup_pipeline(skyweaver::PipelineConfig& config)
 
     using StatsWriterType =
         skyweaver::MultiFileWriter<skyweaver::FPAStatsD<skyweaver::Statistics>>;
+
+    std::unique_ptr<StatsWriterType> stats_handler;
+
     typename StatsWriterType::CreateStreamCallBackType
         create_stream_callback_stats =
             skyweaver::detail::create_dada_file_stream<
                 skyweaver::FPAStatsD<skyweaver::Statistics>>;
-    StatsWriterType  stats_handler(config,
-                                   "stats",
-                                   create_stream_callback_stats,
-                                   pre_write_callback);
 
     if constexpr(enable_incoherent_dedispersion) {
         using CBWriterType =
@@ -310,8 +309,7 @@ void setup_pipeline(skyweaver::PipelineConfig& config)
             create_stream_callback_cb =
                 skyweaver::detail::create_dada_file_stream<
                     skyweaver::TDBPowersH<OutputType>>;
-        skyweaver::MultiFileWriter<skyweaver::TDBPowersH<OutputType>>
-            cb_file_writer(config, "cb", create_stream_callback_cb, pre_write_callback);
+
         std::unique_ptr<CBWriterType> cb_file_writer;
         if (config.pre_write_config().is_enabled)
         {
@@ -340,13 +338,11 @@ void setup_pipeline(skyweaver::PipelineConfig& config)
     } else {
         using CBWriterType =
             skyweaver::MultiFileWriter<skyweaver::TFBPowersD<OutputType>>;
+        std::unique_ptr<CBWriterType> cb_file_writer;
         typename CBWriterType::CreateStreamCallBackType
             create_stream_callback_cb =
                 skyweaver::detail::create_dada_file_stream<
                     skyweaver::TFBPowersD<OutputType>>;
-        CBWriterType      cb_file_writer(config, "cb", create_stream_callback_cb, pre_write_callback);
-        skyweaver::BeamformerPipeline<decltype(cb_file_writer),
-        std::unique_ptr<CBWriterType> cb_file_writer;
         if (config.pre_write_config().is_enabled)
         {
             ib_handler.reset(new IBWriterType(config, "ib", create_stream_callback_ib, pre_write_callback));
@@ -357,9 +353,8 @@ void setup_pipeline(skyweaver::PipelineConfig& config)
             cb_file_writer.reset(new CBWriterType(config, "cb", create_stream_callback_cb));
             stats_handler.reset(new StatsWriterType(config, "stats", create_stream_callback_stats));
         }
-
-        skyweaver::BeamformerPipeline<decltype(*cb_file_writer.get()),
-                                      decltype(ib_handler),
+        skyweaver::BeamformerPipeline<decltype(* cb_file_writer.get()),
+                                      decltype(* ib_handler.get()),
                                       decltype(* stats_handler.get()),
                                       BfTraits>
             pipeline(config, * cb_file_writer.get(), * ib_handler.get(), * stats_handler.get());
@@ -528,6 +523,7 @@ int main(int argc, char** argv)
                  [](std::size_t nthreads) { omp_set_num_threads(nthreads); }),
              "The number of threads to use for incoherent dedispersion")
 
+            // Waiting options
             ("wait-for-space",
               po::value<std::string>()
                  ->notifier(
@@ -535,7 +531,7 @@ int main(int argc, char** argv)
              "Wait for enough disk space for the output. "
              "<nr_of_cycles (0 for infinity)>:<sleep_time_per_cycle [s]>:<minimum_size(e.g. 200M or 32G)>")
 
-          // Logging options
+            // Logging options
             ("log-level",
              po::value<std::string>()->default_value("info")->notifier(
                  [](std::string level) { skyweaver::set_log_level(level); }),

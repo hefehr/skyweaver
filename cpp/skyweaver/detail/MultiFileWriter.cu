@@ -63,6 +63,7 @@ MultiFileWriter<VectorType>::MultiFileWriter(
     _config.max_file_size   = config.max_output_filesize();
     _config.stokes_mode     = config.stokes_mode();
     _config.base_output_dir = config.output_dir();
+	_config.pre_write       = config.pre_write_config();
     _config.inner_dir = "";
 
 }

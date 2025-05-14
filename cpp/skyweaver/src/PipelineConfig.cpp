@@ -17,7 +17,7 @@ PipelineConfig::PipelineConfig()
       _duration(std::numeric_limits<float>::infinity()), _total_nchans(4096),
       _stokes_mode("I"), _output_level(24.0f),
       _output_statistics(true), _output_incoherent_beam(true),
-      _nbeams_per_file(SKYWEAVER_NBEAMS)
+      _nbeams_per_file(SKYWEAVER_NBEAMS),
       _pre_write_config({0, {false, 0, 0}})
 {
 }

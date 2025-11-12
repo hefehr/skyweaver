@@ -1,0 +1,113 @@
+ARG BASE_IMAGE=nvidia/cuda:12.4.1-devel-ubuntu22.04
+FROM ${BASE_IMAGE} AS base
+
+# Based on Rutger's ANPTA Dockerfile
+LABEL maintainer="Colin J. Clark <colin.clark@aei.mpg.de>"
+ENV DEBIAN_FRONTEND=noninteractive
+
+# ---------- APT common ----------
+COPY arskyver/required_packages.txt /usr/local/share/required_packages.txt
+RUN apt-get update && xargs -a /usr/local/share/required_packages.txt apt-get install -y --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/*
+
+# ---------- Layout ----------
+ENV SOFTWARE_DIR="/usr/local"
+ENV VIRTUAL_ENV_BASE=/opt/venvs \
+    VIRTUAL_ENV=/opt/venvs/psr \
+    PATH="/opt/venvs/psr/bin:/usr/local/bin:${PATH}" \
+    LD_LIBRARY_PATH="/usr/local/lib:${LD_LIBRARY_PATH}" \
+    C_INCLUDE_PATH="${C_INCLUDE_PATH}:/usr/local/include" \
+    CPPFLAGS="-I${SOFTWARE_DIR}/include ${CPPFLAGS}" \
+    LDFLAGS="-L${SOFTWARE_DIR}/lib ${LDFLAGS}" \
+    OSTYPE=linux
+RUN mkdir -p ${SOFTWARE_DIR} ${VIRTUAL_ENV_BASE}
+WORKDIR ${SOFTWARE_DIR}
+
+# ---------- PGPLOT env ----------
+ENV PGPLOT_DIR=/usr/lib/pgplot5 \
+    PGPLOT_FONT=/usr/lib/pgplot5/grfont.dat \
+    PGPLOT_INCLUDES=/usr/include \
+    PGPLOT_BACKGROUND=white \
+    PGPLOT_FOREGROUND=black \
+    PGPLOT_DEV=/xs
+
+# ---------- Calceph ----------
+COPY arskyver/scripts/build_calceph.sh /usr/local/bin/
+RUN bash /usr/local/bin/build_calceph.sh
+
+# ---------- psrcat ----------
+COPY arskyver/scripts/build_psrcat.sh /usr/local/bin/
+ENV PSRCAT_FILE="${SOFTWARE_DIR}/src/psrcat_tar/psrcat.db"
+ENV PATH="${SOFTWARE_DIR}/src/psrcat_tar:${PATH}"
+RUN bash /usr/local/bin/build_psrcat.sh
+
+# ---------- tempo2 ----------
+COPY arskyver/scripts/build_tempo2.sh /usr/local/bin/
+ENV TEMPO2="${SOFTWARE_DIR}/share/tempo2/"
+RUN bash /usr/local/bin/build_tempo2.sh
+
+# ---------- Python env ----------
+# Use highest available Python 3.x version (python3.11 on Ubuntu 22.04, python3.12 on Ubuntu 24.04)
+RUN PYTHON3=$(ls -1 /usr/bin/python3.* 2>/dev/null | grep -E 'python3\.[0-9]+$' | sort -V | tail -1 || which python3) && \
+    ${PYTHON3} -m venv ${VIRTUAL_ENV} && \
+    ${VIRTUAL_ENV}/bin/pip install --upgrade pip wheel==0.43.0
+
+# ---------- Common Python stack ----------
+RUN ${VIRTUAL_ENV}/bin/pip install numpy matplotlib scipy
+
+# ---------- SIGPYPROC3-------
+RUN ${VIRTUAL_ENV}/bin/pip install -U git+https://github.com/FRBs/sigpyproc3
+
+# ---------- PSRCHIVE (with Python bindings) ----------
+COPY arskyver/scripts/build_psrchive.sh /usr/local/bin/
+RUN bash /usr/local/bin/build_psrchive.sh
+
+# --------- DSPSR ----------
+COPY arskyver/scripts/build_dspsr.sh /usr/local/bin/
+RUN bash /usr/local/bin/build_dspsr.sh
+
+# ### PSRDADA
+RUN cd "${SOFTWARE_DIR}/src" && \
+    git clone https://git.code.sf.net/p/psrdada/code psrdada && \
+    cd psrdada && \
+    git checkout bf756866898686065562ac537376cf9d7d1b54ee && \
+    # Version from  Wed Feb 12 07:46:37 2020 +0200 \
+    export LDFLAGS=-fPIC && \
+    export CFLAGS=-fPIC && \
+    ./bootstrap && \
+    ./configure --prefix="${SOFTWARE_DIR}" \
+                --includedir="${SOFTWARE_DIR}/include/psrdada" \
+                --with-cuda-dir=/usr/local/cuda/ && \
+    make -j 8 && \
+    make install
+
+# ### PSRDADA_CPP  \
+RUN cd "${SOFTWARE_DIR}/src" && \
+    git clone https://gitlab.mpcdf.mpg.de/mpifr-bdg/psrdada_cpp.git && \
+    cd psrdada_cpp/ &&\
+    git checkout a3853de61ef56ab3cb3df23e954de24444dfe0e3 && \
+    cmake -S . -B build/ -DENABLE_CUDA=True \
+          -DCMAKE_INSTALL_PREFIX="${SOFTWARE_DIR}" \
+          -DARCH=native \
+          -DPSRDADA_INSTALL_DIR="${SOFTWARE_DIR}" \
+          -DPSRDADA_INCLUDE_DIR="${SOFTWARE_DIR}/include/psrdada" \
+          -DBUILD_SUBMODULES=OFF .. && \
+    make -C build/ -j8 && make -C build/ install
+
+# # ### SKYWEAVER
+WORKDIR "${SOFTWARE_DIR}/src/skyweaver"
+COPY . .
+RUN cmake -S . -B build/ -DARCH=native \
+    -DCMAKE_INSTALL_PREFIX="${SOFTWARE_DIR}" \
+    -DPSRDADACPP_INCLUDE_DIR="${SOFTWARE_DIR}/include/psrdada_cpp" \
+    -DSKYWEAVER_NANTENNAS=64 \
+    -DSKYWEAVER_NBEAMS=32 -DSKYWEAVER_NCHANS=64 -DSKYWEAVER_IB_SUBTRACTION=1 \
+    -DSKYWEAVER_CB_TSCRUNCH=1 -DSKYWEAVER_IB_TSCRUNCH=1 \
+    -DSKYWEAVER_CB_FSCRUNCH=1 -DSKYWEAVER_IB_FSCRUNCH=1 \
+    -DBUILD_SUBMODULES=0 -DENABLE_TESTING=0 -DENABLE_BENCHMARK=0 && \
+    make -C build/ -j 16 && make -C build/ install
+
+RUN cp ${SOFTWARE_DIR}/src/skyweaver/arskyver/arskyver.py ${SOFTWARE_DIR}/bin
+
+ENTRYPOINT ["arskyver.py"]
+CMD ["-h"]

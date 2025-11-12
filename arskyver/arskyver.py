@@ -190,6 +190,7 @@ class Beam(object):
         # fmt: off
         cmd = [
             "dspsr",
+            "-set", "state=Stokes",
             "-b", str(self.nbins),
             "-P",self.name + ".pred",
             "-D",self.DM,

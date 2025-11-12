@@ -13,6 +13,7 @@ import time
 from subprocess import Popen, PIPE, STDOUT, run
 import traceback
 
+
 def read_dada_header(dada_file):
     with open(dada_file, "rb") as f:
         header = f.read(4096)
@@ -40,7 +41,7 @@ class Beam(object):
         tscrunch,
         stokes_mode,
         subint_len,
-        nbins
+        nbins,
     ):
 
         self.parfile = parfile
@@ -88,8 +89,8 @@ class Beam(object):
 
         self.fBW_lo = (
             self.dada_header["OBS_FREQ"]
-            + 0.5 * self.dada_header["OBS_BW"] / int(self.dada_header["OBS_NCHAN"])
-            - self.dada_header["OBS_BW"] / 2.0
+            + self.dada_header["OBS_BW"] / int(self.dada_header["OBS_NCHAN"]) / 2
+            - self.dada_header["OBS_BW"] / 2
         )
 
         self.fBW_hi = self.fBW_lo + self.dada_header["OBS_BW"]
@@ -144,9 +145,10 @@ class Beam(object):
             self.delete_fil()
 
         print(
-            "SWFOLD: Writing",
+            "ARSKYVER: Writing",
             f"{self.cachedir}/{self.name}/{self.name}_{self.filcount:05d}.fil",
             self.nsamp,
+            flush=True,
         )
         self.write_fil()
         self.fold_fil()
@@ -176,7 +178,8 @@ class Beam(object):
         )
 
         FW = H.prep_outfile(
-            f"{self.cachedir}/{self.name}/{self.name}_{self.filcount:05d}.fil", rescale=False
+            f"{self.cachedir}/{self.name}/{self.name}_{self.filcount:05d}.fil",
+            rescale=False,
         )
 
         for f in range(len(self.data)):
@@ -195,7 +198,7 @@ class Beam(object):
         ]
         # fmt: on
 
-        print(f"SWFOLD: running {' '.join(cmd)}")
+        print(f"ARSKYVER: running {' '.join(cmd)}", flush=True)
         self.dspsr_proc = Popen(cmd)
 
     def delete_fil(self):
@@ -210,7 +213,7 @@ class Beam(object):
 
         # For some reason, psradd only takes the first set of predictors when combining the subint archives.
         # This set only spans 1 hour, so causes errors for later subints.
-        # Adding -E <parfile> re-applies the timing model when combining, to fix this problem. 
+        # Adding -E <parfile> re-applies the timing model when combining, to fix this problem.
         # fmt: off
         cmd = [
             "psradd",
@@ -219,7 +222,10 @@ class Beam(object):
         ]
         # fmt: on
 
-        print(f"SWFOLD: running {' '.join(cmd)} {self.cachedir}/{self.name}/{self.name}_?????.ar")
+        print(
+            f"ARSKYVER: running {' '.join(cmd)} {self.cachedir}/{self.name}/{self.name}_?????.ar",
+            flush=True,
+        )
 
         for ar in range(self.filcount):
             cmd.append(f"{self.cachedir}/{self.name}/{self.name}_{ar:05d}.ar")
@@ -242,7 +248,7 @@ class ArSkyVer(object):
         stokes_mode,
         subintlen,
         tscrunch,
-        nbins
+        nbins,
     ):
 
         self.outputdir = outputdir
@@ -319,7 +325,7 @@ class ArSkyVer(object):
                     tscrunch,
                     stokes_mode,
                     subintlen,
-                    nbins
+                    nbins,
                 )
             )
 
@@ -435,14 +441,14 @@ class ArSkyVer(object):
                         self.beams[b](fildat)
 
                 os.remove(tfb)
-                print(f"SWFOLD: Processed {tfb}")
+                print(f"ARSKYVER: Processed {tfb}", flush=True)
 
 
 if __name__ == "__main__":
 
     from optparse import OptionParser
 
-    desc = """Monitor a path for incoming tfb files, convert to per-beam filterbanks, and fold with DSPSR"""
+    desc = """Run skyweaver, monitoring the output path for new tfb files, convert these to per-beam filterbanks, and fold with DSPSR"""
 
     parser = OptionParser(usage=" %prog [options]", description=desc)
     parser.add_option(
@@ -488,10 +494,16 @@ if __name__ == "__main__":
         "-S", "--stokes_mode", type=str, default="IQUV", help="Stokes mode"
     )
     parser.add_option(
-        "-P", "--make_t2preds", action="store_true", default=False, help="Don't actually run the beamforming, just generate tempo2 predictors for DSPSR folding. These are required because otherwise the folding is massively slowed down by repeated tempo2 calls. This is not done automatically before beamforming, as we generally have many parallel beamforming jobs and race conditions could occur when moving t2pred.dat -> <beamname>.dat"
+        "-P",
+        "--make_t2preds",
+        action="store_true",
+        default=False,
+        help="Don't actually run the beamforming, just generate tempo2 predictors for DSPSR folding. These are required because otherwise the folding is massively slowed down by repeated tempo2 calls. This is not done automatically before beamforming, as we generally have many parallel beamforming jobs and race conditions could occur when moving t2pred.dat -> <beamname>.dat",
     )
     parser.add_option("-T", "--Tscrunch", type=int, help="Skyweaver Tscrunch factor")
-    parser.add_option("-b", "--nbins", type=int, default=256, help="Number of bins in folded profile")
+    parser.add_option(
+        "-b", "--nbins", type=int, default=256, help="Number of bins in folded profile"
+    )
 
     options, args = parser.parse_args()
 
@@ -513,9 +525,11 @@ if __name__ == "__main__":
 
     for b in range(len(f.beams)):
         if not os.path.exists(f.predfiles[b]):
-            print(f"Error: .pred file for beam {f.beamnames[b]} not found in {options.outputdir}.\nEnsure .par files exist there, with names matching those in {options.delay_file}.targets,\nand re-run with -P to generate .pred files.")
+            print(
+                f"Error: .pred file for beam {f.beamnames[b]} not found in {options.outputdir}.\nEnsure .par files exist there, with names matching those in {options.delay_file}.targets,\nand re-run with -P to generate .pred files."
+            )
             sys.exit(1)
-        
+
     try:
         f.beamform_and_fold()
     except:

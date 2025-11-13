@@ -379,6 +379,7 @@ class ArSkyVer(object):
             "--output-level", "6",
             "--statistics", "0",
             "--write-incoherent-beam", "0",
+            "--wait-for-space","0:30:50G"
         ]
         # fmt: on
 

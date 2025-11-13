@@ -392,26 +392,26 @@ class ArSkyVer(object):
         expected_obs_offset = 0
         while True:
 
-            if self.skyweaver_process.poll() is not None:
-                for beam in self.beams:
-                    beam.flush()
-
-                for beam in self.beams:
-                    beam.dspsr_proc.wait()
-                    if beam.dspsr_proc.returncode != 0:
-                        raise ValueError("Error occured when folding with DSPSR")
-                    beam.delete_fil()
-                    beam.psradd()
-
-                return self.skyweaver_process.returncode
-
             g = sorted(glob.glob(self.skyweaver_outputdir + "/*.tfb"))
 
             if len(g) == 0:
-                no_files_cnt += 1
-                if no_files_cnt % 10 == 0:
-                    print(f"No new files for {no_files_cnt} seconds")
-                time.sleep(1)
+                if self.skyweaver_process.poll() is not None:
+                    for beam in self.beams:
+                        beam.flush()
+
+                    for beam in self.beams:
+                        beam.dspsr_proc.wait()
+                        if beam.dspsr_proc.returncode != 0:
+                            raise ValueError("Error occured when folding with DSPSR")
+                        beam.delete_fil()
+                        beam.psradd()
+
+                    return self.skyweaver_process.returncode
+                else:
+                    no_files_cnt += 1
+                    if no_files_cnt % 10 == 0:
+                        print(f"No new files for {no_files_cnt} seconds")
+                    time.sleep(1)
             else:
                 no_files_cnt = 0
 

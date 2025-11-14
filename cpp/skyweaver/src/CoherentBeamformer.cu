@@ -30,8 +30,13 @@ __global__ void bf_ftpa_general_k(
                   "SKYWEAVER_CB_WARP_SIZE.");
     static_assert(SKYWEAVER_NANTENNAS % 4 == 0,
                   "Number of antennas must be a multiple of 4.");
+#ifndef SKYWEAVER_VISIBILITIES
     static_assert(SKYWEAVER_NPOL == 2,
                   "This kernel only works for dual polarisation data.");
+#else
+    static_assert(SKYWEAVER_NPOL == 1,
+                  "This kernel only works for polarisation-scrunched data.");
+#endif
 
     /**
      * Allocated shared memory to store beamforming weights and temporary space
@@ -132,13 +137,21 @@ __global__ void bf_ftpa_general_k(
                     // dp4a multiply add
                     dp4a(xx, weights.x, antennas.x);
                     dp4a(yy, weights.y, antennas.y);
+#ifndef SKYWEAVER_VISIBILITIES
                     dp4a(xy, weights.x, antennas.y);
                     dp4a(yx, weights.y, antennas.x);
+#endif
                 }
                 pol_voltage[pol_idx].x = (float)xx - (float)yy; // real
+#ifndef SKYWEAVER_VISIBILITIES
                 pol_voltage[pol_idx].y = (float)xy + (float)yx; // imag
+#endif
             }
+#ifndef SKYWEAVER_VISIBILITIES
             BfTraits::integrate_stokes(pol_voltage[0], pol_voltage[1], power);
+#else
+            BfTraits::integrate_visibilities(pol_voltage[0], power);
+#endif
         }
         __syncthreads();
     }

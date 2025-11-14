@@ -95,7 +95,10 @@ static_assert(SKYWEAVER_NBEAMS % 32 == 0,
 
 // These are fixed for MeerKAT F-engine data
 #define SKYWEAVER_NSAMPLES_PER_HEAP 256
-#define SKYWEAVER_NPOL              2
+
+#ifndef SKYWEAVER_NPOL
+    #define SKYWEAVER_NPOL 2
+#endif
 
 // A useful number to compute is the size of each AFTP in TAFTP input data
 //  Usually for A=64, N=64, T=256, P=2, this is 8192 bytes
@@ -112,7 +115,11 @@ static_assert(SKYWEAVER_NBEAMS % 32 == 0,
 // that the data do not need to be packetised and it is
 // preferable to output in a format more suitable for
 // downstream processing without network transfer.
-#define SKYWEAVER_CB_NTHREADS  1024
+#ifndef SKYWEAVER_VISIBILITIES
+    #define SKYWEAVER_CB_NTHREADS  1024
+#else
+    #define SKYWEAVER_CB_NTHREADS  256
+#endif
 #define SKYWEAVER_CB_WARP_SIZE 32
 #define SKYWEAVER_CB_NWARPS_PER_BLOCK \
     (SKYWEAVER_CB_NTHREADS / SKYWEAVER_CB_WARP_SIZE)

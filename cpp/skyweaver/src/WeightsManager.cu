@@ -13,6 +13,7 @@ namespace skyweaver
 namespace kernels
 {
 
+#ifndef SKYWEAVER_VISIBILITIES
 __global__ void
 generate_weights_k(float3 const* __restrict__ delay_models,
                    char2* __restrict__ weights,
@@ -29,7 +30,6 @@ generate_weights_k(float3 const* __restrict__ delay_models,
     // antenna, one beam, all frequencies and both pols Different blocks should
     // handle different beams (as antennas are on the inner dimension of the
     // output product)
-
     // Basics of this kernel:
     //
     //  gridDim.x is used for beams (there is a loop if you want to limit the
@@ -43,7 +43,6 @@ generate_weights_k(float3 const* __restrict__ delay_models,
     const int weights_per_beam      = nantennas;
     const int weights_per_channel   = weights_per_beam * nbeams;
     const int weights_per_time_step = weights_per_channel * nchans;
-
     double2 weight;
     char2 compressed_weight;
     // This isn't really needed as there will never be more than 64 antennas
@@ -85,6 +84,94 @@ generate_weights_k(float3 const* __restrict__ delay_models,
         }
     }
 }
+
+#else
+__global__ void
+generate_weights_k(float3 const* __restrict__ delay_models,
+                   char2* __restrict__ weights,
+                   double const* __restrict__ channel_frequencies,
+                   int nvisibilities,
+                   int nbeams,
+                   int nchans,
+                   double current_epoch,
+                   double delay_epoch,
+                   double tstep,
+                   int ntsteps)
+{
+    // for each loaded delay poly we can produce multiple epochs for one
+    // baseline, one beam, all frequencies and both pols Different blocks should
+    // handle different beams (as antennas are on the inner dimension of the
+    // output product)
+
+    // Basics of this kernel:
+    //
+    //  gridDim.x is used for beams (there is a loop if you want to limit the
+    //  grid size) gridDim.y is used for channels (there is a loop if you want
+    //  to limit the grid size) blockDim.x is used for baselines (there is a loop
+    //  if you want to limit the grid size)
+    //
+    //  Time steps are handled in a the inner loop.
+
+    //  Reads and writes are no longer coalesced, sorry :(
+
+    const int weights_per_beam = nvisibilities;
+    // Positive root from quadratic formula for Nvis = Nant * (Nant - 1) / 2
+    const int nantennas = (int) (-1 + sqrt(1 + 8 * (double) nvisibilities)) / 2;
+    const int weights_per_channel   = weights_per_beam * nbeams;
+    const int weights_per_time_step = weights_per_channel * nchans;
+
+    double2 weight;
+    char2 compressed_weight;
+    // This isn't really needed as there will never be more than 64 antennas
+    // However this makes this fucntion more flexible with smaller blocks
+    for(int chan_idx = blockIdx.y; chan_idx < nchans; chan_idx += gridDim.y) {
+        double frequency = channel_frequencies[chan_idx];
+        int chan_offset  = chan_idx * weights_per_channel; // correct
+
+        for(int beam_idx = blockIdx.x; beam_idx < nbeams;
+            beam_idx += gridDim.x) {
+            int beam_offset =
+                chan_offset + beam_idx * weights_per_beam; // correct
+
+            for(int antenna1_idx = threadIdx.x; antenna1_idx < nantennas;
+                antenna1_idx += blockDim.x) {
+                for(int antenna2_idx = antenna1_idx + 1;
+                    antenna2_idx < nantennas; antenna2_idx += 1) {
+                    float3 delay_model1 =
+                        delay_models[beam_idx * weights_per_beam + antenna1_idx]; // correct
+                    float3 delay_model2 =
+                        delay_models[beam_idx * weights_per_beam + antenna2_idx]; // correct
+
+                    double delay_offset1 = (double)delay_model1.y;
+                    double delay_rate1   = (double)delay_model1.z;
+                    double delay_offset2 = (double)delay_model2.y;
+                    double delay_rate2   = (double)delay_model2.z;
+
+                    int visibility_offset  = beam_offset + antenna1_idx * nantennas + antenna2_idx;
+                    for(int time_idx = threadIdx.y; time_idx < ntsteps;
+                        time_idx += blockDim.y) {
+                        // Calculates epoch offset
+                        double t = (current_epoch - delay_epoch) + time_idx * tstep;
+                        double phase1 = (t * delay_rate1 + delay_offset1) * frequency;
+                        double phase2 = (t * delay_rate2 + delay_offset2) * frequency;
+                        // This is possible as the magnitude of the weight is 1
+                        // If we ever have to implement scalar weightings, this
+                        // must change.
+                        sincos(TWOPI * (phase1 - phase2), &weight.y, &weight.x);
+                        compressed_weight.x = clamp<int8_t, int>(
+                            __double2int_rn(weight.x * 127.0 * delay_model1.x * delay_model2.x));
+                        compressed_weight.y = clamp<int8_t, int>(__double2int_rn(
+                                                                     -1.0 * weight.y * 127.0 * delay_model1.x * delay_model2.x));
+                        int output_idx =
+                            time_idx * weights_per_time_step + visibility_offset;
+                        weights[output_idx] = compressed_weight;
+                    }
+                }
+            }
+        }
+    }
+}
+#endif
 
 } // namespace kernels
 

@@ -254,6 +254,15 @@ struct IntegrateStokes {
 	}
 };
 
+struct IntegrateVisibilities {
+	template <int I, StokesParameter S, typename T>
+	static inline  __host__ __device__ void
+	apply(float2 const& p0, T& power)
+	{
+		AT(power, I) += p0.x;
+	}
+};
+
 struct IntegrateWeightedStokes {
 	template <int I, StokesParameter S, typename T>
 	static inline  __host__ __device__  void apply(float2 const& p0,
@@ -315,6 +324,12 @@ struct StokesTraits
 	using RawPowerType       =  typename stokes_storage_type<sizeof...(Stokes)>::RawPowerType;
 	using QuantisedPowerType =  typename stokes_storage_type<sizeof...(Stokes)>::QuantisedPowerType;
 	constexpr static const RawPowerType zero_power = RawPowerType{};
+
+	static inline __host__ __device__ void
+	integrate_visibilities(float2 const& p0,
+                           RawPowerType& power) {
+		Iterate<0, Stokes...>::template apply<IntegrateVisibilities>(p0, power);
+	}
 
 	static inline __host__ __device__ void
 	integrate_stokes(float2 const& p0,

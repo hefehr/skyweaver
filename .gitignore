@@ -26,3 +26,4 @@ CMakeCache.txt
 .nextflow
 *.bdm.db
 *.sif
+*~

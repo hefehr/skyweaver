@@ -183,6 +183,7 @@ void StatisticsCalculator::update_scalings(
                 << "Averaged standard deviation = " << avg_std;
             float const effective_nantennas = count / _config.npol();
 
+#ifndef SKYWEAVER_VISIBILITIES
             // CB OFFSET
             {
                 float scale = std::pow(weights_amp * avg_std *
@@ -205,7 +206,24 @@ void StatisticsCalculator::update_scalings(
                 BOOST_LOG_TRIVIAL(debug)
                     << "CB scaling = " << _cb_scaling_h[f_idx];
             }
+#else
+            // CB OFFSET
+            {
+                _cb_offsets_h[f_idx] = 0.0;
+            }
 
+            // CB SCALE
+            {
+                float scale = (weights_amp * avg_std
+                               * std::sqrt(effective_nantennas
+                                           * (effective_nantennas - 1)
+                                           / 2));
+
+                _cb_scaling_h[f_idx] = scale / _config.output_level();
+                BOOST_LOG_TRIVIAL(debug)
+                    << "CB scaling = " << _cb_scaling_h[f_idx];
+            }
+#endif
             // IB OFFSET
             {
                 float scale = std::pow(avg_std, 2);

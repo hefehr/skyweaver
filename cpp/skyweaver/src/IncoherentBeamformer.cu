@@ -29,7 +29,7 @@ __global__ void icbf_ftpa_general_k(
     // Sums over tscrunch and fscrunch
     // Total number of threads = N where N is a multiple of Nantennas
     // grid size = nchans/fscrunch, nsamples/tscrunch
-    static_assert(SKYWEAVER_NPOL == 2,
+    static_assert(SKYWEAVER_NPOL <= 2,
                   "icbf_ftpa_general_k only works with dual pol data");
 
     const int a   = SKYWEAVER_NANTENNAS;

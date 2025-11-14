@@ -9,7 +9,7 @@
 #include <iostream>
 #include <numeric>
 #include <sstream>
-
+#include <stdio.h>
 #define LOG2_SKYWEAVER_NSAMPLES_PER_HEAP 8
 
 namespace skyweaver
@@ -58,9 +58,9 @@ __global__ void calculate_statistics(char2 const* __restrict__ ftpa_voltages,
     // Will operate on FTPA data and calculate statistics for FPA
     const int channel_idx = blockIdx.x;
     const int pol_idx     = blockIdx.y;
-    const int antenna_idx = threadIdx.x;
+    const int antenna_idx = threadIdx.x + blockDim.x * blockIdx.z;
     const int npol        = gridDim.y;
-    const int nantennas   = blockDim.x;
+    const int nantennas   = blockDim.x * gridDim.z;
     const int tpa_size    = npol * nantennas * nsamples;
     const int offset =
         channel_idx * tpa_size + pol_idx * nantennas + antenna_idx;
@@ -116,8 +116,16 @@ void StatisticsCalculator::calculate_statistics(
     char2 const* ftpa_voltages_ptr =
         thrust::raw_pointer_cast(ftpa_voltages.data());
     Statistics* stats_ptr = thrust::raw_pointer_cast(_stats_d.data());
-    dim3 dimBlock(_stats_d.nantennas());
-    dim3 dimGrid(_stats_d.nchannels(), _stats_d.npol());
+
+#ifndef SKYWEAVER_VISIBILITIES
+    const int antennas_per_block = _stats_d.nantennas();
+    const int n_antenna_blocks = 1;
+#else
+    const int antennas_per_block = 32;
+    const int n_antenna_blocks = _stats_d.nantennas()/antennas_per_block;
+#endif
+    dim3 dimBlock(antennas_per_block);
+    dim3 dimGrid(_stats_d.nchannels(), _stats_d.npol(), n_antenna_blocks);
     kernel::calculate_statistics<<<dimGrid, dimBlock, 0, _stream>>>(
         ftpa_voltages_ptr,
         stats_ptr,

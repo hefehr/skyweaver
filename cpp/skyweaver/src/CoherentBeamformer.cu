@@ -170,13 +170,16 @@ __global__ void bf_ftpa_general_k(
                              output_sample_idx * gridDim.y + blockIdx.y;
     int const scloff_idx = beamset_idx * gridDim.y + blockIdx.y;
     float scale          = output_scale[scloff_idx];
-    typename BfTraits::RawPowerType ib_power = ib_powers[ib_power_idx];
-#if SKYWEAVER_IB_SUBTRACTION
+#ifdef SKYWEAVER_VISIBILITIES
+    typename BfTraits::RawPowerType power_fp32 =
+        BfTraits::rescale(power, 0.0f, scale);
+#elif SKYWEAVER_IB_SUBTRACTION
     /*
     Because we inflate the weights to have a magnitude of 127 to make sure
     that they can still represent many phases, we also need to account for
     this scaling factor in the incoherent beam.
     */
+    typename BfTraits::RawPowerType ib_power = ib_powers[ib_power_idx];
     typename BfTraits::RawPowerType power_fp32 =
         BfTraits::ib_subtract(power, ib_power, 16129.0f, scale);
 #else

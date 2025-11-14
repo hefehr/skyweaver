@@ -207,6 +207,8 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
     _ftpa_dedispersed.utc_offset(-1 * _dedisperser_config.filter_delay);
     for(unsigned int dm_idx = 0; dm_idx < _config.coherent_dms().size();
         ++dm_idx) {
+
+#ifndef SKYWEAVER_VISIBILITIES
         NVTX_RANGE_PUSH("Coherent dedispersion - all channels");
         _timer.start("coherent dedispersion");
         for(unsigned int freq_idx = 0; freq_idx < _config.nchans();
@@ -235,7 +237,9 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
                                          _processing_stream);
         _timer.stop("incoherent beamforming");
         NVTX_RANGE_POP();
-
+#else
+        _ftpa_dedispersed = _ftpa_post_transpose;
+#endif
         // BOOST_LOG_TRIVIAL(debug) << "peeking _tf_ib_raw";
         // peek(_tf_ib_raw);
 

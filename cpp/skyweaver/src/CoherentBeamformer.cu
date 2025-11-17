@@ -9,6 +9,86 @@ namespace skyweaver
 namespace kernels
 {
 
+#ifdef SKYWEAVER_VISIBILITIES
+template <typename BfTraits>
+__global__ void visbf_ftpa_general_k(
+    int2 const* __restrict__ ftv_visibilities,
+    int2 const* __restrict__ fbv_weights,
+    typename BfTraits::QuantisedPowerType* __restrict__ tfb_powers,
+    float const* __restrict__ output_scale,
+    int const* __restrict__ beamset_mapping)
+{
+    // Used to store the result of sum-reductions across warps
+    __shared__ int shared_vws[32];
+
+    int2 visibilities;
+    int2 weights;
+
+    const int nv = SKYWEAVER_NANTENNAS / 4;
+    const int vgidx = threadIdx.y * blockDim.x + threadIdx.x;
+
+    const int nb = gridDim.x;
+    const int nf = gridDim.y;
+    const int nt = gridDim.z;
+    const int bidx = blockIdx.x;
+    const int fidx = blockIdx.y;
+    const int tidx = blockIdx.z;
+
+    const int ftv_offset = fidx * nt * nv + tidx * nv + vgidx;
+    const int fbv_offset = fidx * nb * nv + bidx * nv + vgidx;
+
+    visibilities = int2_transpose(ftv_visibilities[ftv_offset]);
+    weights = int2_transpose(fbv_weights[fbv_offset]);
+
+    int xx = 0;
+    int yy = 0;
+
+    dp4a(xx, weights.x, visibilities.x);
+    dp4a(yy, weights.y, visibilities.y);
+
+    // R(ab) = R(a)R(b) - I(a)I(b)
+    xx -= yy;
+
+    // Sum over all threads in the warp
+    unsigned mask = 0xffffffff;
+    xx = __reduce_add_sync(mask, xx);
+
+    if (threadIdx.y == 0){
+        shared_vws[threadIdx.x] = 0;
+    }
+    __syncthreads();
+
+    if (threadIdx.x == 0){
+        shared_vws[threadIdx.y] = xx;
+    }
+    __syncthreads();
+
+    if (threadIdx.y == 0){
+
+        // This mask is hard-coded to 16 threads for 64 antennas == 32x16 padded visibilities
+        // The first reduce_add_sync summed over the first (32) axis, this sums over the second (16)
+        mask = 0x0000ffff;
+        xx = shared_vws[threadIdx.x];
+        xx = __reduce_add_sync(mask, xx);
+
+        if (threadIdx.x == 0){
+            int const output_idx = tidx * nf * nb + fidx * nb + bidx;
+            int const beamset_idx = beamset_mapping[bidx];
+            int const scloff_idx = beamset_idx * nf + fidx;
+
+            float scale = output_scale[scloff_idx];
+            typename BfTraits::RawPowerType power = BfTraits::zero_power;
+            BfTraits::integrate_visibilities((float) xx, power);
+
+            typename BfTraits::RawPowerType power_fp32 =
+                BfTraits::rescale(power, 0.0f, scale);
+
+            tfb_powers[output_idx] = BfTraits::clamp(power_fp32);
+        }
+    }
+}
+#else
+
 template <typename BfTraits>
 __global__ void bf_ftpa_general_k(
     int2 const* __restrict__ ftpa_voltages,
@@ -137,21 +217,13 @@ __global__ void bf_ftpa_general_k(
                     // dp4a multiply add
                     dp4a(xx, weights.x, antennas.x);
                     dp4a(yy, weights.y, antennas.y);
-#ifndef SKYWEAVER_VISIBILITIES
                     dp4a(xy, weights.x, antennas.y);
                     dp4a(yx, weights.y, antennas.x);
-#endif
                 }
                 pol_voltage[pol_idx].x = (float)xx - (float)yy; // real
-#ifndef SKYWEAVER_VISIBILITIES
                 pol_voltage[pol_idx].y = (float)xy + (float)yx; // imag
-#endif
             }
-#ifndef SKYWEAVER_VISIBILITIES
             BfTraits::integrate_stokes(pol_voltage[0], pol_voltage[1], power);
-#else
-            BfTraits::integrate_visibilities(pol_voltage[0], power);
-#endif
         }
         __syncthreads();
     }
@@ -170,10 +242,7 @@ __global__ void bf_ftpa_general_k(
                              output_sample_idx * gridDim.y + blockIdx.y;
     int const scloff_idx = beamset_idx * gridDim.y + blockIdx.y;
     float scale          = output_scale[scloff_idx];
-#ifdef SKYWEAVER_VISIBILITIES
-    typename BfTraits::RawPowerType power_fp32 =
-        BfTraits::rescale(power, 0.0f, scale);
-#elif SKYWEAVER_IB_SUBTRACTION
+#if SKYWEAVER_IB_SUBTRACTION
     /*
     Because we inflate the weights to have a magnitude of 127 to make sure
     that they can still represent many phases, we also need to account for
@@ -188,7 +257,7 @@ __global__ void bf_ftpa_general_k(
 #endif // SKYWEAVER_IB_SUBTRACTION
     tfb_powers[output_idx] = BfTraits::clamp(power_fp32);
 }
-
+#endif
 } // namespace kernels
 
 template <typename BfTraits>
@@ -254,10 +323,15 @@ void CoherentBeamformer<BfTraits>::beamform(
     if(weights.size() != expected_weights_size) {
         throw std::runtime_error("Unexpected size of weights vector");
     }
+#ifndef SKYWEAVER_VISIBILITIES
     dim3 grid(nsamples /
                   (SKYWEAVER_CB_NWARPS_PER_BLOCK * _config.cb_tscrunch()),
               _config.nchans() / _config.cb_fscrunch(),
               _config.nbeams() / SKYWEAVER_CB_WARP_SIZE);
+#else
+    dim3 grid(_config.nbeams(), _config.nchans(), nsamples);
+    dim3 block(SKYWEAVER_CB_WARP_SIZE, SKYWEAVER_NANTENNAS / 4 / SKYWEAVER_CB_WARP_SIZE, 1);
+#endif
     char2 const* ftpa_voltages_ptr = thrust::raw_pointer_cast(input.data());
     char2 const* fbpa_weights_ptr  = thrust::raw_pointer_cast(weights.data());
     typename BfTraits::QuantisedPowerType* tfb_powers_ptr =
@@ -270,6 +344,7 @@ void CoherentBeamformer<BfTraits>::beamform(
         thrust::raw_pointer_cast(ib_powers.data());
     int const* beamset_mapping_ptr =
         thrust::raw_pointer_cast(beamset_mapping.data());
+#ifndef SKYWEAVER_VISIBILITIES
     BOOST_LOG_TRIVIAL(debug) << "Executing beamforming kernel";
     kernels::bf_ftpa_general_k<BfTraits>
         <<<grid, SKYWEAVER_CB_NTHREADS, 0, stream>>>(
@@ -281,6 +356,16 @@ void CoherentBeamformer<BfTraits>::beamform(
             beamset_mapping_ptr,
             ib_powers_ptr,
             static_cast<int>(nsamples));
+#else
+    BOOST_LOG_TRIVIAL(debug) << "Executing vis-beamforming kernel";
+    kernels::visbf_ftpa_general_k<BfTraits>
+        <<<grid, block, 0, stream>>>(
+            (int2 const*)ftpa_voltages_ptr,
+            (int2 const*)fbpa_weights_ptr,
+            tfb_powers_ptr,
+            power_scaling_ptr,
+            beamset_mapping_ptr);
+#endif
     CUDA_ERROR_CHECK(cudaStreamSynchronize(stream));
     BOOST_LOG_TRIVIAL(debug) << "Beamforming kernel complete";
 }

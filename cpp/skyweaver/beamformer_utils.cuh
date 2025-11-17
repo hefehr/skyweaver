@@ -257,9 +257,9 @@ struct IntegrateStokes {
 struct IntegrateVisibilities {
 	template <int I, StokesParameter S, typename T>
 	static inline  __host__ __device__ void
-	apply(float2 const& p0, T& power)
+	apply(float const& p0, T& power)
 	{
-		AT(power, I) += p0.x;
+		AT(power, I) += p0;
 	}
 };
 
@@ -326,7 +326,7 @@ struct StokesTraits
 	constexpr static const RawPowerType zero_power = RawPowerType{};
 
 	static inline __host__ __device__ void
-	integrate_visibilities(float2 const& p0,
+	integrate_visibilities(float const& p0,
                            RawPowerType& power) {
 		Iterate<0, Stokes...>::template apply<IntegrateVisibilities>(p0, power);
 	}

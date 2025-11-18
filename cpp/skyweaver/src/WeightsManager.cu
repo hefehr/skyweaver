@@ -155,7 +155,7 @@ __global__ void
                                                                        - 4 * nantennas
                                                                        - 8 * vidx)));
 
-                const int a2idx = vidx + a1idx * (1 - nantennas) + a1idx * (a1idx + 1) / 2;
+                const int a2idx = vidx + a1idx * (1 - nantennas) + a1idx * (a1idx + 1) / 2 + 1;
 
                 float3 delay_model1 = shared_delays[a1idx];
                 double delay_offset1 = (double)delay_model1.y;

@@ -185,14 +185,6 @@ __global__ void
                     int output_idx =
                         time_idx * weights_per_time_step + visibility_offset;
 
-                    if (output_idx > nw)
-                    {
-                        printf("NW:  %d %d %d, %d %d %d, %d %d %d, %d\n",
-                               blockIdx.x, blockIdx.y, blockIdx.z,
-                               threadIdx.x, threadIdx.y, threadIdx.z,
-                               time_idx, weights_per_time_step,visibility_offset,nw);
-                    }
-
                     weights[output_idx] = compressed_weight;
                 }
             }
@@ -250,8 +242,8 @@ WeightsManager::weights(DelayVectorTypeD const& delays,
 #endif
     BOOST_LOG_TRIVIAL(debug) << "Launching weights generation kernel";
     kernels::generate_weights_k<<<grid, block, 0, _stream>>>(
-        thrust::raw_pointer_cast(delays.data()),delays.size(),
-        weights_ptr,_weights.size(),
+        thrust::raw_pointer_cast(delays.data()),
+        weights_ptr,
         frequencies_ptr,
         _config.nantennas(),
         _config.nbeams(),

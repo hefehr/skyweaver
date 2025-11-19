@@ -324,8 +324,7 @@ operator()(VoltageVectorTypeH const& taftp_on_host)
     _unix_timestamp =
         _header.utc_start + _utc_offset + // This UTC offset is comming from the
                                           // start-time offset for file reading
-        static_cast<long double>(_call_count * _sample_clock_tick_per_block) /
-            _header.sample_clock;
+        static_cast<long double>(_call_count * _config.gulp_length_samps()) * taftp_on_host.tsamp();
     process();
     CUDA_ERROR_CHECK(cudaStreamSynchronize(_processing_stream));
     CUDA_ERROR_CHECK(cudaStreamSynchronize(_d2h_copy_stream));

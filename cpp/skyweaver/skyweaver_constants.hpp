@@ -100,6 +100,16 @@ static_assert(SKYWEAVER_NBEAMS % 32 == 0,
     #define SKYWEAVER_NPOL 2
 #endif
 
+#ifndef SKYWEAVER_VISIBILITIES
+    // By default, assume we're operating on voltages
+    #define SKYWEAVER_VISIBILITIES 0
+    #define SKYWEAVER_VOLTAGES 1
+#elif SKYWEAVER_VISIBILITIES
+    #define SKYWEAVER_VOLTAGES 0
+#else
+    #define SKYWEAVER_VOLTAGES 1
+#endif
+
 // A useful number to compute is the size of each AFTP in TAFTP input data
 //  Usually for A=64, N=64, T=256, P=2, this is 8192 bytes
 #define SKYWEAVER_INPUT_NBITS sizeof(std::int8_t)
@@ -115,11 +125,7 @@ static_assert(SKYWEAVER_NBEAMS % 32 == 0,
 // that the data do not need to be packetised and it is
 // preferable to output in a format more suitable for
 // downstream processing without network transfer.
-#ifndef SKYWEAVER_VISIBILITIES
-    #define SKYWEAVER_CB_NTHREADS  1024
-#else
-    #define SKYWEAVER_CB_NTHREADS  32
-#endif
+#define SKYWEAVER_CB_NTHREADS  1024
 #define SKYWEAVER_CB_WARP_SIZE 32
 #define SKYWEAVER_CB_NWARPS_PER_BLOCK \
     (SKYWEAVER_CB_NTHREADS / SKYWEAVER_CB_WARP_SIZE)

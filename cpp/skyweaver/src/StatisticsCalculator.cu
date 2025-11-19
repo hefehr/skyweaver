@@ -117,7 +117,7 @@ void StatisticsCalculator::calculate_statistics(
         thrust::raw_pointer_cast(ftpa_voltages.data());
     Statistics* stats_ptr = thrust::raw_pointer_cast(_stats_d.data());
 
-#ifndef SKYWEAVER_VISIBILITIES
+#if SKYWEAVER_VOLTAGES
     const int antennas_per_block = _stats_d.nantennas();
     const int n_antenna_blocks = 1;
 #else
@@ -191,7 +191,7 @@ void StatisticsCalculator::update_scalings(
                 << "Averaged standard deviation = " << avg_std;
             float const effective_nantennas = count / _config.npol();
 
-#ifndef SKYWEAVER_VISIBILITIES
+#if SKYWEAVER_VOLTAGES
             // CB OFFSET
             {
                 float scale = std::pow(weights_amp * avg_std *

@@ -9,7 +9,7 @@ namespace skyweaver
 namespace kernels
 {
 
-#ifdef SKYWEAVER_VISIBILITIES
+#if SKYWEAVER_VISIBILITIES
 template <typename BfTraits>
 __global__ void visbf_ftpa_general_k(
     int2 const* __restrict__ ftv_visibilities,
@@ -18,6 +18,9 @@ __global__ void visbf_ftpa_general_k(
     float const* __restrict__ output_scale,
     int const* __restrict__ beamset_mapping)
 {
+    static_assert(SKYWEAVER_NPOL == 1,
+                  "This kernel only works for polarisation-scrunched data.");
+
     // Used to store the result of sum-reductions across warps
     __shared__ int shared_vws[32];
 
@@ -110,13 +113,8 @@ __global__ void bf_ftpa_general_k(
                   "SKYWEAVER_CB_WARP_SIZE.");
     static_assert(SKYWEAVER_NANTENNAS % 4 == 0,
                   "Number of antennas must be a multiple of 4.");
-#ifndef SKYWEAVER_VISIBILITIES
     static_assert(SKYWEAVER_NPOL == 2,
                   "This kernel only works for dual polarisation data.");
-#else
-    static_assert(SKYWEAVER_NPOL == 1,
-                  "This kernel only works for polarisation-scrunched data.");
-#endif
 
     /**
      * Allocated shared memory to store beamforming weights and temporary space
@@ -323,7 +321,7 @@ void CoherentBeamformer<BfTraits>::beamform(
     if(weights.size() != expected_weights_size) {
         throw std::runtime_error("Unexpected size of weights vector");
     }
-#ifndef SKYWEAVER_VISIBILITIES
+#if SKYWEAVER_VOLTAGES
     dim3 grid(nsamples /
                   (SKYWEAVER_CB_NWARPS_PER_BLOCK * _config.cb_tscrunch()),
               _config.nchans() / _config.cb_fscrunch(),
@@ -344,7 +342,7 @@ void CoherentBeamformer<BfTraits>::beamform(
         thrust::raw_pointer_cast(ib_powers.data());
     int const* beamset_mapping_ptr =
         thrust::raw_pointer_cast(beamset_mapping.data());
-#ifndef SKYWEAVER_VISIBILITIES
+#if SKYWEAVER_VOLTAGES
     BOOST_LOG_TRIVIAL(debug) << "Executing beamforming kernel";
     kernels::bf_ftpa_general_k<BfTraits>
         <<<grid, SKYWEAVER_CB_NTHREADS, 0, stream>>>(

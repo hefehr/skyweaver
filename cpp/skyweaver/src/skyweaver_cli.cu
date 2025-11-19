@@ -123,7 +123,7 @@ void run_pipeline(Pipeline& pipeline,
         << input_elements * sizeof(typename VoltageType::value_type)
         << " byte input buffer";
     double tsamp = header.obs_nchans / header.obs_bandwidth;
-#ifdef SKYWEAVER_VISIBILITIES
+#if SKYWEAVER_VISIBILITIES
     int tscrunch = std::round(header.tsamp * 1e-6/ tsamp);
     BOOST_LOG_TRIVIAL(info) << "Assuming visibilities have been T-scrunched by a factor of " << tscrunch;
     tsamp *= tscrunch;

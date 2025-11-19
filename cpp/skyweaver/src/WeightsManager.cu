@@ -15,7 +15,7 @@ namespace skyweaver
 namespace kernels
 {
 
-#ifndef SKYWEAVER_VISIBILITIES
+#if SKYWEAVER_VOLTAGES
 __global__ void
 generate_weights_k(float3 const* __restrict__ delay_models,
                    char2* __restrict__ weights,
@@ -235,7 +235,7 @@ WeightsManager::weights(DelayVectorTypeD const& delays,
         thrust::raw_pointer_cast(_channel_frequencies.data());
     dim3 grid(_config.nbeams(), _channel_frequencies.size(), 1);
 
-#ifndef SKYWEAVER_VISIBILITIES
+#if SKYWEAVER_VOLTAGES
     dim3 block(32, 32, 1);
 #else
     dim3 block(64, 4, 1);

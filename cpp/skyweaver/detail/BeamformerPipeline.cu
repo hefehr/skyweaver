@@ -208,7 +208,7 @@ void BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
     for(unsigned int dm_idx = 0; dm_idx < _config.coherent_dms().size();
         ++dm_idx) {
 
-#ifndef SKYWEAVER_VISIBILITIES
+#if SKYWEAVER_VOLTAGES
         NVTX_RANGE_PUSH("Coherent dedispersion - all channels");
         _timer.start("coherent dedispersion");
         for(unsigned int freq_idx = 0; freq_idx < _config.nchans();

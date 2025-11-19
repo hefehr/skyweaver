@@ -9,7 +9,7 @@
 #include <iostream>
 #include <numeric>
 #include <sstream>
-#include <stdio.h>
+
 #define LOG2_SKYWEAVER_NSAMPLES_PER_HEAP 8
 
 namespace skyweaver

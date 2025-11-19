@@ -6,8 +6,6 @@
 
 #include <thrust/device_vector.h>
 
-#include <stdio.h>
-
 #define TWOPI 6.283185307179586
 
 namespace skyweaver
@@ -32,6 +30,7 @@ generate_weights_k(float3 const* __restrict__ delay_models,
     // antenna, one beam, all frequencies and both pols Different blocks should
     // handle different beams (as antennas are on the inner dimension of the
     // output product)
+
     // Basics of this kernel:
     //
     //  gridDim.x is used for beams (there is a loop if you want to limit the
@@ -45,6 +44,7 @@ generate_weights_k(float3 const* __restrict__ delay_models,
     const int weights_per_beam      = nantennas;
     const int weights_per_channel   = weights_per_beam * nbeams;
     const int weights_per_time_step = weights_per_channel * nchans;
+
     double2 weight;
     char2 compressed_weight;
     // This isn't really needed as there will never be more than 64 antennas
@@ -252,7 +252,6 @@ WeightsManager::weights(DelayVectorTypeD const& delays,
         delay_epoch,
         0.0,
         1);
-
     CUDA_ERROR_CHECK(cudaStreamSynchronize(_stream));
     BOOST_LOG_TRIVIAL(debug) << "Weights successfully generated";
     return _weights;

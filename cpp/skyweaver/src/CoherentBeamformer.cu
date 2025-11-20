@@ -10,7 +10,10 @@ namespace kernels
 {
 
 #if SKYWEAVER_VISIBILITIES
-template <typename BfTraits>
+
+#define NT_PER_BLOCK 16
+
+    template <typename BfTraits>
 __global__ void visbf_ftpa_general_k(
     int2 const* __restrict__ ftv_visibilities,
     int2 const* __restrict__ fbv_weights,
@@ -21,72 +24,98 @@ __global__ void visbf_ftpa_general_k(
     static_assert(SKYWEAVER_NPOL == 1,
                   "This kernel only works for polarisation-scrunched data.");
 
-    // Used to store the result of sum-reductions across warps
-    __shared__ int shared_vws[32];
+    __shared__ int shared_powers[NT_PER_BLOCK][SKYWEAVER_CB_WARP_SIZE];
+    shared_powers[threadIdx.y][threadIdx.x] = 0;
 
-    int2 visibilities;
+    // Dynamic allocation necessary because this is over the 48kB limit for static allocation.
+    extern __shared__ int2 shared_visibilities[];
+
+    const int nvg = SKYWEAVER_NANTENNAS / 4;
+
+    const int nf = gridDim.x;
+    const int fidx = blockIdx.x;
+
+    const int nt = gridDim.y * NT_PER_BLOCK;
+    const int time_block_idx = blockIdx.y;
+
+    // Mask for warp sum reduction = all lanes
+    const unsigned mask = 0xffffffff;
+    int tidx, bidx, fb_offset;
+
+    // Load all visibilities for NT_PER_BLOCK time samples into shared memory
+    for (int vgidx = threadIdx.y * blockDim.x + threadIdx.x;
+         vgidx < nvg;
+         vgidx += blockDim.x * blockDim.y)
+    {
+        for (tidx = 0; tidx < NT_PER_BLOCK; tidx++)
+        {
+            int ftv_offset = fidx * nt * nvg + (time_block_idx * NT_PER_BLOCK + tidx) * nvg + vgidx;
+            shared_visibilities[tidx * nvg + vgidx] = int2_transpose(ftv_visibilities[ftv_offset]);
+        }
+    }
+    __syncthreads();
+
+    int xx;
+    int yy;
+
     int2 weights;
 
-    const int nv = SKYWEAVER_NANTENNAS / 4;
-    const int vgidx = threadIdx.y * blockDim.x + threadIdx.x;
+    // Each warp sums all visibilities for one beam
+    int output_beam_group = 0;
+    for (int beam_group_idx = 0; beam_group_idx < SKYWEAVER_NBEAMS; beam_group_idx += blockDim.y)
+    {
+        bidx = beam_group_idx + threadIdx.y;
+        fb_offset = fidx * SKYWEAVER_NBEAMS * nvg + bidx * nvg;
 
-    const int nb = gridDim.x;
-    const int nf = gridDim.y;
-    const int nt = gridDim.z;
-    const int bidx = blockIdx.x;
-    const int fidx = blockIdx.y;
-    const int tidx = blockIdx.z;
+        for (int vgidx = threadIdx.x; vgidx < SKYWEAVER_NANTENNAS / 4; vgidx += blockDim.x)
+        {
+            weights = int2_transpose(fbv_weights[fb_offset + vgidx]);
 
-    const int ftv_offset = fidx * nt * nv + tidx * nv + vgidx;
-    const int fbv_offset = fidx * nb * nv + bidx * nv + vgidx;
+            for (tidx = 0; tidx < NT_PER_BLOCK; tidx++)
+            {
+                xx = 0;
+                yy = 0;
 
-    visibilities = int2_transpose(ftv_visibilities[ftv_offset]);
-    weights = int2_transpose(fbv_weights[fbv_offset]);
+                dp4a(xx, weights.x, shared_visibilities[tidx * nvg + vgidx].x);
+                dp4a(yy, weights.y, shared_visibilities[tidx * nvg + vgidx].y);
 
-    int xx = 0;
-    int yy = 0;
+                // R(ab) = R(a)R(b) - I(a)I(b)
+                xx -= yy;
 
-    dp4a(xx, weights.x, visibilities.x);
-    dp4a(yy, weights.y, visibilities.y);
+                // Sum over all threads in the warp
+                xx = __reduce_add_sync(mask, xx);
+                if (threadIdx.x == 0){
+                    shared_powers[tidx][bidx % 32] += xx;
+                }
+            }
+        }
 
-    // R(ab) = R(a)R(b) - I(a)I(b)
-    xx -= yy;
+        // Once a group of 32 beams have been computed, do a coalesced write to global memory
+        if ((beam_group_idx + NT_PER_BLOCK) % SKYWEAVER_CB_WARP_SIZE == 0)
+        {
+            __syncthreads();
 
-    // Sum over all threads in the warp
-    unsigned mask = 0xffffffff;
-    xx = __reduce_add_sync(mask, xx);
+            tidx = threadIdx.y;
+            bidx = threadIdx.x;
 
-    if (threadIdx.y == 0){
-        shared_vws[threadIdx.x] = 0;
-    }
-    __syncthreads();
+            int const output_idx = ((time_block_idx * NT_PER_BLOCK + tidx) * nf * SKYWEAVER_NBEAMS
+                                    + fidx * SKYWEAVER_NBEAMS
+                                    + output_beam_group
+                                    + bidx);
 
-    if (threadIdx.x == 0){
-        shared_vws[threadIdx.y] = xx;
-    }
-    __syncthreads();
-
-    if (threadIdx.y == 0){
-
-        // This mask is hard-coded to 16 threads for 64 antennas == 32x16 padded visibilities
-        // The first reduce_add_sync summed over the first (32) axis, this sums over the second (16)
-        mask = 0x0000ffff;
-        xx = shared_vws[threadIdx.x];
-        xx = __reduce_add_sync(mask, xx);
-
-        if (threadIdx.x == 0){
-            int const output_idx = tidx * nf * nb + fidx * nb + bidx;
-            int const beamset_idx = beamset_mapping[bidx];
+            int const beamset_idx = beamset_mapping[output_beam_group + bidx];
             int const scloff_idx = beamset_idx * nf + fidx;
 
             float scale = output_scale[scloff_idx];
             typename BfTraits::RawPowerType power = BfTraits::zero_power;
-            BfTraits::integrate_visibilities((float) xx, power);
+            BfTraits::integrate_visibilities((float) shared_powers[tidx][bidx], power);
 
             typename BfTraits::RawPowerType power_fp32 =
                 BfTraits::rescale(power, 0.0f, scale);
 
             tfb_powers[output_idx] = BfTraits::clamp(power_fp32);
+            output_beam_group += SKYWEAVER_CB_WARP_SIZE;
+            shared_powers[tidx][bidx] = 0;
         }
     }
 }
@@ -327,8 +356,8 @@ void CoherentBeamformer<BfTraits>::beamform(
               _config.nchans() / _config.cb_fscrunch(),
               _config.nbeams() / SKYWEAVER_CB_WARP_SIZE);
 #else
-    dim3 grid(_config.nbeams(), _config.nchans(), nsamples);
-    dim3 block(SKYWEAVER_CB_WARP_SIZE, SKYWEAVER_NANTENNAS / 4 / SKYWEAVER_CB_WARP_SIZE, 1);
+    dim3 grid(_config.nchans(), nsamples / NT_PER_BLOCK, 1);
+    dim3 block(SKYWEAVER_CB_WARP_SIZE, NT_PER_BLOCK, 1);
 #endif
     char2 const* ftpa_voltages_ptr = thrust::raw_pointer_cast(input.data());
     char2 const* fbpa_weights_ptr  = thrust::raw_pointer_cast(weights.data());
@@ -355,9 +384,17 @@ void CoherentBeamformer<BfTraits>::beamform(
             ib_powers_ptr,
             static_cast<int>(nsamples));
 #else
-    BOOST_LOG_TRIVIAL(debug) << "Executing vis-beamforming kernel";
+    int maxbytes = NT_PER_BLOCK * SKYWEAVER_NANTENNAS / 4 * sizeof(int2);
+
+    BOOST_LOG_TRIVIAL(debug) << "Setting max shared memory for visibility beamforming kernel: " << maxbytes;
+
+    CUDA_ERROR_CHECK(cudaFuncSetAttribute(kernels::visbf_ftpa_general_k<BfTraits>,
+                                          cudaFuncAttributeMaxDynamicSharedMemorySize,
+                                          maxbytes));
+
+    BOOST_LOG_TRIVIAL(debug) << "Executing visbeamforming kernel";
     kernels::visbf_ftpa_general_k<BfTraits>
-        <<<grid, block, 0, stream>>>(
+        <<<grid, block, maxbytes, stream>>>(
             (int2 const*)ftpa_voltages_ptr,
             (int2 const*)fbpa_weights_ptr,
             tfb_powers_ptr,

@@ -65,6 +65,9 @@ BeamformerPipeline<CBHandler, IBHandler, StatsHandler, BeamformerTraits>::
     }
     // Calculate the timestamp step per block (raw baseband tick rate)
     _sample_clock_tick_per_block = 2 * _config.total_nchans() * nsamples;
+#if SKYWEAVER_VISIBILITIES
+    _sample_clock_tick_per_block *= _config.vis_tscrunch();
+#endif
     BOOST_LOG_TRIVIAL(debug)
         << "Sample clock tick per block: " << _sample_clock_tick_per_block;
 
@@ -324,7 +327,8 @@ operator()(VoltageVectorTypeH const& taftp_on_host)
     _unix_timestamp =
         _header.utc_start + _utc_offset + // This UTC offset is comming from the
                                           // start-time offset for file reading
-        static_cast<long double>(_call_count * _config.gulp_length_samps()) * taftp_on_host.tsamp();
+        static_cast<long double>(_call_count * _sample_clock_tick_per_block) /
+            _header.sample_clock;
     process();
     CUDA_ERROR_CHECK(cudaStreamSynchronize(_processing_stream));
     CUDA_ERROR_CHECK(cudaStreamSynchronize(_d2h_copy_stream));

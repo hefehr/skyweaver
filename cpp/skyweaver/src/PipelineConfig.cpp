@@ -18,6 +18,9 @@ PipelineConfig::PipelineConfig()
       _stokes_mode("I"), _output_level(24.0f),
       _output_statistics(true), _output_incoherent_beam(true),
       _nbeams_per_file(SKYWEAVER_NBEAMS),
+#if SKYWEAVER_VISIBILITIES
+      _vis_tscrunch(1),
+#endif
       _pre_write_config({0, {false, 0, 0}})
 {
 }
@@ -333,4 +336,16 @@ void PipelineConfig::nbeams_per_file(std::size_t nbeams_per_file)
 {
     _nbeams_per_file = nbeams_per_file;
 }
+
+#if SKYWEAVER_VISIBILITIES
+int PipelineConfig::vis_tscrunch() const
+{
+    return _vis_tscrunch;
+}
+
+void PipelineConfig::vis_tscrunch(int vis_tscrunch)
+{
+    _vis_tscrunch = vis_tscrunch;
+}
+#endif
 } // namespace skyweaver

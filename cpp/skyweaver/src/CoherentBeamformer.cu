@@ -23,6 +23,10 @@ __global__ void visbf_ftpa_general_k(
 {
     static_assert(SKYWEAVER_NPOL == 1,
                   "This kernel only works for polarisation-scrunched data.");
+    static_assert(SKYWEAVER_CB_TSCRUNCH == 1,
+                  "T-scrunching is not yet implemented for visibility beamforming.");
+    static_assert(SKYWEAVER_CB_FSCRUNCH == 1,
+                  "F-scrunching is not yet implemented for visibility beamforming.");
 
     __shared__ int shared_powers[NT_PER_BLOCK][SKYWEAVER_CB_WARP_SIZE];
     shared_powers[threadIdx.y][threadIdx.x] = 0;

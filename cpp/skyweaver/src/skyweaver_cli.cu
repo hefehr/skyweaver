@@ -124,9 +124,7 @@ void run_pipeline(Pipeline& pipeline,
         << " byte input buffer";
     double tsamp = header.obs_nchans / header.obs_bandwidth;
 #if SKYWEAVER_VISIBILITIES
-    int tscrunch = std::round(header.tsamp * 1e-6/ tsamp);
-    BOOST_LOG_TRIVIAL(info) << "Assuming visibilities have been T-scrunched by a factor of " << tscrunch;
-    tsamp *= tscrunch;
+    tsamp *= config.vis_tscrunch();
 #endif
     NVTX_RANGE_PUSH("Input buffer initialisation");
     std::unique_ptr<VoltageType> taftp_input_voltage_a =

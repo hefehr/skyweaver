@@ -38,6 +38,9 @@ void IncoherentDedisperser::prepare()
     std::size_t nchans = _config.channel_frequencies().size();
     double chbw        = _config.bandwidth() / _config.nchans();
     double tsamp       = _config.cb_tscrunch() / chbw;
+#if SKYWEAVER_VISIBILITIES
+    tsamp *= _config.vis_tscrunch();
+#endif
     for(int dm_idx = 0; dm_idx < _dms.size(); ++dm_idx) {
         std::transform(_config.channel_frequencies().begin(),
                        _config.channel_frequencies().end(),

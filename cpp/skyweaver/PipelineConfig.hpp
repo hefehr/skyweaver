@@ -375,6 +375,11 @@ class PipelineConfig
         return SKYWEAVER_NSAMPLES_PER_HEAP;
     }
 
+#if SKYWEAVER_VISIBILITIES
+    int vis_tscrunch() const;
+    void vis_tscrunch(int);
+#endif
+
   private:
     std::size_t convertMemorySize(const std::string& str) const;
     void calculate_channel_frequencies() const;
@@ -408,6 +413,9 @@ class PipelineConfig
     mutable std::vector<double> _channel_frequencies;
     std::size_t _nbeams_per_file;
     PreWriteConfig _pre_write_config;
+#if SKYWEAVER_VISIBILITIES
+    int _vis_tscrunch;
+#endif
 };
 
 } // namespace skyweaver

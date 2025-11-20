@@ -108,6 +108,13 @@ void update_config(PipelineConfig& config, ObservationHeader const& header)
     config.bandwidth(header.bandwidth);
     config.centre_frequency(header.frequency);
     // TO DO: might need to add other variables in the future.
+
+#if SKYWEAVER_VISIBILITIES
+    double tsamp = header.obs_nchans / header.obs_bandwidth;
+    int vis_tscrunch = std::round(header.tsamp * 1e-6 / tsamp);
+    BOOST_LOG_TRIVIAL(info) << "Assuming visibilities have been T-scrunched by a factor of " << vis_tscrunch;
+    config.vis_tscrunch(vis_tscrunch);
+#endif
 }
 
 bool are_headers_similar(ObservationHeader const& header1,

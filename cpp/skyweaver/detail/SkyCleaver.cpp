@@ -618,6 +618,30 @@ void skyweaver::SkyCleaver<InputVectorType, OutputVectorType>::cleave()
 {
     BOOST_LOG_NAMED_SCOPE("SkyCleaver::cleave")
 
+    const std::size_t nbridges    = _config.nbridges();
+    const std::size_t ndms        = _config.ndms();
+    const std::size_t nbeams      = _config.nbeams();
+    const std::size_t nstokes_out = _config.out_stokes().size();
+    const std::size_t nstokes_in  = _config.stokes_mode().size();
+    const std::size_t sample_stride = ndms * nbeams * nstokes_in;
+
+    // The bridge data is stored in a map to support frequency-based setup and
+    // lookup. Resolve it to raw pointers once so that the hot sample loop does
+    // not traverse map nodes or smart pointers for every output byte. Reverse
+    // iteration preserves the existing descending frequency output order.
+    using InputValueType = typename InputVectorType::value_type;
+    std::vector<const InputValueType*> ordered_bridge_data;
+    ordered_bridge_data.reserve(_bridge_data.size());
+    for(auto bridge_it = _bridge_data.rbegin();
+        bridge_it != _bridge_data.rend();
+        ++bridge_it) {
+        ordered_bridge_data.push_back(
+            thrust::raw_pointer_cast(bridge_it->second->data()));
+    }
+
+    const auto& beam_data = _beam_data;
+    const auto& stokes_positions = _config.stokes_positions();
+
     for(std::size_t nsamples_read = 0; nsamples_read < _nsamples_to_read;
         nsamples_read += _config.nsamples_per_block()) {
         std::size_t gulp_samples =
@@ -635,73 +659,69 @@ void skyweaver::SkyCleaver<InputVectorType, OutputVectorType>::cleave()
         _timer.start("skyweaver::process_data");
         omp_set_num_threads(_config.nthreads());
 
-        std::size_t nbridges    = _config.nbridges();
-        std::size_t ndms        = _config.ndms();
-        std::size_t nbeams      = _config.nbeams();
-        std::size_t nstokes_out = _config.out_stokes().size();
-        std::size_t nstokes_in  = _config.stokes_mode().size();
-
 #pragma omp parallel for schedule(static) collapse(3)
         for(std::size_t istokes = 0; istokes < nstokes_out; istokes++) {
             for(std::size_t ibeam = 0; ibeam < nbeams; ibeam++) {
                 for(std::size_t idm = 0; idm < ndms;
                     idm++) { // cannot separate loops, so do checks later
 
-                    if(_beam_data.find(istokes) == _beam_data.end()) {
+                    const auto stokes_it = beam_data.find(istokes);
+                    if(stokes_it == beam_data.end()) {
                         continue;
                     }
-                    if(_beam_data[istokes].find(idm) ==
-                       _beam_data[istokes].end()) {
+                    const auto dm_it = stokes_it->second.find(idm);
+                    if(dm_it == stokes_it->second.end()) {
                         continue;
                     }
-                    if(_beam_data[istokes][idm].find(ibeam) ==
-                       _beam_data[istokes][idm].end()) {
+                    const auto beam_it = dm_it->second.find(ibeam);
+                    if(beam_it == dm_it->second.end()) {
                         continue;
                     }
 
+                    auto* output_data = thrust::raw_pointer_cast(
+                        beam_it->second->data());
+                    const auto& selected_stokes = stokes_positions[istokes];
+                    const std::size_t beam_dm_offset =
+                        idm * nbeams * nstokes_in + ibeam * nstokes_in;
 
-                    const std::vector<std::size_t> stokes_positions =
-                        _config.stokes_positions()[istokes];
-                
 #pragma omp simd
                     for(std::size_t isample = 0; isample < gulp_samples;
                         isample++) {
                         const std::size_t out_offset = isample * nbridges;
+                        const std::size_t sample_offset =
+                            isample * sample_stride + beam_dm_offset;
 
-                        // This is stupid but preferred over a more elegant solution that is not fast, this can be easily vectorised
-                        if(stokes_positions.size() == 1) {
+                        // A single Stokes component can be converted directly;
+                        // derived components such as L combine multiple inputs.
+                        if(selected_stokes.size() == 1) {
                             const std::size_t base_index =
-                            isample * ndms * nbeams * nstokes_in +
-                            idm * nbeams * nstokes_in + ibeam * nstokes_in +
-                            stokes_positions[0];
- 
-                            std::size_t ifreq            = 0;
-                            for(const auto& [freq, ifreq_data]:
-                            _bridge_data) { // for each frequency
-                            _beam_data[istokes][idm][ibeam]->at(
-                                out_offset + nbridges - 1 - ifreq) =
-                                clamp<uint8_t>(127 +
-                                               ifreq_data->at(base_index));
-                            ++ifreq;
+                                sample_offset + selected_stokes[0];
+
+                            for(std::size_t ifreq = 0;
+                                ifreq < ordered_bridge_data.size();
+                                ++ifreq) {
+                                output_data[out_offset + ifreq] =
+                                    clamp<uint8_t>(
+                                        127 + ordered_bridge_data[ifreq]
+                                                             [base_index]);
                             }
-                        }
-                        else{
-                            std::size_t ifreq            = 0;
-                            for(const auto& [freq, ifreq_data]: _bridge_data) { 
+                        } else {
+                            for(std::size_t ifreq = 0;
+                                ifreq < ordered_bridge_data.size();
+                                ++ifreq) {
                                 float value = 0;
-                                for(int stokes_position=0; stokes_position<stokes_positions.size(); stokes_position++) {
+                                for(std::size_t stokes_position = 0;
+                                    stokes_position < selected_stokes.size();
+                                    ++stokes_position) {
                                     const std::size_t base_index =
-                                        isample * ndms * nbeams * nstokes_in +
-                                        idm * nbeams * nstokes_in + ibeam * nstokes_in +
-                                        stokes_positions[stokes_position];
-                                    value += (ifreq_data->at(base_index) * ifreq_data->at(base_index));
+                                        sample_offset +
+                                        selected_stokes[stokes_position];
+                                    const auto input_value =
+                                        ordered_bridge_data[ifreq][base_index];
+                                    value += input_value * input_value;
                                 }
-                                // for each frequency
-                                _beam_data[istokes][idm][ibeam]->at(
-                                    out_offset + nbridges - 1 - ifreq) =
-                                    clamp<uint8_t>(127 +
-                                                sqrt(value));
-                                ++ifreq;
+                                output_data[out_offset + ifreq] =
+                                    clamp<uint8_t>(127 + sqrt(value));
                             }
                         }
 

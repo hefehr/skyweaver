@@ -103,7 +103,7 @@ class SkyCleaverConfig
     std::vector<int> required_beams() const { return _required_beams; }
     std::vector<double> required_dms() const { return _required_dms; }
     std::string out_stokes() const { return _out_stokes; }
-    std::vector<std::vector<std::size_t>> stokes_positions() const
+    const std::vector<std::vector<std::size_t>>& stokes_positions() const
     {
         return _stokes_positions;
     }
